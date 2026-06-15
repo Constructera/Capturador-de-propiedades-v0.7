@@ -1,0 +1,16 @@
+{
+  "name": "Capturador de propiedades — Hauser",
+  "short_name": "Capturador",
+  "description": "Captura de propiedades inmobiliarias para Hauser / Inmobitera",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#2e6f40",
+  "lang": "es-MX",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
