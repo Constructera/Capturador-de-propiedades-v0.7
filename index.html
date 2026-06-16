@@ -573,6 +573,23 @@
   </div>
 
   <div class="cfg-block">
+    <div class="field-top" style="margin-bottom:10px"><label>Sonidos</label></div>
+    <div class="field">
+      <div class="field-top">
+        <label style="font-weight:400;font-size:.9rem">Efectos de sonido</label>
+        <button type="button" class="btn chip-sm" id="cfg_snd_toggle">🔊 Activados</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-top"><label style="font-weight:400;font-size:.9rem">Volumen</label><span id="cfg_snd_vol_val" style="font-size:.82rem;color:var(--text-soft)">60%</span></div>
+      <input type="range" id="cfg_snd_vol" min="0" max="100" value="60" step="5" style="margin-top:8px">
+    </div>
+    <div class="btn-row" style="margin-top:8px">
+      <button type="button" class="btn chip-sm" id="cfg_snd_test">▶ Probar sonido</button>
+    </div>
+  </div>
+
+  <div class="cfg-block">
     <div class="field"><div class="field-top"><label>Endpoint del backend (Apps Script / Worker)</label></div>
       <input type="url" id="cfg_endpoint" placeholder="https://script.google.com/macros/s/…/exec"></div>
     <div class="hint">Cuando lo configures, la app podrá leer zonas reales, sincronizar historial y crear carpetas de Drive. Vacío = todo funciona local + dentro de Claude.</div>

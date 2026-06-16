@@ -163,6 +163,13 @@ function updateTimerUI(){
   else if(timerRemaining>300){ts='happy';}
   else if(timerRemaining>120){ts='focused';}
   else{ts='urgent';}
+  // Sonidos en transiciones de estado del temporizador
+  if(timerState==='running'){
+    if(ts==='focused'&&_timerAudioTs==='happy')sndStep();
+    else if(ts==='urgent'&&_timerAudioTs==='focused')sndUrgent();
+  }
+  if(timerState==='expired'&&_timerAudioTs!=='expired')sndTimeout();
+  if(ts!=='ready')_timerAudioTs=ts;else _timerAudioTs='ready';
   var w=$('timerWidget');
   if(w){
     w.className='timer-widget'+(timerState!=='ready'?' running':'');
@@ -182,6 +189,7 @@ function startTimer(){
   if(timerState==='running')return;
   timerState='running';timerRemaining=timerLimit;timerElapsed=0;
   timerStartedAt=Date.now();timerWasPaused=false;timerPauseCount=0;
+  _timerAudioTs='happy';sndStep();
   var rw=$('timerRingWrap');if(rw)rw.style.display='flex';
   var rc=$('timerRunningCtrl');if(rc)rc.style.display='';
   var rd=$('timerReadyCtrl');if(rd)rd.style.display='none';
@@ -221,6 +229,7 @@ function resetTimerToReady(){
   var w=$('timerWidget');if(w)w.className='timer-widget';
   var d=$('timerDisplay');if(d)d.textContent=timerFmt(timerLimit);
   setTimerArc(1,1);
+  _timerAudioTs='ready';
   setMascotState('idle');
 }
 // inicializar display y chip según preferencia guardada
@@ -247,6 +256,65 @@ $('btnIniciarCaptura').addEventListener('click',function(){
 $('btnPausarTimer').addEventListener('click',function(){
   if(timerState==='running')pauseTimer();
   else if(timerState==='paused')resumeTimer();
+});
+
+/* ===================== MÓDULO DE SONIDOS — FASE 4 ===================== */
+var sndCfg=load('cfg_sounds',{on:true,vol:0.6});
+var _audioCtx=null;
+var _timerAudioTs='ready';
+
+function _getAudioCtx(){
+  if(!_audioCtx){try{_audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}}
+  if(_audioCtx.state==='suspended')_audioCtx.resume();
+  return _audioCtx;
+}
+function _tone(freq,dur,type,vol,at){
+  var ctx=_getAudioCtx();if(!ctx)return;
+  var t=at!=null?at:ctx.currentTime;
+  var v=Math.max(0.001,Math.min(1,(vol!=null?vol:1)*sndCfg.vol));
+  var osc=ctx.createOscillator(),gain=ctx.createGain();
+  osc.connect(gain);gain.connect(ctx.destination);
+  osc.type=type||'sine';
+  osc.frequency.setValueAtTime(freq,t);
+  gain.gain.setValueAtTime(v,t);
+  gain.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  osc.start(t);osc.stop(t+dur+0.02);
+}
+function sndClick(){if(!sndCfg.on)return;_tone(660,0.06,'sine',0.4);}
+function sndChip(){if(!sndCfg.on)return;_tone(880,0.05,'sine',0.35);}
+function sndStep(){
+  if(!sndCfg.on)return;var ctx=_getAudioCtx();if(!ctx)return;
+  var t=ctx.currentTime;_tone(523,0.09,'sine',0.5,t);_tone(784,0.12,'sine',0.55,t+0.07);
+}
+function sndError(){
+  if(!sndCfg.on)return;var ctx=_getAudioCtx();if(!ctx)return;
+  var t=ctx.currentTime;_tone(280,0.12,'sawtooth',0.28,t);_tone(220,0.18,'sawtooth',0.28,t+0.1);
+}
+function sndStar(){
+  if(!sndCfg.on)return;var ctx=_getAudioCtx();if(!ctx)return;
+  var t=ctx.currentTime;
+  [523,659,784,1047].forEach(function(f,i){_tone(f,i<3?0.07:0.15,'sine',0.6,t+i*0.065);});
+}
+function sndSuccess(){
+  if(!sndCfg.on)return;var ctx=_getAudioCtx();if(!ctx)return;
+  var t=ctx.currentTime;
+  [523,659,784,1047,784,1047].forEach(function(f,i){_tone(f,i<5?0.08:0.28,'sine',0.65,t+i*0.075);});
+}
+function sndTimeout(){
+  if(!sndCfg.on)return;var ctx=_getAudioCtx();if(!ctx)return;
+  var t=ctx.currentTime;
+  [440,330,220].forEach(function(f,i){_tone(f,i<2?0.15:0.28,'triangle',0.5,t+i*0.13);});
+}
+function sndUrgent(){
+  if(!sndCfg.on)return;var ctx=_getAudioCtx();if(!ctx)return;
+  var t=ctx.currentTime;_tone(330,0.07,'square',0.2,t);_tone(330,0.07,'square',0.2,t+0.1);
+}
+// Hooks globales: chip → sndChip, botones/tarjetas → sndClick
+document.addEventListener('click',function(e){
+  if(!sndCfg.on)return;
+  if(e.target.closest('.chip')){sndChip();return;}
+  var b=e.target.closest('.btn,.home-card,.btn-back,.close-x');
+  if(b&&!b.disabled&&!b.hasAttribute('disabled'))sndClick();
 });
 
 /* ===================== CHIPS ===================== */
@@ -1157,6 +1225,7 @@ function generar(){
 
   // guardar en historial
   lastCaptureId=saveCapture(md,estatus,falt);
+  sndSuccess();
   if($('outputArea').scrollIntoView)$('outputArea').scrollIntoView({behavior:'smooth'});
 }
 
@@ -1339,6 +1408,23 @@ $('cfg_export').addEventListener('click',function(){
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='historial_capturas.json';a.click();
 });
 function renderCfgCount(){$('cfgCount').textContent=getHist().length+' captura(s) guardada(s) en este dispositivo.';}
+
+/* config de sonidos */
+function renderSndCfg(){
+  var tog=$('cfg_snd_toggle');if(tog)tog.textContent=sndCfg.on?'🔊 Activados':'🔇 Silenciados';
+  var vol=$('cfg_snd_vol');if(vol)vol.value=Math.round(sndCfg.vol*100);
+  var v=$('cfg_snd_vol_val');if(v)v.textContent=Math.round(sndCfg.vol*100)+'%';
+}
+$('cfg_snd_toggle').addEventListener('click',function(){
+  sndCfg.on=!sndCfg.on;save('cfg_sounds',sndCfg);renderSndCfg();
+  if(sndCfg.on)sndClick();
+});
+$('cfg_snd_vol').addEventListener('input',function(){
+  sndCfg.vol=parseInt(this.value)/100;save('cfg_sounds',sndCfg);
+  var v=$('cfg_snd_vol_val');if(v)v.textContent=this.value+'%';
+});
+$('cfg_snd_test').addEventListener('click',function(){sndSuccess();});
+renderSndCfg();
 
 /* ===================== RESET ===================== */
 $('btnReset').addEventListener('click',function(){
