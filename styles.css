@@ -174,11 +174,9 @@ pre{background:#fbfbfa;border:1px solid var(--line);border-radius:6px;padding:16
 /* mascot */
 .mascot-wrap{flex-shrink:0;}
 .mascot{width:90px;height:90px;display:block;overflow:visible;transition:filter .4s;}
-.timer-widget.running .mascot{width:64px;height:64px;}
 
-/* ring */
+/* ring (ready mode) */
 .timer-ring-wrap{position:relative;width:90px;height:90px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-.timer-widget.running .timer-ring-wrap{width:80px;height:80px;}
 .timer-ring{width:100%;height:100%;}
 .timer-display{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:var(--text);letter-spacing:-.01em;}
 
@@ -193,25 +191,38 @@ pre{background:#fbfbfa;border:1px solid var(--line);border-radius:6px;padding:16
 .time-chips{justify-content:center;gap:8px;margin-bottom:14px;}
 #btnIniciarCaptura{width:100%;}
 
-/* running controls */
+/* running controls (in normal flow, below fixed corner) */
 .timer-running-ctrl{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:4px;}
 .timer-msg{font-size:.8rem;color:var(--text-soft);font-style:italic;flex:1;}
 
-/* ===================== MASCOTA ANIMACIONES ===================== */
-/* por defecto: ocultar variantes */
+/* ── RUNNING: timer-top se fija en esquina superior derecha ── */
+.timer-widget.running .timer-top{
+  position:fixed;top:1rem;right:1rem;z-index:100;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:rgba(255,255,255,0.96);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  border:1px solid var(--line);border-radius:12px;
+  padding:8px 8px 6px;
+  box-shadow:0 2px 16px rgba(0,0,0,0.10);
+  width:96px;
+}
+.timer-widget.running{border:none;background:none;padding:0;margin-bottom:8px;}
+.timer-widget.running #timerRunningCtrl{border:1px solid var(--line);border-radius:8px;background:var(--bg-soft);padding:10px 14px;}
+.timer-widget.running .mascot{width:50px;height:50px;}
+.timer-widget.running .timer-ring-wrap{width:50px;height:50px;}
+.timer-widget.running .timer-display{font-size:.68rem;font-weight:700;}
+
+/* ===================== MASCOTA — ESTADOS ===================== */
 .mascot .mouth-frown,.mascot .brow-angry,.mascot .star-deco{display:none;}
 
-/* sad / angry / expired → frown */
 .mascot.state-sad .mouth-happy,.mascot.state-angry .mouth-happy,.mascot.state-expired .mouth-happy{display:none;}
 .mascot.state-sad .mouth-frown,.mascot.state-angry .mouth-frown,.mascot.state-expired .mouth-frown{display:block;}
-
-/* angry → angry brows */
 .mascot.state-angry .brow-neutral{display:none;}
 .mascot.state-angry .brow-angry{display:block;}
-
-/* celebrating → stars */
 .mascot.state-celebrating .star-deco{display:block;}
 
+/* ===================== MASCOTA — ANIMACIONES ===================== */
+/* cuerpo completo */
 @keyframes mBlink{0%,85%,100%{transform:scaleY(1)}92%{transform:scaleY(0.05)}}
 @keyframes mDance{0%,100%{transform:translateY(0) rotate(0deg)}30%{transform:translateY(-6px) rotate(-4deg)}70%{transform:translateY(-6px) rotate(4deg)}}
 @keyframes mShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
@@ -219,11 +230,34 @@ pre{background:#fbfbfa;border:1px solid var(--line);border-radius:6px;padding:16
 @keyframes mCelebrate{0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-14px) scale(1.07)}}
 @keyframes mPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 
+/* brazos */
+@keyframes mArmDL{0%,100%{transform:rotate(-20deg)}50%{transform:rotate(15deg)}}
+@keyframes mArmDR{0%,100%{transform:rotate(20deg)}50%{transform:rotate(-15deg)}}
+@keyframes mArmCL{0%,100%{transform:rotate(-55deg)}50%{transform:rotate(-65deg)}}
+@keyframes mArmCR{0%,100%{transform:rotate(55deg)}50%{transform:rotate(65deg)}}
+/* piernas */
+@keyframes mLegCL{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(7deg)}}
+@keyframes mLegCR{0%,100%{transform:rotate(8deg)}50%{transform:rotate(-7deg)}}
+
+/* estado idle */
 .mascot.state-idle .eye-group{animation:mBlink 3.5s ease-in-out infinite;transform-box:fill-box;transform-origin:center;}
+/* estado dancing */
 .mascot.state-dancing{animation:mDance 0.72s ease-in-out infinite;}
+.mascot.state-dancing .arm-left{animation:mArmDL .72s ease-in-out infinite;transform-box:fill-box;transform-origin:top right;}
+.mascot.state-dancing .arm-right{animation:mArmDR .72s ease-in-out infinite;transform-box:fill-box;transform-origin:top left;}
+/* estado focused */
 .mascot.state-focused .eye-group{animation:mPulse 2s ease-in-out infinite;transform-box:fill-box;transform-origin:center;}
+/* estado angry */
 .mascot.state-angry{animation:mShake 0.45s ease-in-out infinite;filter:saturate(2) hue-rotate(-10deg);}
+.mascot.state-angry .arm-left{transform:rotate(-22deg);transform-box:fill-box;transform-origin:top right;}
+.mascot.state-angry .arm-right{transform:rotate(22deg);transform-box:fill-box;transform-origin:top left;}
+/* estado sad */
 .mascot.state-sad{animation:mSad 2.2s ease-in-out infinite;filter:saturate(0.25);}
+/* estado celebrating */
 .mascot.state-celebrating{animation:mCelebrate 0.55s ease-in-out infinite;}
+.mascot.state-celebrating .arm-left{animation:mArmCL .55s ease-in-out infinite;transform-box:fill-box;transform-origin:top right;}
+.mascot.state-celebrating .arm-right{animation:mArmCR .55s ease-in-out infinite;transform-box:fill-box;transform-origin:top left;}
+.mascot.state-celebrating .leg-left{animation:mLegCL .55s ease-in-out infinite;transform-box:fill-box;transform-origin:top right;}
+.mascot.state-celebrating .leg-right{animation:mLegCR .55s ease-in-out infinite;transform-box:fill-box;transform-origin:top left;}
 
 @media(prefers-reduced-motion:reduce){.mascot,.mascot *{animation:none!important;transition:none!important;}}
