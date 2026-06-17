@@ -622,19 +622,53 @@
     <span class="ver-badge">v0.5</span>
   </div>
   <div class="doc-title">❓ Ayuda rápida</div>
-  <div class="doc-sub">Cómo capturar bien una propiedad.</div>
+  <div class="doc-sub">Criterios de captura y uso correcto de la app.</div>
+
   <div class="help-q">1. ¿Qué es lo mínimo para una captura esencial?</div>
   <div class="help-a">Tipo, operación, dirección, zona, precio, <strong>m² terreno y m² construcción (ambos)</strong>, fuente, quién ofrece y asesor. Para terreno también: servicios y uso de suelo. El resto puede quedar como S/I.</div>
-  <div class="help-q">2. La dirección es lo más importante</div>
-  <div class="help-a">Es el identificador principal de cada propiedad. Usa 📍 para coordenadas exactas o escribe y toca una sugerencia del mapa.</div>
-  <div class="help-q">3. ¿Y si no sé un dato?</div>
-  <div class="help-a">Toca el botón S/I al lado del campo. Quedará marcado como pendiente, no como dato falso.</div>
-  <div class="help-q">4. ¿Cómo mando la propiedad a Notion?</div>
-  <div class="help-a">Genera el Markdown, cópialo y pégalo en el chat del agente de Notion (o usa Enviar). El agente crea la página y las relaciones.</div>
-  <div class="help-q">5. Varias unidades iguales</div>
-  <div class="help-a">Pon el número de unidades; se crea una página por unidad. La página madre del conjunto es opcional.</div>
-  <div class="help-q">6. ¿Se pierde lo que capturo?</div>
-  <div class="help-a">No. Cada captura queda en el Historial de este dispositivo aunque no generes el Markdown.</div>
+
+  <div class="help-q">2. ¿Cómo gano las 3 estrellas?</div>
+  <div class="help-a">
+    <strong>⭐ Velocidad</strong> — Terminar en ≤ 5 minutos (activa el cronómetro antes de empezar).<br>
+    <strong>⭐ Datos esenciales</strong> — Llenar todos los campos del punto 1.<br>
+    <strong>⭐ Captura completa</strong> — Llenar todos los campos relevantes o marcarlos S/I / N/A explícitamente. Con 3 estrellas el estatus pasa automáticamente a "Captada" en el markdown.
+  </div>
+
+  <div class="help-q">3. ¿Qué diferencia hay entre S/I y N/A?</div>
+  <div class="help-a">
+    <strong>S/I (Sin información)</strong> — No tienes el dato ahora pero es aplicable. Se marca como pendiente en el markdown para el agente Notion.<br>
+    <strong>N/A (No aplica)</strong> — El campo no tiene sentido para este inmueble. Ejemplo: m² construcción en un terreno sin construir. La captura no se penaliza.
+  </div>
+
+  <div class="help-q">4. La dirección es lo más importante</div>
+  <div class="help-a">Es el identificador principal de cada propiedad. Escribe la dirección genérica (calle, número, colonia). El agente de Notion la geolocaliza y agrega la referencia de Google Maps. Usa 📍 para agregar coordenadas exactas desde tu celular.</div>
+
+  <div class="help-q">5. ¿Y si no sé un dato?</div>
+  <div class="help-a">Toca el botón <strong>S/I</strong> al lado del campo. Quedará marcado como pendiente, no como dato falso. Puedes completarlo después desde el Historial.</div>
+
+  <div class="help-q">6. ¿Qué datos son específicos del terreno?</div>
+  <div class="help-a">
+    <strong>Servicios disponibles</strong> (agua, luz, drenaje, pavimento o "Por confirmar") — esencial.<br>
+    <strong>Uso de suelo / densidad permitida</strong> — esencial; alimenta la corrida financiera.<br>
+    <strong>Estatus legal / escrituras</strong> — opcional (Título limpio, Con gravamen, Ejidal, En trámite, S/I).<br>
+    <strong>m² construcción</strong> — si no hay construcción, márcalo N/A explícitamente.<br>
+    Todos van en el campo Notas de la base 🏠 Propiedades hasta que el dueño confirme si se crean como propiedades independientes.
+  </div>
+
+  <div class="help-q">7. ¿Cómo funciona el código PROP- y TERR-?</div>
+  <div class="help-a">El markdown genera el prefijo automáticamente según el tipo: <strong>PROP-XX</strong> para casa o departamento; <strong>TERR-XX</strong> para terreno. El agente Notion asigna el número consecutivo disponible. Nota: si existe un terreno previo con código PROP-3, el dueño decide si lo renumera; la app no lo toca.</div>
+
+  <div class="help-q">8. ¿Cómo mando la propiedad a Notion?</div>
+  <div class="help-a">Genera el Markdown, cópialo y pégalo en el chat del agente de Notion. El agente crea la página en 🏠 Propiedades, vincula Zona, Contactos y Tareas, y confirma los campos creados.</div>
+
+  <div class="help-q">9. Varias unidades iguales (conjuntos)</div>
+  <div class="help-a">Pon el número de unidades en el campo correspondiente; la app genera instrucciones para crear una página por unidad. La página madre del conjunto es opcional. Los datos comunes se copian a todas las unidades.</div>
+
+  <div class="help-q">10. ¿Cómo capturo un cliente o socio?</div>
+  <div class="help-a">Usa la tarjeta <strong>Capturar cliente / socio</strong> del menú. Selecciona el tipo (Comprador, Propietario, Arquitecto, etc.) y aparecerán solo los campos relevantes. El markdown se envía al agente para dar de alta en la base Contactos / CRM. Puedes vincularlo después con una propiedad capturada.</div>
+
+  <div class="help-q">11. ¿Se pierde lo que capturo?</div>
+  <div class="help-a">No. Cada captura queda en el <strong>Historial</strong> de este dispositivo aunque no generes el Markdown. Puedes exportar todo el historial en JSON desde Configuración como respaldo.</div>
 </main>
 
 <!-- ===================== VISTA: RESULTADO ===================== -->
