@@ -684,15 +684,211 @@
   <div id="rankingList"></div>
 </main>
 
-<!-- ===================== VISTA: CONTACTOS (stub — Fase 7) ===================== -->
+<!-- ===================== VISTA: CONTACTOS — FASE 7 ===================== -->
 <main id="viewContact" class="view">
   <div class="view-header">
     <button type="button" class="btn-back" data-view="viewHome">← Menú</button>
     <span class="ver-badge">v0.5</span>
   </div>
   <div class="doc-title">👤 Capturar cliente / socio</div>
-  <div class="doc-sub">Propietarios, compradores, arquitectos, notarios y aliados.</div>
-  <div class="empty" style="margin-top:48px">La capturadora de contactos estará disponible en la Fase 7.</div>
+  <div class="doc-sub">Hauser · alimenta la base Contactos / CRM en Notion</div>
+
+  <div class="progress-wrap">
+    <div class="progress-label"><span id="ctProgText">0/3 datos clave</span><span id="ctProgPct">0%</span></div>
+    <div class="progress-bar"><div class="progress-fill ct-fill" id="ctProgFill" style="width:0%"></div></div>
+  </div>
+
+  <!-- 1. IDENTIFICACIÓN -->
+  <h2>Identificación</h2>
+  <div class="field">
+    <div class="field-top"><label for="ct_nombre">Nombre completo <span class="req">*</span></label></div>
+    <input type="text" id="ct_nombre" placeholder="Ej. Roberto González Sánchez" autocomplete="name">
+  </div>
+  <div class="field">
+    <div class="field-top"><label for="ct_alias">Alias / como le dicen</label></div>
+    <input type="text" id="ct_alias" placeholder="Ej. Beto">
+  </div>
+  <div class="field">
+    <div class="field-top"><label>Tipo de contacto <span class="req">*</span></label></div>
+    <div class="chips" id="ctTipoChips">
+      <button type="button" class="chip chip-sm" data-v="Propietario">Propietario</button>
+      <button type="button" class="chip chip-sm" data-v="Comprador">Comprador</button>
+      <button type="button" class="chip chip-sm" data-v="Desarrollador">Desarrollador</button>
+      <button type="button" class="chip chip-sm" data-v="Arquitecto">Arquitecto</button>
+      <button type="button" class="chip chip-sm" data-v="Notario">Notario</button>
+      <button type="button" class="chip chip-sm" data-v="Maestro de obra">Maestro de obra</button>
+      <button type="button" class="chip chip-sm" data-v="Broker">Broker</button>
+      <button type="button" class="chip chip-sm" data-v="Asesor inmobiliario">Asesor inmob.</button>
+      <button type="button" class="chip chip-sm" data-v="Inversionista">Inversionista</button>
+      <button type="button" class="chip chip-sm" data-v="Referido">Referido</button>
+      <button type="button" class="chip chip-sm" data-v="Otro">Otro</button>
+    </div>
+  </div>
+  <div class="field" id="ctOtroTipoBox" style="display:none">
+    <div class="field-top"><label for="ct_otro_tipo">Especifica el tipo <span class="req">*</span></label></div>
+    <input type="text" id="ct_otro_tipo" placeholder="Ej. Avaluador">
+  </div>
+  <div class="field">
+    <div class="field-top"><label for="ct_empresa">Empresa / despacho</label></div>
+    <input type="text" id="ct_empresa" placeholder="Ej. Constructora ABC">
+  </div>
+  <div class="field">
+    <div class="field-top"><label for="ct_puesto">Puesto</label></div>
+    <input type="text" id="ct_puesto" placeholder="Ej. Director general">
+  </div>
+
+  <!-- 2. DATOS DE CONTACTO -->
+  <h2>Datos de contacto</h2>
+  <div class="field">
+    <div class="field-top"><label for="ct_tel">Teléfono</label></div>
+    <input type="tel" id="ct_tel" inputmode="tel" placeholder="Ej. 777 123 4567">
+  </div>
+  <div class="field">
+    <div class="field-top"><label for="ct_wa">WhatsApp</label></div>
+    <input type="tel" id="ct_wa" inputmode="tel" placeholder="Igual o distinto al teléfono">
+  </div>
+  <div class="field">
+    <div class="field-top"><label for="ct_email">Correo</label></div>
+    <input type="email" id="ct_email" inputmode="email" placeholder="correo@ejemplo.com">
+  </div>
+
+  <!-- 3. OPERACIÓN INMOBILIARIA (conditional) -->
+  <div id="ctSecOper" style="display:none">
+    <h2>Operación inmobiliaria</h2>
+
+    <!-- Comprador / Inversionista -->
+    <div id="ctSecComprador" style="display:none">
+      <div class="field">
+        <div class="field-top"><label for="ct_presupuesto">Presupuesto</label></div>
+        <input type="text" id="ct_presupuesto" inputmode="numeric" placeholder="Ej. 2,500,000">
+      </div>
+      <div class="field">
+        <div class="field-top"><label for="ct_zona_interes">Zona de interés</label></div>
+        <input type="text" id="ct_zona_interes" placeholder="Ej. Lomas de Cortés, Lomas Tetela">
+      </div>
+      <div class="field">
+        <div class="field-top"><label for="ct_tipo_busca">Tipo de propiedad que busca</label></div>
+        <input type="text" id="ct_tipo_busca" placeholder="Ej. Casa con jardín 3+ recámaras">
+      </div>
+      <div class="field">
+        <div class="field-top"><label>Urgencia de compra</label></div>
+        <div class="chips" id="ctUrgenciaChips">
+          <button type="button" class="chip chip-sm" data-v="Alta">Alta</button>
+          <button type="button" class="chip chip-sm" data-v="Media">Media</button>
+          <button type="button" class="chip chip-sm" data-v="Baja">Baja</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Propietario / Desarrollador -->
+    <div id="ctSecPropietario" style="display:none">
+      <div class="field">
+        <div class="field-top"><label for="ct_zona_oper">Zona de operación</label></div>
+        <input type="text" id="ct_zona_oper" placeholder="Ej. Palmira, Lomas de Cortés">
+      </div>
+      <div class="field">
+        <div class="field-top"><label for="ct_tipo_ofrece">Tipo de propiedad que ofrece</label></div>
+        <input type="text" id="ct_tipo_ofrece" placeholder="Ej. Terreno en Lomas">
+      </div>
+      <div class="field">
+        <div class="field-top"><label for="ct_propiedad_rel">Propiedad relacionada</label></div>
+        <input type="text" id="ct_propiedad_rel" placeholder="Nombre o código de la propiedad">
+        <div class="hint">Si ya está en la base, ingresa el nombre o código para vincularla.</div>
+      </div>
+    </div>
+
+    <!-- Aliados (Arquitecto / Notario / Maestro de obra) -->
+    <div id="ctSecAliado" style="display:none">
+      <div class="field">
+        <div class="field-top"><label for="ct_zona_oper_aliado">Zona de operación</label></div>
+        <input type="text" id="ct_zona_oper_aliado" placeholder="Ej. Cuernavaca y zona metropolitana">
+      </div>
+      <div class="field">
+        <div class="field-top"><label for="ct_servicio">Servicio que ofrece</label></div>
+        <input type="text" id="ct_servicio" placeholder="Ej. Diseño y remodelación">
+      </div>
+      <div class="field">
+        <div class="field-top"><label>Nivel de confianza</label></div>
+        <div class="chips" id="ctConfianzaAliado">
+          <button type="button" class="chip chip-sm" data-v="Alto">Alto</button>
+          <button type="button" class="chip chip-sm" data-v="Medio">Medio</button>
+          <button type="button" class="chip chip-sm" data-v="Bajo">Bajo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. GESTIÓN -->
+  <h2>Gestión</h2>
+  <div class="field">
+    <div class="field-top"><label for="ct_fuente">Fuente del contacto</label></div>
+    <select id="ct_fuente">
+      <option value="">— Seleccionar —</option>
+      <option>Recorrido/Scouteo</option>
+      <option>Referido</option>
+      <option>Redes sociales</option>
+      <option>Portal inmobiliario</option>
+      <option>Evento o feria</option>
+      <option>Llamada entrante</option>
+      <option>WhatsApp entrante</option>
+      <option>Base de datos propia</option>
+      <option>Otro</option>
+    </select>
+  </div>
+  <div class="field" id="ctConfianzaRow">
+    <div class="field-top"><label>Nivel de confianza</label></div>
+    <div class="chips" id="ctConfianzaChips">
+      <button type="button" class="chip chip-sm" data-v="Alto">Alto</button>
+      <button type="button" class="chip chip-sm" data-v="Medio">Medio</button>
+      <button type="button" class="chip chip-sm" data-v="Bajo">Bajo</button>
+    </div>
+  </div>
+  <div class="field">
+    <div class="field-top"><label>Estatus del contacto</label></div>
+    <div class="chips" id="ctEstatusChips">
+      <button type="button" class="chip chip-sm" data-v="Nuevo">Nuevo</button>
+      <button type="button" class="chip chip-sm" data-v="Activo">Activo</button>
+      <button type="button" class="chip chip-sm" data-v="Seguimiento">Seguimiento</button>
+      <button type="button" class="chip chip-sm" data-v="Frío">Frío</button>
+    </div>
+  </div>
+  <div class="field">
+    <div class="field-top"><label for="ct_proxima">Próxima acción</label></div>
+    <input type="text" id="ct_proxima" placeholder="Ej. Llamar para agendar visita">
+  </div>
+  <div class="field">
+    <div class="field-top"><label for="ct_seguimiento">Fecha de seguimiento</label></div>
+    <input type="date" id="ct_seguimiento">
+  </div>
+  <div class="field">
+    <div class="field-top"><label for="ct_asesor">Asesor que captura</label></div>
+    <input type="text" id="ct_asesor" placeholder="Nombre del asesor">
+  </div>
+  <div class="field">
+    <div class="field-top"><label for="ct_notas">Notas</label></div>
+    <textarea id="ct_notas" rows="3" placeholder="Observaciones, contexto de la conversación…"></textarea>
+  </div>
+
+  <!-- ACCIONES -->
+  <div class="btn-row" style="margin-top:24px">
+    <button type="button" class="btn ct-btn-accent btn-big" id="ctBtnGenerar">Generar markdown</button>
+    <button type="button" class="btn" id="ctBtnReset">Limpiar</button>
+  </div>
+
+  <!-- OUTPUT -->
+  <div id="ctOutputArea" style="display:none;margin-top:24px">
+    <div class="callout ok" style="margin-bottom:12px"><strong>Markdown generado.</strong> Copia y pega en el agente Notion.</div>
+    <div class="btn-row">
+      <button type="button" class="btn ct-btn-accent" id="ctBtnCopy">Copiar markdown</button>
+    </div>
+    <pre id="ctMdOut" class="ct-md-pre"></pre>
+  </div>
+
+  <!-- HISTORIAL DE CONTACTOS -->
+  <div style="margin-top:32px">
+    <h2 style="display:flex;align-items:center;gap:8px">Historial de contactos <span class="badge" id="ctBadge" style="display:none">0</span></h2>
+    <div id="ctHistList"><div class="empty">Sin contactos capturados.</div></div>
+  </div>
 </main>
 
 <!-- MAP MODAL -->

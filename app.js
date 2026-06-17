@@ -54,6 +54,7 @@ function showView(id){
   if(id==='viewConfig')renderCfgCount();
   if(id==='viewAdvisor')renderAsesorGrid();
   if(id==='viewLeaderboard')renderRanking();
+  if(id==='viewContact'){renderCtHist();if(asesorActivo&&$('ct_asesor'))$('ct_asesor').value=asesorActivo.nombre||CFG.resp||'';}
 }
 
 /* ===================== MÓDULO DE ASESORES ===================== */
@@ -1696,6 +1697,225 @@ $('btnReset').addEventListener('click',function(){
   if(!confirm('¿Limpiar todos los campos? (El historial NO se borra)'))return;
   doReset();
 });
+
+/* ===================== CONTACTOS — FASE 7 ===================== */
+var CT_COMPRADOR=['Comprador','Inversionista'];
+var CT_PROPIETARIO=['Propietario','Desarrollador'];
+var CT_ALIADO=['Arquitecto','Notario','Maestro de obra'];
+
+var ctState={tipo:'',confianza:'',estatus:'Nuevo',urgencia:'',confianzaAliado:''};
+var ctMd='';
+
+function ctVal(id){var el=$(id);return el?el.value.trim():'';}
+function ctSI(v){return v||'S/I';}
+
+function ctOnTipo(v){
+  ctState.tipo=v;
+  var esCom=CT_COMPRADOR.indexOf(v)>=0;
+  var esProp=CT_PROPIETARIO.indexOf(v)>=0;
+  var esAliado=CT_ALIADO.indexOf(v)>=0;
+  $('ctOtroTipoBox').style.display=(v==='Otro')?'':'none';
+  $('ctSecOper').style.display=(v&&v!=='')?'':'none';
+  $('ctSecComprador').style.display=esCom?'':'none';
+  $('ctSecPropietario').style.display=esProp?'':'none';
+  $('ctSecAliado').style.display=esAliado?'':'none';
+  $('ctConfianzaRow').style.display=esAliado?'none':'';
+  ctUpdateProgress();
+}
+
+function ctUpdateProgress(){
+  var kNombre=ctVal('ct_nombre')?1:0;
+  var kTipo=ctState.tipo?1:0;
+  var kContacto=(ctVal('ct_tel')||ctVal('ct_wa')||ctVal('ct_email'))?1:0;
+  var filled=kNombre+kTipo+kContacto;
+  var extras=[ctVal('ct_alias'),ctVal('ct_empresa'),ctVal('ct_puesto'),ctVal('ct_notas'),
+    ctVal('ct_proxima'),ctVal('ct_seguimiento'),ctVal('ct_asesor'),
+    $('ct_fuente')&&$('ct_fuente').value,ctState.confianza,ctState.estatus];
+  var extFilled=extras.filter(function(f){return !!f;}).length;
+  var pct=Math.round((filled/3*0.7+extFilled/extras.length*0.3)*100);
+  var fill=$('ctProgFill');if(fill)fill.style.width=pct+'%';
+  var pctEl=$('ctProgPct');if(pctEl)pctEl.textContent=pct+'%';
+  var txtEl=$('ctProgText');if(txtEl)txtEl.textContent=filled+'/3 datos clave';
+}
+
+function ctWireChips(containerId,stateProp){
+  var wrap=$(containerId);if(!wrap)return;
+  wrap.querySelectorAll('.chip').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      wrap.querySelectorAll('.chip').forEach(function(x){x.classList.remove('sel');});
+      btn.classList.add('sel');
+      ctState[stateProp]=btn.dataset.v;
+      ctUpdateProgress();
+    });
+  });
+}
+ctWireChips('ctConfianzaChips','confianza');
+ctWireChips('ctEstatusChips','estatus');
+ctWireChips('ctUrgenciaChips','urgencia');
+ctWireChips('ctConfianzaAliado','confianzaAliado');
+
+(function(){
+  var wrap=$('ctTipoChips');if(!wrap)return;
+  wrap.querySelectorAll('.chip').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      wrap.querySelectorAll('.chip').forEach(function(x){x.classList.remove('sel');});
+      btn.classList.add('sel');
+      ctOnTipo(btn.dataset.v);
+    });
+  });
+})();
+
+['ct_nombre','ct_alias','ct_empresa','ct_puesto','ct_tel','ct_wa','ct_email',
+ 'ct_presupuesto','ct_zona_interes','ct_tipo_busca','ct_zona_oper','ct_tipo_ofrece',
+ 'ct_propiedad_rel','ct_zona_oper_aliado','ct_servicio','ct_otro_tipo',
+ 'ct_proxima','ct_seguimiento','ct_asesor','ct_notas'].forEach(function(id){
+  var el=$(id);if(el)el.addEventListener('input',ctUpdateProgress);
+});
+
+function genContact(){
+  var nombre=ctVal('ct_nombre');
+  if(!nombre){alert('El nombre completo es obligatorio.');return;}
+  if(!ctState.tipo){alert('Selecciona el tipo de contacto.');return;}
+  var tipo=ctState.tipo==='Otro'?(ctVal('ct_otro_tipo')||'Otro'):ctState.tipo;
+  var now=new Date();
+  var fecha=now.toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'});
+  var id='CT-'+Date.now();
+  var asesor=ctVal('ct_asesor')||CFG.resp||'S/I';
+  var esCom=CT_COMPRADOR.indexOf(ctState.tipo)>=0;
+  var esProp=CT_PROPIETARIO.indexOf(ctState.tipo)>=0;
+  var esAliado=CT_ALIADO.indexOf(ctState.tipo)>=0;
+
+  var md='# Alta de contacto en Notion — '+nombre+'\n\n';
+  md+='> **Acción:** Crear nuevo registro en base **Contactos / CRM**.\n\n';
+  md+='## Identificación\n| Campo | Valor |\n|---|---|\n';
+  md+='| Nombre completo | '+nombre+' |\n';
+  md+='| Alias | '+ctSI(ctVal('ct_alias'))+' |\n';
+  md+='| Tipo | '+tipo+' |\n';
+  md+='| Empresa | '+ctSI(ctVal('ct_empresa'))+' |\n';
+  md+='| Puesto | '+ctSI(ctVal('ct_puesto'))+' |\n\n';
+  md+='## Datos de contacto\n| Campo | Valor |\n|---|---|\n';
+  md+='| Teléfono | '+ctSI(ctVal('ct_tel'))+' |\n';
+  md+='| WhatsApp | '+ctSI(ctVal('ct_wa'))+' |\n';
+  md+='| Correo | '+ctSI(ctVal('ct_email'))+' |\n\n';
+
+  if(esCom){
+    md+='## Búsqueda\n| Campo | Valor |\n|---|---|\n';
+    md+='| Presupuesto | '+ctSI(ctVal('ct_presupuesto'))+' |\n';
+    md+='| Zona de interés | '+ctSI(ctVal('ct_zona_interes'))+' |\n';
+    md+='| Tipo de propiedad que busca | '+ctSI(ctVal('ct_tipo_busca'))+' |\n';
+    md+='| Urgencia | '+ctSI(ctState.urgencia)+' |\n\n';
+  }
+  if(esProp){
+    md+='## Oferta\n| Campo | Valor |\n|---|---|\n';
+    md+='| Zona de operación | '+ctSI(ctVal('ct_zona_oper'))+' |\n';
+    md+='| Tipo de propiedad que ofrece | '+ctSI(ctVal('ct_tipo_ofrece'))+' |\n';
+    md+='| Propiedad relacionada | '+ctSI(ctVal('ct_propiedad_rel'))+' |\n\n';
+    if(ctVal('ct_propiedad_rel')){md+='> ⚠️ Si la propiedad existe en la base, vincular en el campo **Propiedades** de este contacto.\n\n';}
+  }
+  if(esAliado){
+    md+='## Servicio\n| Campo | Valor |\n|---|---|\n';
+    md+='| Zona de operación | '+ctSI(ctVal('ct_zona_oper_aliado'))+' |\n';
+    md+='| Servicio que ofrece | '+ctSI(ctVal('ct_servicio'))+' |\n';
+    md+='| Nivel de confianza | '+ctSI(ctState.confianzaAliado)+' |\n\n';
+  }
+  md+='## Gestión\n| Campo | Valor |\n|---|---|\n';
+  md+='| Fuente | '+ctSI($('ct_fuente')&&$('ct_fuente').value)+' |\n';
+  if(!esAliado)md+='| Nivel de confianza | '+ctSI(ctState.confianza)+' |\n';
+  md+='| Estatus | '+(ctState.estatus||'Nuevo')+' |\n';
+  md+='| Próxima acción | '+ctSI(ctVal('ct_proxima'))+' |\n';
+  md+='| Fecha de seguimiento | '+ctSI(ctVal('ct_seguimiento'))+' |\n\n';
+  if(ctVal('ct_notas'))md+='## Notas\n'+ctVal('ct_notas')+'\n\n';
+  md+='---\nCapturado por: **'+asesor+'** · '+fecha+' · ID provisional: `'+id+'`\n';
+
+  ctMd=md;
+  $('ctMdOut').textContent=md;
+  $('ctOutputArea').style.display='';
+  $('ctOutputArea').scrollIntoView({behavior:'smooth',block:'start'});
+  saveContactHist({id:id,fecha:now.toISOString(),nombre:nombre,tipo:tipo,
+    tel:ctVal('ct_tel'),email:ctVal('ct_email'),asesor:asesor,md:md,enviado:false});
+  sndSuccess();
+}
+
+function saveContactHist(rec){
+  var h=load('ct_hist',[]);h.unshift(rec);save('ct_hist',h);
+  updateCtBadge();renderCtHist();
+}
+function updateCtBadge(){
+  var pend=load('ct_hist',[]).filter(function(r){return !r.enviado;}).length;
+  var b=$('ctBadge');if(!b)return;
+  b.textContent=pend;b.style.display=pend?'inline-flex':'none';
+}
+function renderCtHist(){
+  var h=load('ct_hist',[]);var wrap=$('ctHistList');if(!wrap)return;
+  if(!h.length){wrap.innerHTML='<div class="empty">Sin contactos capturados.</div>';return;}
+  var html='';
+  h.forEach(function(r){
+    html+='<div class="hist-item">'+
+      '<div class="hi-top"><div>'+
+        '<div class="hi-name">'+esc(r.nombre)+'</div>'+
+        '<div class="hi-meta">'+(r.tipo||'?')+' · '+(r.asesor||'S/I')+' · '+new Date(r.fecha).toLocaleString('es-MX')+'</div>'+
+      '</div><span class="hi-state '+(r.enviado?'sent':'gen')+'">'+(r.enviado?'Enviado':'Generado')+'</span></div>'+
+      '<div class="hi-actions">'+
+        '<button type="button" class="btn" data-ct-copy="'+r.id+'">Copiar MD</button>'+
+        (r.enviado?
+          '<button type="button" class="btn" data-ct-pend="'+r.id+'">Marcar pendiente</button>':
+          '<button type="button" class="btn" data-ct-sent="'+r.id+'">Marcar enviado</button>')+
+        '<button type="button" class="btn btn-danger" data-ct-del="'+r.id+'">Borrar</button>'+
+      '</div></div>';
+  });
+  wrap.innerHTML=html;
+}
+$('ctHistList').addEventListener('click',function(e){
+  var t=e.target;var h=load('ct_hist',[]);
+  function ctFind(id){return h.filter(function(r){return r.id===id;})[0];}
+  if(t.dataset.ctCopy){var rc=ctFind(t.dataset.ctCopy);if(rc)copyText(rc.md);t.textContent='Copiado ✓';}
+  if(t.dataset.ctSent){var rs=ctFind(t.dataset.ctSent);if(rs){rs.enviado=true;save('ct_hist',h);updateCtBadge();renderCtHist();}}
+  if(t.dataset.ctPend){var rp=ctFind(t.dataset.ctPend);if(rp){rp.enviado=false;save('ct_hist',h);updateCtBadge();renderCtHist();}}
+  if(t.dataset.ctDel){if(confirm('¿Borrar este contacto del historial?')){var nh=h.filter(function(r){return r.id!==t.dataset.ctDel;});save('ct_hist',nh);updateCtBadge();renderCtHist();}}
+});
+$('ctBtnGenerar').addEventListener('click',genContact);
+$('ctBtnCopy').addEventListener('click',function(){
+  copyText(ctMd);var b=$('ctBtnCopy');b.textContent='Copiado ✓';
+  setTimeout(function(){b.textContent='Copiar markdown';},1800);
+});
+$('ctBtnReset').addEventListener('click',function(){
+  if(!confirm('¿Limpiar el formulario de contacto?'))return;
+  ctDoReset();
+});
+function ctDoReset(){
+  ['ct_nombre','ct_alias','ct_empresa','ct_puesto','ct_tel','ct_wa','ct_email',
+   'ct_presupuesto','ct_zona_interes','ct_tipo_busca','ct_zona_oper','ct_tipo_ofrece',
+   'ct_propiedad_rel','ct_zona_oper_aliado','ct_servicio','ct_otro_tipo',
+   'ct_proxima','ct_notas','ct_asesor'].forEach(function(id){var el=$(id);if(el)el.value='';});
+  if($('ct_seguimiento'))$('ct_seguimiento').value=hoy;
+  if($('ct_fuente'))$('ct_fuente').value='';
+  document.querySelectorAll('#ctTipoChips .chip').forEach(function(b){b.classList.remove('sel');});
+  ['ctConfianzaChips','ctUrgenciaChips','ctConfianzaAliado'].forEach(function(cid){
+    var w=$(cid);if(w)w.querySelectorAll('.chip').forEach(function(b){b.classList.remove('sel');});
+  });
+  var estatusWrap=$('ctEstatusChips');
+  if(estatusWrap){
+    estatusWrap.querySelectorAll('.chip').forEach(function(b){b.classList.toggle('sel',b.dataset.v==='Nuevo');});
+  }
+  ctState={tipo:'',confianza:'',estatus:'Nuevo',urgencia:'',confianzaAliado:''};
+  $('ctOtroTipoBox').style.display='none';
+  $('ctSecOper').style.display='none';
+  $('ctSecComprador').style.display='none';
+  $('ctSecPropietario').style.display='none';
+  $('ctSecAliado').style.display='none';
+  $('ctConfianzaRow').style.display='';
+  $('ctOutputArea').style.display='none';
+  ctMd='';ctUpdateProgress();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+(function ctInit(){
+  if($('ct_seguimiento'))$('ct_seguimiento').value=hoy;
+  if(asesorActivo&&$('ct_asesor'))$('ct_asesor').value=asesorActivo.nombre||CFG.resp||'';
+  else if($('ct_asesor'))$('ct_asesor').value=CFG.resp||'';
+  var ew=$('ctEstatusChips');
+  if(ew)ew.querySelectorAll('.chip').forEach(function(b){b.classList.toggle('sel',b.dataset.v==='Nuevo');});
+  updateCtBadge();renderCtHist();
+})();
 
 /* ===================== SERVICE WORKER ===================== */
 if('serviceWorker' in navigator){

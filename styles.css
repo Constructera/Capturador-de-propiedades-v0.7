@@ -367,3 +367,11 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .rank-sub{display:flex;flex-wrap:wrap;gap:6px;font-size:.72rem;color:var(--text-soft);margin-top:3px;}
 .rank-last{margin-left:auto;}
 .rank-sin-cap{font-size:.78rem;color:var(--text-soft);text-align:center;padding:14px 0 4px;}
+
+/* ===================== CONTACTOS — FASE 7 ===================== */
+:root{--ct:#3b82f6;--ct-dark:#2563eb;--ct-bg:#eff6ff;}
+#viewContact .chip.sel{background:var(--ct-bg);border-color:var(--ct);color:var(--ct-dark);font-weight:700;}
+.ct-fill{background:linear-gradient(90deg,var(--ct),#6366f1)!important;}
+.ct-btn-accent{background:var(--ct);color:#fff;border-color:var(--ct-dark);}
+.ct-btn-accent:hover{background:var(--ct-dark);border-color:var(--ct-dark);}
+.ct-md-pre{white-space:pre-wrap;word-break:break-word;font-size:.75rem;background:var(--bg-soft);border:1px solid var(--line);border-radius:6px;padding:14px;overflow-x:auto;margin-top:12px;line-height:1.55;}
