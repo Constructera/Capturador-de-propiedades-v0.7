@@ -1567,9 +1567,13 @@ function setHist(h){save('hist',h);updateBadge();}
 function saveCapture(md,estatus,falt,stars,quality,elapsed){
   var h=getHist();
   var now=new Date().toISOString();
-  var id=genUUID();
+  var isEdit=!!state.editId;
+  var id=isEdit?state.editId:genUUID();
+  var orig=isEdit?h.filter(function(x){return x.id===id;})[0]:null;
+  var capturadoEn=orig?(orig.capturadoEn||orig.fecha):now;
   var rec={
     id:id,fecha:now,
+    capturadoEn:capturadoEn,modificadoEn:isEdit?now:null,
     asesorId:asesorActivo?asesorActivo.id:null,
     asesorNombre:asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I'),
     resp:$('f_resp').value,
@@ -1579,8 +1583,10 @@ function saveCapture(md,estatus,falt,stars,quality,elapsed){
     anuncio:state.anuncioUrl||'',maps:$('f_maps').value,drive:$('f_drive').value,
     md:md,estado:falt.length?'Con faltantes':'Markdown generado',
     estrellas:stars||0,calidad:quality||'',elapsed:elapsed||0,
-    faltantes:falt,copiado:false,enviado:false,edit:now
+    faltantes:falt,copiado:false,enviado:false,edit:now,
+    formData:snapshotForm()
   };
+  if(isEdit)h=h.filter(function(x){return x.id!==id;});
   h.unshift(rec);setHist(h);
   zonasSel.forEach(function(z){zonaTouch(z.n);});
   if(CFG.endpoint){var p=buildGasPayload(rec);gasPost(p).then(function(r){if(r&&r.ok){var hh=getHist();var rr=hh.filter(function(x){return x.id===id;})[0];if(rr){rr.enviado=true;setHist(hh);}}}).catch(function(){queueForRetry(p);});}
@@ -1616,48 +1622,82 @@ function renderHist(){
   }
 }
 function _renderHistList(h){
-  var wrap=$('histList');
+  var ctH=load('ct_hist',[]).map(function(r){return Object.assign({},r,{_isCt:true});});
+  var all=h.concat(ctH).sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
   var filt=$('histFilters');
   var active=(filt.querySelector('.chip.sel')||{}).dataset?filt.querySelector('.chip.sel').dataset.f:'Todos';
-  var list=h.filter(function(r){
+  var list=all.filter(function(r){
     if(active==='Pendientes')return !r.enviado;
     if(active==='Enviados')return r.enviado;
-    if(active==='Con faltantes')return r.faltantes&&r.faltantes.length;
+    if(active==='Con faltantes')return !r._isCt&&r.faltantes&&r.faltantes.length;
     return true;
   });
-  wrap.innerHTML='';
+  var wrap=$('histList');wrap.innerHTML='';
   if(!list.length){wrap.innerHTML='<div class="empty">Sin capturas todavía.</div>';return;}
   list.forEach(function(r){
-    var stCls=r.enviado?'sent':(r.faltantes&&r.faltantes.length?'miss':'gen');
-    var stTxt=r.enviado?'Enviada a Notion':(r.faltantes&&r.faltantes.length?'Con faltantes':'Generada');
-    var item=document.createElement('div');item.className='hist-item';
-    item.innerHTML='<div class="hi-top"><div><div class="hi-name">'+r.nombre+'</div>'+
-      (r.estrellas!=null?'<div class="hi-stars">'+histStars(r.estrellas,r.calidad)+'</div>':'')+
-      '<div class="hi-meta">'+(r.tipo||'?')+' · '+r.oper+' · '+r.zona+' · '+(r.asesorNombre||r.resp||'S/I')+'<br>'+new Date(r.fecha).toLocaleString('es-MX')+'</div></div>'+
-      '<span class="hi-state '+stCls+'">'+stTxt+'</span></div>'+
-      '<div class="hi-actions">'+
-        '<button type="button" class="btn" data-copy="'+r.id+'">Copiar MD</button>'+
-        '<button type="button" class="btn" data-view2="'+r.id+'">Ver MD</button>'+
-        (r.maps?'<button type="button" class="btn" data-maps="'+r.id+'">Maps</button>':'')+
-        (r.enviado?'<button type="button" class="btn" data-pend="'+r.id+'">Marcar pendiente</button>':'<button type="button" class="btn" data-sent="'+r.id+'">Marcar enviada</button>')+
-        '<button type="button" class="btn btn-danger" data-del2="'+r.id+'">Borrar</button>'+
-      '</div><pre style="display:none" id="md_'+r.id+'">'+esc(r.md)+'</pre>';
+    var item=document.createElement('div');
+    var editDate=r.modificadoEn?'<br><span class="hi-edit-date">Editado: '+new Date(r.modificadoEn).toLocaleString('es-MX')+'</span>':'';
+    if(r._isCt){
+      item.className='hist-item hist-item-ct';
+      var sc=r.enviado?'sent':'gen',st=r.enviado?'Enviado':'Generado';
+      item.innerHTML='<div class="hi-top"><div>'+
+        '<div class="hi-name"><span class="hi-ct-badge">🤝</span>'+esc(r.nombre||'Sin nombre')+'</div>'+
+        (r.estrellas?'<div class="hi-stars">'+histStars(r.estrellas,r.calidad)+'</div>':'')+
+        '<div class="hi-meta">'+esc(r.tipo||'?')+' · '+(r.tel||r.email||'S/I')+' · '+(r.asesor||'S/I')+
+        '<br>'+new Date(r.capturadoEn||r.fecha).toLocaleString('es-MX')+editDate+'</div></div>'+
+        '<span class="hi-state '+sc+'">'+st+'</span></div>'+
+        '<div class="hi-actions">'+
+          '<button type="button" class="btn" data-copy-ct="'+r.id+'">Copiar</button>'+
+          '<button type="button" class="btn" data-view2-ct="'+r.id+'">Ver MD</button>'+
+          '<button type="button" class="btn" data-edit-ct="'+r.id+'">Editar</button>'+
+          (r.enviado?'<button type="button" class="btn" data-pend-ct="'+r.id+'">Marcar pendiente</button>':'<button type="button" class="btn" data-sent-ct="'+r.id+'">Marcar enviada</button>')+
+          '<button type="button" class="btn btn-danger" data-del-ct="'+r.id+'">Borrar</button>'+
+        '</div><pre style="display:none" id="md_ct_'+r.id+'">'+esc(r.md||'')+'</pre>';
+    } else {
+      item.className='hist-item';
+      var sc=r.enviado?'sent':(r.faltantes&&r.faltantes.length?'miss':'gen');
+      var st=r.enviado?'Enviada a Notion':(r.faltantes&&r.faltantes.length?'Con faltantes':'Generada');
+      item.innerHTML='<div class="hi-top"><div><div class="hi-name">'+esc(r.nombre||'Sin nombre')+'</div>'+
+        (r.estrellas!=null?'<div class="hi-stars">'+histStars(r.estrellas,r.calidad)+'</div>':'')+
+        '<div class="hi-meta">'+(r.tipo||'?')+' · '+(r.oper||'?')+' · '+(r.zona||'?')+' · '+(r.asesorNombre||r.resp||'S/I')+
+        '<br>'+new Date(r.capturadoEn||r.fecha).toLocaleString('es-MX')+editDate+'</div></div>'+
+        '<span class="hi-state '+sc+'">'+st+'</span></div>'+
+        '<div class="hi-actions">'+
+          '<button type="button" class="btn" data-copy="'+r.id+'">Copiar MD</button>'+
+          '<button type="button" class="btn" data-view2="'+r.id+'">Ver MD</button>'+
+          (r.maps?'<button type="button" class="btn" data-maps="'+r.id+'">Maps</button>':'')+
+          '<button type="button" class="btn" data-edit-prop="'+r.id+'">Editar</button>'+
+          (r.enviado?'<button type="button" class="btn" data-pend="'+r.id+'">Marcar pendiente</button>':'<button type="button" class="btn" data-sent="'+r.id+'">Marcar enviada</button>')+
+          '<button type="button" class="btn btn-danger" data-del2="'+r.id+'">Borrar</button>'+
+        '</div><pre style="display:none" id="md_'+r.id+'">'+esc(r.md||'')+'</pre>';
+    }
     wrap.appendChild(item);
   });
 }
 $('histList').addEventListener('click',function(e){
   var t=e.target;var h=getHist();
   function find(id){return h.filter(function(r){return r.id===id;})[0];}
-  if(t.dataset.copy){var r=find(t.dataset.copy);copyText(r.md);r.copiado=true;setHist(h);t.textContent='Copiado ✓';}
-  if(t.dataset.view2){var pre=$('md_'+t.dataset.view2);pre.style.display=pre.style.display==='none'?'block':'none';}
-  if(t.dataset.maps){var r2=find(t.dataset.maps);if(r2.maps)window.open(r2.maps,'_blank');}
-  if(t.dataset.sent){find(t.dataset.sent).enviado=true;setHist(h);renderHist();}
-  if(t.dataset.pend){find(t.dataset.pend).enviado=false;setHist(h);renderHist();}
-  if(t.dataset.del2){if(confirm('¿Borrar esta captura del historial?')){h=h.filter(function(r){return r.id!==t.dataset.del2;});setHist(h);renderHist();}}
+  function findCt(id){var ch=load('ct_hist',[]);return ch.filter(function(r){return r.id===id;})[0];}
+  // Propiedades
+  if(t.dataset.copy){var r=find(t.dataset.copy);if(r){copyText(r.md);r.copiado=true;setHist(h);t.textContent='Copiado ✓';}}
+  if(t.dataset.view2){var pre=$('md_'+t.dataset.view2);if(pre)pre.style.display=pre.style.display==='none'?'block':'none';}
+  if(t.dataset.maps){var r2=find(t.dataset.maps);if(r2&&r2.maps)window.open(r2.maps,'_blank');}
+  if(t.dataset.editProp){abrirEdicion(t.dataset.editProp);}
+  if(t.dataset.sent){find(t.dataset.sent).enviado=true;setHist(h);_renderHistList(h);}
+  if(t.dataset.pend){find(t.dataset.pend).enviado=false;setHist(h);_renderHistList(h);}
+  if(t.dataset.del2){if(confirm('¿Borrar esta captura del historial?')){h=h.filter(function(r){return r.id!==t.dataset.del2;});setHist(h);_renderHistList(h);}}
+  // Contactos
+  if(t.dataset.copyCt){var rc=findCt(t.dataset.copyCt);if(rc){copyText(rc.md);t.textContent='Copiado ✓';}}
+  if(t.dataset.view2Ct){var pre2=$('md_ct_'+t.dataset.view2Ct);if(pre2)pre2.style.display=pre2.style.display==='none'?'block':'none';}
+  if(t.dataset.editCt){abrirEdicionCt(t.dataset.editCt);}
+  if(t.dataset.sentCt){var ch=load('ct_hist',[]);var rc2=ch.filter(function(r){return r.id===t.dataset.sentCt;})[0];if(rc2){rc2.enviado=true;save('ct_hist',ch);updateCtBadge();_renderHistList(getHist());}}
+  if(t.dataset.pendCt){var ch=load('ct_hist',[]);var rc3=ch.filter(function(r){return r.id===t.dataset.pendCt;})[0];if(rc3){rc3.enviado=false;save('ct_hist',ch);updateCtBadge();_renderHistList(getHist());}}
+  if(t.dataset.delCt){if(confirm('¿Borrar este contacto del historial?')){var ch=load('ct_hist',[]);save('ct_hist',ch.filter(function(r){return r.id!==t.dataset.delCt;}));updateCtBadge();_renderHistList(getHist());}}
 });
 function updateBadge(){
   var pend=getHist().filter(function(r){return !r.enviado;}).length;
-  var b=$('navBadge');b.textContent=pend;b.style.display=pend?'block':'none';
+  var pendCt=load('ct_hist',[]).filter(function(r){return !r.enviado;}).length;
+  var b=$('navBadge');var total=pend+pendCt;b.textContent=total;b.style.display=total?'block':'none';
 }
 updateBadge();
 
@@ -1830,11 +1870,142 @@ function doReset(){
   delete $('f_drive').dataset.manual;refreshDrive();
   $('outputArea').style.display='none';$('btnFotos').disabled=true;
   resetTimerToReady();
+  // Limpiar modo edición
+  var eb=$('editBanner');if(eb)eb.style.display='none';
+  var bg=$('btnGen');if(bg)bg.textContent='Generar Markdown';
   updateProgress();window.scrollTo({top:0,behavior:'smooth'});
 }
 $('btnReset').addEventListener('click',function(){
   if(!confirm('¿Limpiar todos los campos? (El historial NO se borra)'))return;
   doReset();
+});
+
+/* ===================== EDICIÓN DE CAPTURAS — FASE 3 ===================== */
+function snapshotForm(){
+  var snap={};
+  document.querySelectorAll('#viewCapture input,#viewCapture textarea,#viewCapture select').forEach(function(el){
+    if(el.id)snap[el.id]=el.value;
+  });
+  document.querySelectorAll('#viewCapture .si-btn').forEach(function(b){
+    if(b.dataset.for)snap['_si_'+b.dataset.for]=b.classList.contains('active');
+  });
+  document.querySelectorAll('#viewCapture .na-btn').forEach(function(b){
+    if(b.dataset.forNa)snap['_na_'+b.dataset.forNa]=b.classList.contains('active');
+  });
+  snap._state=JSON.parse(JSON.stringify(state));
+  snap._zonasSel=zonasSel.slice();
+  return snap;
+}
+function restoreForm(snap){
+  if(!snap)return;
+  if(snap._state){var s=snap._state;
+    state.tipo=s.tipo||'';state.oper=s.oper||'Venta';state.ofrece=s.ofrece||'';
+    state.crm=s.crm||'No';state.modo=s.modo||'A · Reventa de lote';
+    state.madre=s.madre||'No, solo individuales';state.driveShare=s.driveShare||'Sí, carpeta común';
+    state.serv=s.serv||[];state.caract=s.caract||[];state.caractTerr=s.caractTerr||[];
+    state.lat=s.lat||null;state.lng=s.lng||null;state.people=s.people||[];
+    state.rentaMin=s.rentaMin||'';state.anuncioUrl=s.anuncioUrl||'';
+  }
+  if(state.tipo)setChip('tipoChips','tipo',state.tipo,onTipo);else onTipo('');
+  setChip('operChips','oper',state.oper||'Venta',onOper);
+  if(state.ofrece)setChip('ofreceChips','ofrece',state.ofrece,onOfrece);
+  setChip('crmChips','crm',state.crm||'No');
+  if(state.modo)setChip('modoChips','modo',state.modo);
+  if(state.madre)setChip('madreChips','madre',state.madre);
+  if(state.driveShare)setChip('driveShareChips','driveShare',state.driveShare);
+  if(state.rentaMin)setChip('rentaMinChips','rentaMin',state.rentaMin);
+  Object.keys(snap).forEach(function(k){
+    if(k.startsWith('_'))return;
+    var el=$(k);if(el)el.value=snap[k];
+  });
+  document.querySelectorAll('#viewCapture .si-btn').forEach(function(b){
+    b.classList.toggle('active',!!snap['_si_'+b.dataset.for]);
+  });
+  document.querySelectorAll('#viewCapture .na-btn').forEach(function(b){
+    if(snap['_na_'+b.dataset.forNa])setNaState(b.dataset.forNa,true);
+  });
+  if(snap._zonasSel){zonasSel=snap._zonasSel.slice();renderZonasTags();updateHintZona();}
+  buildCaract();renderCaractTerr();renderCRM();
+  refreshDrive();updateProgress();
+}
+function abrirEdicion(id){
+  var h=getHist();var rec=h.filter(function(r){return r.id===id;})[0];
+  if(!rec){alert('Captura no encontrada.');return;}
+  doReset();
+  state.editId=id;
+  if(rec.formData){
+    restoreForm(rec.formData);
+  } else {
+    if(rec.tipo)setChip('tipoChips','tipo',rec.tipo,onTipo);
+    if(rec.oper)setChip('operChips','oper',rec.oper,onOper);
+    if(rec.estatus)$('f_estatus').value=rec.estatus;
+    if(rec.zona&&rec.zona!=='S/I'){var zn=rec.zona.split(' / ');zn.forEach(function(n){addZona(n.trim(),false);});}
+  }
+  var eb=$('editBanner');var ebn=$('editBannerNombre');
+  if(eb){eb.style.display='';if(ebn)ebn.textContent=rec.nombre||'(sin nombre)';}
+  var bg=$('btnGen');if(bg)bg.textContent='Actualizar captura';
+  showView('viewCapture');
+}
+$('btnCancelEdit').addEventListener('click',function(){doReset();showView('viewHistory');});
+
+// -- Contactos --
+var ctEditId=null;var ctCapturadoEn=null;
+function calcCtStars(){
+  var s1=!!(ctVal('ct_nombre')&&ctState.tipo&&ctVal('ct_tel'));
+  var s2=s1&&!!(ctVal('ct_email')||($('ct_fuente')&&$('ct_fuente').value));
+  var s3=s2&&!!(ctVal('ct_zona_interes')||ctVal('ct_zona_oper')||ctVal('ct_zona_oper_aliado'));
+  return{count:s3?3:s2?2:s1?1:0,s1:s1,s2:s2,s3:s3};
+}
+function snapshotCtForm(){
+  var snap={};
+  document.querySelectorAll('#viewContact input,#viewContact textarea,#viewContact select').forEach(function(el){
+    if(el.id)snap[el.id]=el.value;
+  });
+  snap._ctState=JSON.parse(JSON.stringify(ctState));
+  return snap;
+}
+function restoreCtForm(snap){
+  if(!snap)return;
+  if(snap._ctState){Object.assign(ctState,snap._ctState);
+    if(ctState.tipo){
+      document.querySelectorAll('#ctTipoChips .chip').forEach(function(c){c.classList.toggle('sel',c.dataset.v===ctState.tipo);});
+      ctOnTipo(ctState.tipo);
+    }
+    ['ctConfianzaChips','ctUrgenciaChips','ctConfianzaAliado','ctEstatusChips'].forEach(function(cid){
+      var key={ctConfianzaChips:'confianza',ctUrgenciaChips:'urgencia',ctConfianzaAliado:'confianzaAliado',ctEstatusChips:'estatus'}[cid];
+      var w=$(cid);if(!w)return;
+      w.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('sel',c.dataset.v===ctState[key]);});
+    });
+  }
+  Object.keys(snap).forEach(function(k){
+    if(k.startsWith('_'))return;
+    var el=$(k);if(el)el.value=snap[k];
+  });
+  ctUpdateProgress();
+}
+function abrirEdicionCt(id){
+  var h=load('ct_hist',[]);var rec=h.filter(function(r){return r.id===id;})[0];
+  if(!rec){alert('Contacto no encontrado.');return;}
+  $('ctBtnReset').click();
+  ctEditId=id;ctCapturadoEn=rec.capturadoEn||rec.fecha;
+  if(rec.formData){
+    restoreCtForm(rec.formData);
+  } else {
+    if(rec.nombre)$('ct_nombre').value=rec.nombre;
+    if(rec.tel)$('ct_tel').value=rec.tel;
+    if(rec.email)$('ct_email').value=rec.email;
+    if(rec.asesor)$('ct_asesor').value=rec.asesor;
+  }
+  var eb=$('ctEditBanner');var ebn=$('ctEditBannerNombre');
+  if(eb){eb.style.display='';if(ebn)ebn.textContent=rec.nombre||'(sin nombre)';}
+  var bg=$('ctBtnGenerar');if(bg)bg.textContent='Actualizar contacto';
+  showView('viewContact');
+}
+$('btnCancelEditCt').addEventListener('click',function(){
+  ctEditId=null;ctCapturadoEn=null;
+  var eb=$('ctEditBanner');if(eb)eb.style.display='none';
+  var bg=$('ctBtnGenerar');if(bg)bg.textContent='Generar markdown';
+  $('ctBtnReset').click();showView('viewHistory');
 });
 
 /* ===================== CONTACTOS — FASE 7 ===================== */
@@ -1918,7 +2089,8 @@ function genContact(){
   var tipo=ctState.tipo==='Otro'?(ctVal('ct_otro_tipo')||'Otro'):ctState.tipo;
   var now=new Date();
   var fecha=now.toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'});
-  var id='CT-'+Date.now();
+  var isCtEdit=!!ctEditId;
+  var id=isCtEdit?ctEditId:('CT-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).substr(2,8).toUpperCase());
   var asesor=ctVal('ct_asesor')||CFG.resp||'S/I';
   var esCom=CT_COMPRADOR.indexOf(ctState.tipo)>=0;
   var esProp=CT_PROPIETARIO.indexOf(ctState.tipo)>=0;
@@ -1970,17 +2142,30 @@ function genContact(){
   $('ctMdOut').textContent=md;
   $('ctOutputArea').style.display='';
   $('ctOutputArea').scrollIntoView({behavior:'smooth',block:'start'});
-  saveContactHist({id:id,fecha:now.toISOString(),nombre:nombre,tipo:tipo,
+  var ctStars=calcCtStars();
+  var ctSnap=snapshotCtForm();
+  saveContactHist({id:id,fecha:now.toISOString(),
+    capturadoEn:isCtEdit?ctCapturadoEn:now.toISOString(),
+    modificadoEn:isCtEdit?now.toISOString():null,
+    nombre:nombre,tipo:tipo,
     tel:ctVal('ct_tel'),email:ctVal('ct_email'),
     asesorId:asesorActivo?asesorActivo.id:null,
-    asesor:asesor,md:md,enviado:false});
+    asesor:asesor,md:md,enviado:false,
+    estrellas:ctStars.count,calidad:['','Esencial','Publicable','Completa'][ctStars.count]||'',
+    formData:ctSnap});
   sndSuccess();
 }
 
 function saveContactHist(rec){
   if(!rec.id)rec.id='CT-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).substr(2,8).toUpperCase();
   if(!rec.fecha)rec.fecha=new Date().toISOString();
-  var h=load('ct_hist',[]);h.unshift(rec);save('ct_hist',h);
+  var h=load('ct_hist',[]);
+  h=h.filter(function(x){return x.id!==rec.id;}); // upsert: remove old version
+  h.unshift(rec);save('ct_hist',h);
+  // Limpiar modo edición de contacto
+  ctEditId=null;ctCapturadoEn=null;
+  var eb=$('ctEditBanner');if(eb)eb.style.display='none';
+  var bg=$('ctBtnGenerar');if(bg)bg.textContent='Generar markdown';
   updateCtBadge();renderCtHist();
   if(CFG.endpoint){var p=buildGasPayloadContact(rec);gasPost(p).catch(function(){queueForRetry(p);});}
 }

@@ -141,6 +141,12 @@ pre{background:#fbfbfa;border:1px solid var(--line);border-radius:6px;padding:16
 .hi-stars{font-size:.8rem;margin:2px 0 3px;}
 .hi-quality{font-size:.7rem;font-weight:700;color:var(--accent);margin-left:4px;vertical-align:middle;}
 .empty{color:var(--text-soft);font-size:.9rem;text-align:center;padding:40px 10px}
+/* edición + historial unificado */
+.edit-banner{background:#fffbe6;border:2px solid #f0c040;border-radius:10px;padding:10px 14px;margin:0 0 14px;display:flex;align-items:center;gap:10px;font-size:.9rem;font-weight:600;flex-wrap:wrap}
+.edit-banner .btn{margin-left:auto;background:#fff;border:1px solid #ccc;padding:6px 12px;font-size:.8rem}
+.hi-ct-badge{font-size:.68rem;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 6px;margin-right:5px;vertical-align:middle;font-weight:700}
+.hist-item-ct{border-color:#bfdbfe}
+.hi-edit-date{color:var(--accent);font-style:italic;font-size:.72rem}
 
 .cfg-block{border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-top:14px}
 .help-q{font-weight:700;margin-top:16px;font-size:.95rem}
