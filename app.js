@@ -7,7 +7,9 @@
 var $=function(id){return document.getElementById(id);};
 
 /* ---------- config local ---------- */
-var CFG=load('cfg',{resp:'Daniel',drive:'Hauser Propiedades',endpoint:''});
+var GAS_DEFAULT='https://script.google.com/macros/s/AKfycbwz6hm5MtyZdkaGXNpxi-AVJlCZvLntyMHGe055bsyrBubI862il09AR_CQmejfYu9p/exec';
+var CFG=load('cfg',{resp:'Daniel',drive:'Hauser Propiedades',endpoint:GAS_DEFAULT});
+if(!CFG.endpoint)CFG.endpoint=GAS_DEFAULT; // migrar instancias sin endpoint
 function load(k,def){try{var v=localStorage.getItem('cap_'+k);return v?JSON.parse(v):def;}catch(e){return def;}}
 function save(k,v){try{localStorage.setItem('cap_'+k,JSON.stringify(v));}catch(e){}}
 
@@ -36,7 +38,7 @@ var state={tipo:'',oper:'Venta',ofrece:'',crm:'No',modo:'A · Reventa de lote',
 var hoy=new Date().toISOString().slice(0,10);
 $('f_fecha').value=hoy;$('f_seguimiento').value=hoy;
 $('f_resp').value=CFG.resp;
-$('cfg_resp').value=CFG.resp;$('cfg_drive').value=CFG.drive;$('cfg_endpoint').value=CFG.endpoint;
+$('cfg_resp').value=CFG.resp;$('cfg_drive').value=CFG.drive;$('cfg_endpoint').value=CFG.endpoint;save('cfg',CFG);
 
 /* ===================== NAVEGACIÓN ===================== */
 // Un solo listener cubre navbar, tarjetas del menú y botones "← Menú"
@@ -1456,37 +1458,31 @@ function sortAsesores(lista){
   });
 }
 
-function buildRankingFromCapturas(capturas){
-  var map={};
-  capturas.forEach(function(c){
-    var key=(c.asesorId||'')+'\x00'+(c.asesorNombre||'?');
-    if(!map[key])map[key]={id:c.asesorId,nombre:c.asesorNombre||'S/I',totalCapturas:0,totalEstrellas:0,capturasEsenciales:0,capturasCompletas:0,mejorTiempo:null,ultimaCaptura:null};
-    var a=map[key];var st=parseInt(c.estrellas)||0;
-    a.totalCapturas++;a.totalEstrellas+=st;
-    if(st>=2)a.capturasEsenciales++;if(st>=3)a.capturasCompletas++;
-    var el=parseInt(c.elapsed)||0;
-    if(el>0&&(!a.mejorTiempo||el<a.mejorTiempo))a.mejorTiempo=el;
-    if(!a.ultimaCaptura||c.fecha>a.ultimaCaptura)a.ultimaCaptura=c.fecha;
-  });
-  return Object.keys(map).map(function(k){return map[k];});
-}
 function renderRanking(){
   var wrap=$('rankingList');if(!wrap)return;
   var modoEl=$('rankingModo');
   if(CFG.endpoint){
     wrap.innerHTML='<div class="empty" style="margin-top:48px">⏳ Cargando ranking compartido…</div>';
     if(modoEl)modoEl.textContent='';
-    api('getRanking',{}).then(function(res){
-      if(res&&res.capturas&&res.capturas.length){
-        if(modoEl)modoEl.textContent='🌐 Ranking compartido ('+res.capturas.length+' capturas de todos los dispositivos)';
-        renderRankingConLista(sortAsesores(buildRankingFromCapturas(res.capturas)));
+    gasGet(function(data){
+      if(data&&data.asesores&&data.asesores.length>1){
+        var rows=parseGasRows(data.asesores);
+        var total=data.capturas?data.capturas.length-1:rows.length;
+        var lista=sortAsesores(rows.map(function(a){
+          return{id:null,nombre:a.asesor||'S/I',
+            totalCapturas:parseInt(a.totalCapturas)||0,
+            totalEstrellas:parseInt(a.totalEstrellas)||0,
+            capturasCompletas:parseInt(a.capturasCompletas)||0,
+            capturasEsenciales:parseInt(a.capturasEsenciales)||0,
+            mejorTiempo:parseInt(a.mejorTiempo)||null,
+            ultimaCaptura:a.ultimaCaptura||null};
+        }));
+        if(modoEl)modoEl.textContent='🌐 Ranking compartido ('+total+' capturas de todos los dispositivos)';
+        renderRankingConLista(lista);
       }else{
-        if(modoEl)modoEl.textContent='📱 Ranking local (endpoint conectado pero sin datos compartidos aún)';
+        if(modoEl)modoEl.textContent='📱 Ranking local (sin datos en la nube aún)';
         renderRankingLocal();
       }
-    }).catch(function(){
-      if(modoEl)modoEl.textContent='📱 Ranking local (no se pudo conectar al servidor)';
-      renderRankingLocal();
     });
   }else{
     if(modoEl)modoEl.textContent='📱 Ranking local · Configura un endpoint en ⚙️ para compartir';
@@ -1570,9 +1566,10 @@ function getHist(){return load('hist',[]);}
 function setHist(h){save('hist',h);updateBadge();}
 function saveCapture(md,estatus,falt,stars,quality,elapsed){
   var h=getHist();
-  var id=state.editId&&false?null:'CAP-'+Date.now();
+  var now=new Date().toISOString();
+  var id=genUUID();
   var rec={
-    id:id,fecha:new Date().toISOString(),
+    id:id,fecha:now,
     asesorId:asesorActivo?asesorActivo.id:null,
     asesorNombre:asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I'),
     resp:$('f_resp').value,
@@ -1582,25 +1579,45 @@ function saveCapture(md,estatus,falt,stars,quality,elapsed){
     anuncio:state.anuncioUrl||'',maps:$('f_maps').value,drive:$('f_drive').value,
     md:md,estado:falt.length?'Con faltantes':'Markdown generado',
     estrellas:stars||0,calidad:quality||'',elapsed:elapsed||0,
-    faltantes:falt,copiado:false,enviado:false,edit:new Date().toISOString()
+    faltantes:falt,copiado:false,enviado:false,edit:now
   };
   h.unshift(rec);setHist(h);
   zonasSel.forEach(function(z){zonaTouch(z.n);});
-  if(CFG.endpoint)syncOne(rec);
+  if(CFG.endpoint){var p=buildGasPayload(rec);gasPost(p).then(function(r){if(r&&r.ok){var hh=getHist();var rr=hh.filter(function(x){return x.id===id;})[0];if(rr){rr.enviado=true;setHist(hh);}}}).catch(function(){queueForRetry(p);});}
   return id;
 }
 function renderHist(){
-  var h=getHist();var wrap=$('histList');
-  // filtros
+  var wrap=$('histList');
+  // Build filters once
   var filt=$('histFilters');
   if(!filt.dataset.built){
     ['Todos','Pendientes','Enviados','Con faltantes'].forEach(function(f,i){
       var b=document.createElement('button');b.type='button';b.className='chip chip-sm'+(i===0?' sel':'');b.textContent=f;b.dataset.f=f;
-      b.addEventListener('click',function(){filt.querySelectorAll('.chip').forEach(function(x){x.classList.remove('sel');});b.classList.add('sel');renderHist();});
+      b.addEventListener('click',function(){filt.querySelectorAll('.chip').forEach(function(x){x.classList.remove('sel');});b.classList.add('sel');_renderHistList(getHist());});
       filt.appendChild(b);
     });
     filt.dataset.built='1';
   }
+  // Render local immediately
+  _renderHistList(getHist());
+  // Cloud sync in background (cloud is source of truth)
+  if(CFG.endpoint){
+    gasGet(function(data){
+      if(data&&data.capturas&&data.capturas.length>1){
+        var cloudRecs=gasCapturasToLocalHist(parseGasRows(data.capturas));
+        var queueIds=load('gasqueue',[]).map(function(p){return p.id;});
+        var localOnly=getHist().filter(function(r){return queueIds.indexOf(r.id)!==-1;});
+        var merged=cloudRecs.concat(localOnly);
+        merged.sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
+        setHist(merged);
+        _renderHistList(merged);
+      }
+    });
+  }
+}
+function _renderHistList(h){
+  var wrap=$('histList');
+  var filt=$('histFilters');
   var active=(filt.querySelector('.chip.sel')||{}).dataset?filt.querySelector('.chip.sel').dataset.f:'Todos';
   var list=h.filter(function(r){
     if(active==='Pendientes')return !r.enviado;
@@ -1666,7 +1683,7 @@ $('btnMarkSent').addEventListener('click',function(){
 /* ===================== GUARDAR sin generar ===================== */
 $('btnSave').addEventListener('click',function(){
   var h=getHist();
-  h.unshift({id:'CAP-'+Date.now(),fecha:new Date().toISOString(),resp:$('f_resp').value,
+  h.unshift({id:genUUID(),fecha:new Date().toISOString(),resp:$('f_resp').value,
     nombre:nombreBase(),direccion:$('f_direccion').value.trim(),zona:zonasSel.map(function(z){return z.n;}).join(' / ')||'S/I',tipo:state.tipo,oper:state.oper,
     estatus:$('f_estatus').value,fuente:fuenteVal().nombre,people:[],anuncio:state.anuncioUrl||'',
     maps:$('f_maps').value,drive:$('f_drive').value,md:'(borrador sin markdown)',estado:'Borrador',
@@ -1697,13 +1714,49 @@ $('btnAI').addEventListener('click',function(){
   .finally(function(){$('btnAI').disabled=false;});
 });
 
-/* ===================== BACKEND (opcional) ===================== */
-function api(action,payload){
+/* ===================== BACKEND GAS — Fase 2B ===================== */
+function genUUID(){return 'CAP-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).substr(2,8).toUpperCase();}
+function parseGasRows(rows){if(!rows||rows.length<2)return[];var h=rows[0];return rows.slice(1).map(function(r){var o={};h.forEach(function(k,i){o[k]=r[i];});return o;});}
+function gasPost(payload){
   if(!CFG.endpoint)return Promise.reject(new Error('sin endpoint'));
   return fetch(CFG.endpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({action:action,payload:payload})}).then(function(r){return r.json();});
+    body:JSON.stringify(payload)}).then(function(r){return r.json();});
 }
-function syncOne(rec){api('saveCapture',rec).catch(function(){});}
+function gasGet(cb){
+  if(!CFG.endpoint){cb(null);return;}
+  fetch(CFG.endpoint).then(function(r){return r.json();}).then(function(d){cb(d.ok?d:null);}).catch(function(){cb(null);});
+}
+function queueForRetry(payload){var q=load('gasqueue',[]);q.push(payload);save('gasqueue',q);}
+function processQueue(){
+  if(!CFG.endpoint)return;
+  var q=load('gasqueue',[]);if(!q.length)return;
+  gasPost(q[0]).then(function(){var q2=load('gasqueue',[]);q2.shift();save('gasqueue',q2);if(q2.length)setTimeout(processQueue,500);}).catch(function(){});
+}
+function buildGasPayload(rec){
+  var now=new Date().toISOString();
+  return{id:rec.id,timestamp:rec.fecha||now,tipo:'propiedad',asesor:rec.asesorNombre||rec.resp||'S/I',
+    estrellas:rec.estrellas||0,calidad:rec.calidad||'',propiedad_json:JSON.stringify(rec),contacto_json:'',
+    capturadoEn:rec.fecha||now,modificadoEn:rec.edit||now};
+}
+function buildGasPayloadContact(rec){
+  var now=new Date().toISOString();
+  return{id:rec.id,timestamp:rec.fecha||now,tipo:'contacto',asesor:rec.asesor||'S/I',
+    estrellas:0,calidad:'',propiedad_json:'',contacto_json:JSON.stringify(rec),
+    capturadoEn:rec.fecha||now,modificadoEn:rec.fecha||now};
+}
+function gasCapturasToLocalHist(capturas){
+  return capturas.filter(function(c){return c.tipo==='propiedad';}).map(function(c){
+    try{var r=JSON.parse(c.propiedad_json);r.enviado=true;return r;}
+    catch(e){return{id:c.id,fecha:c.capturadoEn||c.timestamp,asesorNombre:c.asesor,
+      tipo:'',oper:'',zona:'S/I',estrellas:parseInt(c.estrellas)||0,calidad:c.calidad||'',
+      md:'',nombre:'(sin nombre)',estado:'Sincronizado',faltantes:[],copiado:false,enviado:true};}
+  });
+}
+// Retry queue en startup
+if(CFG.endpoint)setTimeout(processQueue,3000);
+// Stub para acciones legadas (Drive) no soportadas por GAS v2B
+function api(action){return Promise.reject(new Error('No implementado: '+action));}
+
 $('cfg_resp').addEventListener('change',function(){
   var n=this.value;CFG.resp=n;save('cfg',CFG);$('f_resp').value=n;
   var lista=getAsesores();
@@ -1714,21 +1767,30 @@ $('cfg_drive').addEventListener('input',function(){CFG.drive=this.value;save('cf
 $('cfg_endpoint').addEventListener('input',function(){CFG.endpoint=this.value.trim();save('cfg',CFG);});
 $('cfg_test').addEventListener('click',function(){
   if(!CFG.endpoint){$('cfgStatus').textContent='Pega primero el endpoint.';return;}
-  $('cfgStatus').className='status';$('cfgStatus').textContent='Probando…';
-  api('ping',{}).then(function(res){$('cfgStatus').className='status ok';$('cfgStatus').textContent='✓ Conectado: '+(res&&res.msg?res.msg:'ok');})
-  .catch(function(){$('cfgStatus').className='status err';$('cfgStatus').textContent='No respondió. Revisa la URL y que esté publicado "cualquiera con el enlace".';});
+  $('cfgStatus').className='status';$('cfgStatus').textContent='Probando conexión…';
+  gasGet(function(data){
+    if(data){$('cfgStatus').className='status ok';$('cfgStatus').textContent='✓ Conectado · '+(data.capturas?data.capturas.length-1:0)+' capturas en la nube';}
+    else{$('cfgStatus').className='status err';$('cfgStatus').textContent='No respondió. Revisa la URL y que esté publicado con acceso "Cualquier persona".';}
+  });
 });
 $('cfg_sync').addEventListener('click',function(){
   if(!CFG.endpoint){$('cfgStatus').textContent='Configura primero el endpoint.';return;}
-  var pend=getHist();$('cfgStatus').textContent='Sincronizando '+pend.length+' capturas…';
-  api('bulkSync',{items:pend}).then(function(){$('cfgStatus').className='status ok';$('cfgStatus').textContent='✓ Historial sincronizado.';})
-  .catch(function(){$('cfgStatus').className='status err';$('cfgStatus').textContent='No se pudo sincronizar.';});
+  var hist=getHist();$('cfgStatus').textContent='Enviando '+hist.length+' capturas a la nube…';
+  var done=0,errs=0;
+  var total=hist.length;
+  if(!total){$('cfgStatus').className='status ok';$('cfgStatus').textContent='No hay capturas locales.';return;}
+  hist.forEach(function(rec){
+    gasPost(buildGasPayload(rec)).then(function(){done++;if(done+errs===total){save('gasqueue',[]);$('cfgStatus').className='status ok';$('cfgStatus').textContent='✓ '+done+' capturas sincronizadas'+(errs?' ('+errs+' con error)':'')+'.';}}).catch(function(){errs++;queueForRetry(buildGasPayload(rec));if(done+errs===total){$('cfgStatus').className='status err';$('cfgStatus').textContent=done+' OK · '+errs+' en cola para reintentar.';}});
+  });
 });
 $('cfg_export').addEventListener('click',function(){
   var blob=new Blob([JSON.stringify(getHist(),null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='historial_capturas.json';a.click();
 });
-function renderCfgCount(){$('cfgCount').textContent=getHist().length+' captura(s) guardada(s) en este dispositivo.';}
+function renderCfgCount(){
+  var q=load('gasqueue',[]).length;
+  $('cfgCount').textContent=getHist().length+' captura(s) en este dispositivo'+(q?' · '+q+' pendiente(s) de sincronizar':'')+(CFG.endpoint?' · endpoint activo':' · sin endpoint');
+}
 
 /* config de sonidos */
 function renderSndCfg(){
@@ -1916,8 +1978,11 @@ function genContact(){
 }
 
 function saveContactHist(rec){
+  if(!rec.id)rec.id='CT-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).substr(2,8).toUpperCase();
+  if(!rec.fecha)rec.fecha=new Date().toISOString();
   var h=load('ct_hist',[]);h.unshift(rec);save('ct_hist',h);
   updateCtBadge();renderCtHist();
+  if(CFG.endpoint){var p=buildGasPayloadContact(rec);gasPost(p).catch(function(){queueForRetry(p);});}
 }
 function updateCtBadge(){
   var pend=load('ct_hist',[]).filter(function(r){return !r.enviado;}).length;
