@@ -4,6 +4,7 @@
    ============================================================ */
 (function(){
 'use strict';
+console.log('[Hauser] app.js cargado — build 4B (multi-select contactos)');
 var $=function(id){return document.getElementById(id);};
 
 /* ---------- config local ---------- */
@@ -2069,6 +2070,7 @@ $('ctTipoChips').addEventListener('click',function(e){
   c.classList.toggle('sel');
   var v=c.dataset.v;var idx=ctState.tipos.indexOf(v);
   if(idx>=0)ctState.tipos.splice(idx,1);else ctState.tipos.push(v);
+  console.log('[ctTipoChips] click v='+v+' | tipos='+JSON.stringify(ctState.tipos)+' | sel='+c.classList.contains('sel'));
   ctOnTipos();
 });
 
