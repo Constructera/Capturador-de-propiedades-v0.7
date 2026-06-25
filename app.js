@@ -57,6 +57,7 @@ function showView(id){
   if(id==='viewAdvisor')renderAsesorGrid();
   if(id==='viewLeaderboard')renderRanking();
   if(id==='viewContact'){renderCtHist();if(asesorActivo&&$('ct_asesor'))$('ct_asesor').value=asesorActivo.nombre||CFG.resp||'';}
+  if(id==='viewCapture')updateProgress();
 }
 
 /* ===================== MÓDULO DE ASESORES ===================== */
@@ -996,12 +997,18 @@ function updateProgress(){
   var pct=total?Math.round(done/total*100):0;
   $('progText').textContent=done+' de '+total+' campos clave';
   $('progPct').textContent=pct+'%';$('progFill').style.width=pct+'%';
+  syncLimpiarBtn(done>0||state.tipo||state.ofrece||zonasSel.length);
+}
+function syncLimpiarBtn(hasDatos){
   var lw=$('btnLimpiarWrap');
-  if(lw)lw.style.display=(done>0||state.tipo||state.ofrece||zonasSel.length)?'':'none';
+  if(lw)lw.style.display=hasDatos?'':'none';
 }
 ['f_zona','f_uso','f_frente','f_fondo','f_rec','f_ban','f_est','f_notas','f_m2c'].forEach(function(id){
   var el=$(id);if(el){el.addEventListener('input',updateProgress);el.addEventListener('change',updateProgress);}
 });
+// Delegate: captura cualquier input/change en viewCapture que no esté cableado individualmente
+$('viewCapture').addEventListener('input',updateProgress);
+$('viewCapture').addEventListener('change',updateProgress);
 updateProgress();
 
 /* ===================== HELPERS SALIDA ===================== */
