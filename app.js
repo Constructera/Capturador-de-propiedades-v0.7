@@ -31,7 +31,7 @@ function zonaTouch(n){
 }
 
 var state={tipo:'',oper:'Venta',ofrece:'',crm:'No',modo:'A · Reventa de lote',
-  madre:'No, solo individuales',driveShare:'Sí, carpeta común',
+  driveShare:'Sí, carpeta común',
   serv:[],caract:[],caractTerr:[],lat:null,lng:null,
   people:[],editId:null,rentaMin:''};
 
@@ -387,7 +387,6 @@ bindChips('operChips','oper',onOper);
 bindChips('ofreceChips','ofrece',onOfrece);
 bindChips('crmChips','crm',function(v){renderCRM();});
 bindChips('modoChips','modo');
-bindChips('madreChips','madre');
 bindChips('driveShareChips','driveShare');
 bindChips('rentaMinChips','rentaMin');
 
@@ -1242,7 +1241,6 @@ function generar(){
   md+='## 1. Acción principal\n';
   if(nU>1){
     md+='Crear **'+unidades.length+' páginas** en 🏠 Propiedades, una por unidad (no agrupar en una sola). Clonar los datos comunes de abajo y respetar los datos específicos de cada unidad.\n';
-    md+='- Página madre del conjunto: **'+state.madre+'**.\n';
     md+='- Carpeta de Drive: **'+state.driveShare+'**.\n\n';
   }else{
     md+='Crear **1 página** en 🏠 Propiedades con el nombre **'+nombre+'** (si ya existe una con esa dirección, actualizarla).\n\n';
@@ -1975,9 +1973,9 @@ function doReset(){
   document.querySelectorAll('.si-btn').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.na-btn').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('#viewCapture .chip').forEach(function(c){c.classList.remove('sel');});
-  state={tipo:'',oper:'Venta',ofrece:'',crm:'No',modo:'A · Reventa de lote',madre:'No, solo individuales',driveShare:'Sí, carpeta común',serv:[],caract:[],caractTerr:[],lat:null,lng:null,people:[],editId:null,rentaMin:''};
+  state={tipo:'',oper:'Venta',ofrece:'',crm:'No',modo:'A · Reventa de lote',driveShare:'Sí, carpeta común',serv:[],caract:[],caractTerr:[],lat:null,lng:null,people:[],editId:null,rentaMin:''};
   setChip('operChips','oper','Venta',onOper);setChip('modoChips','modo','A · Reventa de lote');
-  setChip('madreChips','madre','No, solo individuales');setChip('driveShareChips','driveShare','Sí, carpeta común');
+  setChip('driveShareChips','driveShare','Sí, carpeta común');
   setChip('crmChips','crm','No');
   buildCaract();renderCaractTerr();renderCRM();
   $('f_unidades').value=1;$('f_comision').value='4%';if(asesorActivo)syncAsesor();else $('f_resp').value=CFG.resp;
@@ -2025,7 +2023,7 @@ function restoreForm(snap){
   if(snap._state){var s=snap._state;
     state.tipo=s.tipo||'';state.oper=s.oper||'Venta';state.ofrece=s.ofrece||'';
     state.crm=s.crm||'No';state.modo=s.modo||'A · Reventa de lote';
-    state.madre=s.madre||'No, solo individuales';state.driveShare=s.driveShare||'Sí, carpeta común';
+    state.driveShare=s.driveShare||'Sí, carpeta común';
     state.serv=s.serv||[];state.caract=s.caract||[];state.caractTerr=s.caractTerr||[];
     state.lat=s.lat||null;state.lng=s.lng||null;state.people=s.people||[];
     state.rentaMin=s.rentaMin||'';state.anuncioUrl=s.anuncioUrl||'';
@@ -2035,7 +2033,6 @@ function restoreForm(snap){
   if(state.ofrece)setChip('ofreceChips','ofrece',state.ofrece,onOfrece);
   setChip('crmChips','crm',state.crm||'No');
   if(state.modo)setChip('modoChips','modo',state.modo);
-  if(state.madre)setChip('madreChips','madre',state.madre);
   if(state.driveShare)setChip('driveShareChips','driveShare',state.driveShare);
   if(state.rentaMin)setChip('rentaMinChips','rentaMin',state.rentaMin);
   Object.keys(snap).forEach(function(k){
