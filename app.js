@@ -574,9 +574,47 @@ $('personSave').addEventListener('click',function(){
 });
 
 /* ===================== CARACTERÍSTICAS por tipo ===================== */
-var CAR_CASA=['Alberca','Terraza','Jardín','Seguridad','Roof garden','Bodega','Cuarto de servicio','Estudio','Cocina integral','Vista','Una sola planta','En condominio','Nueva','En construcción','Para remodelar','Áreas comunes','Cisterna','Paneles solares','Amueblada','Acepta mascotas','Elevador','Clóset vestidor'];
-var CAR_TERR=['Plano','Con pendiente','Con vista','Bardeado','Servicios','Agua','Luz','Drenaje','Calle pavimentada','Uso habitacional','Potencial de desarrollo','Para inversión','Escrituras','Cesión de derechos','Frente amplio','Irregular','Regular','Esquina'];
-var CAR_LOCAL=['Sobre avenida','Alto flujo','Estacionamiento','Doble altura','Bodega','Baños','Seguridad','Acceso de carga','Uso comercial','Frente visible','Cortina','Área de maniobra'];
+var CAR_CASA=[
+  'Alberca','Terraza','Jardín privado','Roof garden','Balcón','Patio privado','Área de BBQ',
+  'Juegos infantiles','Parque privado','Amenidades completas',
+  'Cocina integral','Cocina americana','Isla de cocina','Clóset vestidor','Recámara en PB',
+  'Recámara principal amplia','Baño en suite','Jacuzzi','Sauna',
+  'Cuarto de servicio','Cuarto de lavado','Estudio / home office','Sala de cine',
+  'Bodega','Elevador','Doble altura','Iluminación natural','Ventilación natural',
+  'Vista panorámica','Vista al jardín','Vista a la montaña',
+  'Paneles solares','Cisterna propia','Gas natural','Internet de fibra','Domótica',
+  'Portón automático','Acceso controlado','Vigilancia 24h','Cámaras de seguridad','Videoportero',
+  'En condominio','Áreas comunes','Gimnasio','Salón de eventos','Coworking en amenidades',
+  'Cochera techada','Acabados de lujo','Pisos de madera','Amueblada','Acepta mascotas','Nueva'
+];
+var CAR_TERR=[
+  'Plano','Gran frente','Frente amplio','Esquina','Doble esquina','Dos accesos','Forma regular',
+  'Con vista','Vista panorámica','Vista a la ciudad','Vista a la montaña',
+  'Bardeado','Arbolado','Topografía favorable','Sin construcciones previas','Limpio y nivelado',
+  'Agua','Luz','Drenaje','Gas natural','Servicios completos','Calle pavimentada',
+  'Uso habitacional','Uso mixto','Potencial de desarrollo','Alta densidad constructiva',
+  'Sin restricciones de altura','Para inversión','Alta plusvalía',
+  'Zona exclusiva','Zona residencial','Zona consolidada',
+  'Cerca de servicios','Cerca de escuelas','Cerca de comercios','Buena vialidad','Fácil acceso',
+  'Escrituras limpias','Sin adeudos','Avalúo reciente','Permiso tramitado',
+  'Proyecto arquitectónico incluido','Potencial comercial','Pozo de agua','Cisterna',
+  'Colindancia favorable','Apto para desarrollo inmediato','Cesión de derechos'
+];
+var CAR_LOCAL=[
+  'Sobre avenida','Esquina comercial','Alta visibilidad','Alto flujo peatonal','Alto flujo vehicular',
+  'Frente visible','Señalización exterior','Vidriera amplia','Zona comercial',
+  'Cerca de autopista','Sobre boulevard',
+  'Estacionamiento propio','Cajones de visita','Rampa de acceso','Acceso de carga trasera',
+  'Área de maniobra','Patio de maniobras',
+  'Doble altura','Techo alto','Entrepiso / mezzanine','Piso epóxico','Losa reforzada',
+  'Bodega integrada','Cuarto frío','Cortina metálica','Puerta de acceso amplia',
+  'Gas natural','Línea trifásica','Internet de fibra','Climatización','Ventilación industrial',
+  'Iluminación LED','Baños para clientes','Baños para empleados',
+  'Cocina / comedor','Sala de juntas','Recepción','Área de descanso',
+  'Vigilancia / CCTV','Control de acceso','Acceso 24h','Los 365 días',
+  'Administración incluida','Cisterna propia','Planta de emergencia',
+  'Alarma contra incendio','Acceso para discapacitados','En parque industrial','Uso comercial'
+];
 function poolFor(){
   if(state.tipo==='Terreno')return CAR_TERR;
   if(['Local comercial','Oficina','Bodega'].indexOf(state.tipo)!==-1)return CAR_LOCAL;
