@@ -385,36 +385,39 @@ $('servChips').addEventListener('click',function(e){
 
 /* ===================== ¿QUIÉN OFRECE? → CRM ===================== */
 function onOfrece(v){
-  // sembrar una persona-base según quién ofrece
   var roleMap={
     'Propietario directo':'Propietario (B)',
     'Asesor / broker':'Asesor inmobiliario',
-    'Socio inmobiliario':'Socio inmobiliario',
-    'Desarrollador':'Desarrollador',
+    'Socio inmobiliario':'Proveedor',
+    'Desarrollador':'Proveedor',
     'Referido':'Referido'
   };
-  // quitar la persona auto previa (marcada con auto:true y no editada)
   state.people=state.people.filter(function(p){return !(p.auto&&!p.touched);});
   if(roleMap[v]){
-    state.people.unshift({id:'p'+Date.now(),nombre:'',rol:roleMap[v],tel:'',auto:true,touched:false});
+    state.people.unshift({id:'p'+Date.now(),nombre:'',tipos:[roleMap[v]],tel:'',auto:true,touched:false});
   }
   renderCRM();
 }
 
 /* ===================== CRM dinámico ===================== */
-var ROLES=['Cliente A (comprador)','Cliente B (propietario/vendedor)','Asesor inmobiliario','Broker','Socio inmobiliario','Desarrollador','Referido','Otro'];
+var TIPOS_CONTACTO=['Propietario (B)','Comprador (A)','Inversionista','Arrendatario','Asesor inmobiliario','Portero','Admin','Proveedor','Referido'];
+var ETAPAS_LEAD=['Nuevo','Contactado','Calificado','En seguimiento','Cliente activo','Cerrado/Ganado','Perdido'];
+var FUENTES_CT=['Portal','Redes sociales','Recorrido/Scouteo','Referido','Lona/Cartel','WhatsApp','Llamada','Imprenta','Asesor inmobiliario','Amistad'];
+var TEMPS_CT=['🔥 Caliente','🌤️ Tibio','❄️ Frío'];
+function personTipos(p){return p.tipos&&p.tipos.length?p.tipos:(p.rol?[p.rol]:[]);}
+function personEsComprador(p){var t=personTipos(p);return t.some(function(x){return /Comprador|Inversionista/.test(x);});}
 function renderCRM(){
   var wrap=$('crmCards');wrap.innerHTML='';
-  // si CRM = Sí y no hay comprador, sembrar uno
-  if(state.crm==='Sí' && !state.people.some(function(p){return /Cliente A/.test(p.rol);})){
-    state.people.push({id:'pc'+Date.now(),nombre:'',rol:'Cliente A (comprador)',tel:'',auto:true,touched:false});
+  if(state.crm==='Sí'&&!state.people.some(personEsComprador)){
+    state.people.push({id:'pc'+Date.now(),nombre:'',tipos:['Comprador (A)'],tel:'',auto:true,touched:false});
   }
   state.people.forEach(function(p){
     var card=document.createElement('div');card.className='person-card';
     var dataState=(p.nombre||p.tel)?'ok':'';
     var stTxt=(p.nombre||p.tel)?'Datos capturados':'Faltan datos';
+    var rolStr=personTipos(p).join(' · ')||'S/I';
     card.innerHTML='<div class="pc-top"><div><div class="pc-name">'+(p.nombre||'(sin nombre)')+'</div>'+
-      '<div class="pc-role">'+p.rol+(p.tel?(' · '+p.tel):'')+'</div></div>'+
+      '<div class="pc-role">'+esc(rolStr)+(p.tel?(' · '+p.tel):'')+'</div></div>'+
       '<span class="pc-state '+dataState+'">'+stTxt+'</span></div>'+
       '<div class="btn-row"><button type="button" class="btn chip-sm" data-edit="'+p.id+'">Completar datos</button>'+
       '<button type="button" class="btn chip-sm btn-danger" data-del="'+p.id+'">Quitar</button></div>';
@@ -435,47 +438,94 @@ $('crmCards').addEventListener('click',function(e){
 function openPerson(id){
   var p=id?state.people.filter(function(x){return x.id===id;})[0]:null;
   var isNew=!p;
-  if(isNew)p={id:'p'+Date.now(),rol:'Otro'};
-  state.editId=p.id;state._editIsNew=isNew;state._editTmp=Object.assign({},p);
+  var today=new Date().toISOString().split('T')[0];
+  if(isNew)p={id:'p'+Date.now(),tipos:[]};
+  var tiposArr=(p.tipos&&p.tipos.length?p.tipos:(p.rol?[p.rol]:[])).slice();
+  var zonaIntArr=(Array.isArray(p.zonaInt)?p.zonaInt:(p.zonaInt?[p.zonaInt]:[])).slice();
+  var zonaOpArr=(Array.isArray(p.zonaOp)?p.zonaOp:(p.zonaOp?[p.zonaOp]:[])).slice();
+  state.editId=p.id;state._editIsNew=isNew;
+  state._editTmp=Object.assign({},p,{tipos:tiposArr,zonaIntArr:zonaIntArr,zonaOpArr:zonaOpArr});
   $('personTitle').textContent=p.nombre?('Datos de '+p.nombre):'Completar datos';
-  var f=[
-    ['nombre','Nombre completo','text'],
-    ['rol','Tipo de contacto','select',ROLES],
-    ['empresa','Empresa / inmobiliaria','text'],
-    ['puesto','Puesto / rol','text'],
-    ['tel','Teléfono','tel'],
-    ['wa','WhatsApp','tel'],
-    ['email','Correo','email'],
-    ['fuente','Fuente del contacto','text'],
-    ['relacion','Relación con la propiedad','text'],
-    ['acuerdo','Acuerdo comercial','text','Ej. exclusiva 3 meses, comisión al cierre, sin exclusiva'],
-    ['comision','Comisión','select',['S/I','0.5%','1%','2%','3%','4%','5%','6%','7%']],
-    ['zonaOp','Zona de operación','text'],
-    ['zonaInt','Zona de interés','text'],
-    ['presupuesto','Presupuesto (si compra)','text'],
-    ['busca','Tipo de propiedad que busca','text'],
-    ['urgencia','Urgencia','select',['S/I','Baja','Media','Alta']],
-    ['confianza','Nivel de confianza','select',['S/I','Bajo','Medio','Alto']],
-    ['estatus','Estatus del contacto','select',['Nuevo','En seguimiento','Cliente activo','Cerrado']],
-    ['notas','Notas internas','textarea'],
-    ['prox','Próxima acción','text'],
-    ['fechaSeg','Fecha de seguimiento','date']
-  ];
-  var html='';
-  f.forEach(function(fl){
-    var key=fl[0],lab=fl[1],typ=fl[2],opts=fl[3];
-    var val=p[key]!=null?p[key]:'';
-    html+='<div class="field"><div class="field-top"><label>'+lab+'</label></div>';
-    if(typ==='select'){
-      html+='<select data-k="'+key+'">'+opts.map(function(o){return '<option'+(o===val?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
-    }else if(typ==='textarea'){
-      html+='<textarea data-k="'+key+'">'+esc(val)+'</textarea>';
-    }else{
-      html+='<input type="'+typ+'" data-k="'+key+'" placeholder="'+esc(opts||'')+'" value="'+esc(val)+'">';
-    }
-    html+='</div>';
-  });
+
+  var showPresup=tiposArr.some(function(t){return /Comprador|Inversionista/.test(t);});
+  var tiposChips=TIPOS_CONTACTO.map(function(t){
+    return '<button type="button" class="chip chip-sm'+(tiposArr.indexOf(t)>=0?' sel':'')+'" data-tipo="'+esc(t)+'">'+esc(t)+'</button>';
+  }).join('');
+  var zonaIntChips=zonasAll().sort(function(a,b){return(b.uses||0)-(a.uses||0);}).map(function(z){
+    return '<button type="button" class="chip chip-sm'+(zonaIntArr.indexOf(z.n)>=0?' sel':'')+'" data-zint="'+esc(z.n)+'">'+esc(z.n)+'</button>';
+  }).join('');
+  var zonaOpChips=zonasAll().sort(function(a,b){return(b.uses||0)-(a.uses||0);}).map(function(z){
+    return '<button type="button" class="chip chip-sm'+(zonaOpArr.indexOf(z.n)>=0?' sel':'')+'" data-zop="'+esc(z.n)+'">'+esc(z.n)+'</button>';
+  }).join('');
+
+  var html=
+    '<div class="field"><div class="field-top"><label>Nombre</label></div>'+
+    '<input type="text" id="pf_nombre" value="'+esc(p.nombre||'')+'"></div>'+
+    '<div class="field"><div class="field-top"><label>Teléfono</label></div>'+
+    '<input type="tel" id="pf_tel" value="'+esc(p.tel||'')+'"></div>'+
+    '<div class="field"><div class="field-top"><label>WhatsApp</label></div>'+
+    '<input type="tel" id="pf_wa" value="'+esc(p.wa!=null?p.wa:(p.tel||''))+'"></div>'+
+    '<div class="field"><div class="field-top"><label>Email</label></div>'+
+    '<input type="email" id="pf_email" value="'+esc(p.email||'')+'"></div>'+
+    '<div class="field"><div class="field-top"><label>Empresa</label></div>'+
+    '<input type="text" id="pf_empresa" value="'+esc(p.empresa||'')+'"></div>'+
+    '<div class="field"><div class="field-top"><label>Tipo de contacto</label></div>'+
+    '<div id="pf_tiposChips" class="chips-wrap">'+tiposChips+'</div></div>'+
+    '<div class="field"><div class="field-top"><label>Etapa del lead</label></div>'+
+    '<select id="pf_etapa">'+ETAPAS_LEAD.map(function(o){return '<option'+(( p.etapa||'Nuevo')===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'+
+    '<div class="field"><div class="field-top"><label>Fuente</label></div>'+
+    '<select id="pf_fuente"><option value="">S/I</option>'+FUENTES_CT.map(function(o){return '<option'+(p.fuente===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'+
+    '<div class="field"><div class="field-top"><label>Temperatura</label></div>'+
+    '<select id="pf_temp"><option value="">S/I</option>'+TEMPS_CT.map(function(o){return '<option'+(p.temp===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'+
+    '<div class="field" id="pf_presupWrap" style="display:'+(showPresup?'':'none')+'"><div class="field-top"><label>Presupuesto (MX$)</label></div>'+
+    '<input type="number" id="pf_presup" value="'+esc(p.presupuesto||'')+'"></div>'+
+    '<div class="field"><div class="field-top"><label>Zona de interés</label></div>'+
+    '<div id="pf_zonaIntChips" class="chips-wrap">'+zonaIntChips+'</div>'+
+    '<input type="text" id="pf_zonaIntExtra" placeholder="Otra zona..." style="margin-top:6px"></div>'+
+    '<div class="field"><div class="field-top"><label>Zona de operación</label></div>'+
+    '<div id="pf_zonaOpChips" class="chips-wrap">'+zonaOpChips+'</div>'+
+    '<input type="text" id="pf_zonaOpExtra" placeholder="Otra zona..." style="margin-top:6px"></div>'+
+    '<div class="field"><div class="field-top"><label>Notas</label></div>'+
+    '<textarea id="pf_notas">'+esc(p.notas||'')+'</textarea></div>'+
+    '<div class="field"><div class="field-top"><label>Fecha de seguimiento</label></div>'+
+    '<input type="date" id="pf_fechaSeg" value="'+(p.fechaSeg||today)+'"></div>';
+
   $('personBody').innerHTML=html;
+
+  // Teléfono → WhatsApp autofill (one-way: only while wa matches tel)
+  var telEl=$('pf_tel'),waEl=$('pf_wa');
+  var _lastTel=telEl.value;
+  telEl.addEventListener('input',function(){
+    if(waEl.value===_lastTel)waEl.value=telEl.value;
+    _lastTel=telEl.value;
+  });
+
+  // Tipo de contacto chips
+  $('pf_tiposChips').addEventListener('click',function(e){
+    var c=e.target.closest('[data-tipo]');if(!c)return;
+    c.classList.toggle('sel');
+    var t=c.dataset.tipo,arr=state._editTmp.tipos,idx=arr.indexOf(t);
+    if(idx>=0)arr.splice(idx,1);else arr.push(t);
+    var sp=arr.some(function(x){return /Comprador|Inversionista/.test(x);});
+    $('pf_presupWrap').style.display=sp?'':'none';
+  });
+
+  // Zona de interés chips
+  $('pf_zonaIntChips').addEventListener('click',function(e){
+    var c=e.target.closest('[data-zint]');if(!c)return;
+    c.classList.toggle('sel');
+    var v=c.dataset.zint,arr=state._editTmp.zonaIntArr,idx=arr.indexOf(v);
+    if(idx>=0)arr.splice(idx,1);else arr.push(v);
+  });
+
+  // Zona de operación chips
+  $('pf_zonaOpChips').addEventListener('click',function(e){
+    var c=e.target.closest('[data-zop]');if(!c)return;
+    c.classList.toggle('sel');
+    var v=c.dataset.zop,arr=state._editTmp.zonaOpArr,idx=arr.indexOf(v);
+    if(idx>=0)arr.splice(idx,1);else arr.push(v);
+  });
+
   $('personOverlay').classList.add('show');
 }
 function esc(s){return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');}
@@ -484,7 +534,23 @@ $('personCancel').addEventListener('click',closePerson);
 function closePerson(){$('personOverlay').classList.remove('show');state.editId=null;}
 $('personSave').addEventListener('click',function(){
   var p=state._editTmp;
-  $('personBody').querySelectorAll('[data-k]').forEach(function(el){p[el.dataset.k]=el.value.trim();});
+  p.nombre=($('pf_nombre').value||'').trim();
+  p.tel=($('pf_tel').value||'').trim();
+  p.wa=($('pf_wa').value||'').trim();
+  p.email=($('pf_email').value||'').trim();
+  p.empresa=($('pf_empresa').value||'').trim();
+  p.etapa=($('pf_etapa').value||'').trim();
+  p.fuente=($('pf_fuente').value||'').trim();
+  p.temp=($('pf_temp').value||'').trim();
+  p.presupuesto=($('pf_presup').value||'').trim();
+  var ziExtra=($('pf_zonaIntExtra').value||'').trim();
+  p.zonaInt=p.zonaIntArr.slice();
+  if(ziExtra&&p.zonaInt.indexOf(ziExtra)<0)p.zonaInt.push(ziExtra);
+  var zoExtra=($('pf_zonaOpExtra').value||'').trim();
+  p.zonaOp=p.zonaOpArr.slice();
+  if(zoExtra&&p.zonaOp.indexOf(zoExtra)<0)p.zonaOp.push(zoExtra);
+  p.notas=($('pf_notas').value||'').trim();
+  p.fechaSeg=($('pf_fechaSeg').value||'').trim();
   p.touched=true;p.auto=false;
   if(state._editIsNew)state.people.push(p);
   else state.people=state.people.map(function(x){return x.id===p.id?p:x;});
@@ -1218,32 +1284,42 @@ function generar(){
     md+='- Sin contactos capturados. Propietario legal: **S/I**.\n\n';
   }else{
     people.forEach(function(p){
-      md+='### '+(p.nombre||'(nombre S/I)')+' — '+p.rol+'\n';
+      var tipos=personTipos(p);
+      md+='### '+(p.nombre||'(nombre S/I)')+' — '+(tipos.join(' · ')||'S/I')+'\n';
       md+='Crear o actualizar en 👥 Contactos y relacionar con esta propiedad según su rol.\n';
       md+='| Campo | Valor | Nota |\n|---|---|---|\n';
-      md+='| Nombre | '+(p.nombre||' ')+' | '+(p.nombre?'':'S/I')+' |\n';
-      md+='| Tipo de contacto | '+p.rol+' | |\n';
+      md+='| Nombre | '+(p.nombre||'S/I')+' | |\n';
+      md+='| Tipo de contacto | '+(tipos.join(', ')||'S/I')+' | multi-select |\n';
       if(p.tel)md+='| Teléfono | '+p.tel+' | |\n';
-      if(p.wa)md+='| WhatsApp | '+p.wa+' | |\n';
       if(p.email)md+='| Email | '+p.email+' | |\n';
       if(p.empresa)md+='| Empresa | '+p.empresa+' | |\n';
+      if(p.etapa)md+='| Etapa del lead | '+p.etapa+' | |\n';
       if(p.fuente)md+='| Fuente | '+p.fuente+' | |\n';
-      if(p.relacion)md+='| Relación con propiedad | '+p.relacion+' | |\n';
-      if(p.acuerdo)md+='| Acuerdo comercial | '+p.acuerdo+' | |\n';
-      if(p.comision)md+='| Comisión | '+p.comision+' | |\n';
-      if(p.presupuesto)md+='| Presupuesto | '+p.presupuesto+' | |\n';
-      if(p.busca)md+='| Busca | '+p.busca+' | |\n';
-      if(p.zonaInt)md+='| Zona de interés | '+p.zonaInt+' | relación → 📍 Zonas |\n';
-      if(p.urgencia&&p.urgencia!=='S/I')md+='| Urgencia | '+p.urgencia+' | |\n';
-      if(p.confianza&&p.confianza!=='S/I')md+='| Nivel de confianza | '+p.confianza+' | |\n';
-      if(p.estatus)md+='| Etapa del lead | '+p.estatus+' | |\n';
-      if(p.notas)md+='| Notas | '+p.notas+' | |\n';
+      if(p.temp)md+='| Temperatura | '+p.temp+' | |\n';
+      if(p.presupuesto)md+='| Presupuesto | '+p.presupuesto+' | MX$ |\n';
+      var zonaIntArr=Array.isArray(p.zonaInt)?p.zonaInt:(p.zonaInt?[p.zonaInt]:[]);
+      if(zonaIntArr.length){
+        md+='| Zona de interés | '+zonaIntArr.join(', ')+' | relación → 📍 Zonas |\n';
+        zonaIntArr.forEach(function(z){
+          if(zonasAll().every(function(x){return x.n.toLowerCase()!==z.toLowerCase();}))
+            md+='> ⚠️ Zona "'+z+'" no existe en 📍 Zonas — crear antes de relacionar.\n';
+        });
+      }
+      var zonaOpArr=Array.isArray(p.zonaOp)?p.zonaOp:(p.zonaOp?[p.zonaOp]:[]);
+      var hasContent=p.wa||zonaOpArr.length||p.fechaSeg||p.notas;
+      if(hasContent){
+        md+='\n**Contenido de página** (no va como propiedad Notion):\n';
+        if(p.wa)md+='- WhatsApp: '+p.wa+'\n';
+        if(zonaOpArr.length)md+='- Zona de operación: '+zonaOpArr.join(', ')+'\n';
+        if(p.fechaSeg)md+='- Fecha de seguimiento: '+p.fechaSeg+'\n';
+        if(p.notas)md+='- Notas: '+p.notas+'\n';
+      }
       md+='\n';
     });
   }
 
   // 5. Operaciones
-  var comprador=people.filter(function(p){return /Cliente A/.test(p.rol);})[0];
+  var comprador=people.filter(personEsComprador)[0];
   md+='## 5. Operaciones\n';
   if(comprador){
     md+='Hay comprador interesado ('+(comprador.nombre||'S/I')+'). Crear una **Operación** en 🤝 Operaciones, relacionarla con esta propiedad y con el contacto comprador.\n';
@@ -1344,11 +1420,11 @@ function generar(){
 }
 
 function propietarioNombre(){
-  var prop=state.people.filter(function(p){return /Cliente B|Propietario/.test(p.rol);})[0];
+  var prop=state.people.filter(function(p){return personTipos(p).some(function(t){return /Propietario|Cliente B/.test(t);});})[0];
   return prop&&prop.nombre?prop.nombre:'';
 }
 function propietarioNota(){
-  var prop=state.people.filter(function(p){return /Cliente B|Propietario/.test(p.rol);})[0];
+  var prop=state.people.filter(function(p){return personTipos(p).some(function(t){return /Propietario|Cliente B/.test(t);});})[0];
   if(prop&&prop.nombre)return 'relacionar contacto';
   if(state.ofrece==='Asesor / broker')return 'S/I — ofrecido por asesor, NO usar al asesor como propietario';
   return 'S/I';
@@ -1593,7 +1669,7 @@ function saveCapture(md,estatus,falt,stars,quality,elapsed){
     resp:$('f_resp').value,
     nombre:nombreBase(),direccion:$('f_direccion').value.trim(),zona:zonasSel.map(function(z){return z.n;}).join(' / ')||'S/I',
     tipo:state.tipo,oper:state.oper,estatus:estatus,fuente:fuenteVal().nombre,
-    people:state.people.map(function(p){return (p.nombre||'?')+' ('+p.rol+')';}),
+    people:state.people.map(function(p){return (p.nombre||'?')+' ('+personTipos(p).join(', ')+')';}),
     anuncio:state.anuncioUrl||'',maps:$('f_maps').value,drive:$('f_drive').value,
     md:md,estado:falt.length?'Con faltantes':'Markdown generado',
     estrellas:stars||0,calidad:quality||'',elapsed:elapsed||0,
