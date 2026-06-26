@@ -396,6 +396,13 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 /* ===================== DARK MODE — FASE 8 B1 ===================== */
 .btn-theme{background:none;border:none;font-size:1.3rem;line-height:1;cursor:pointer;padding:4px 6px;border-radius:8px;transition:background .15s;-webkit-tap-highlight-color:transparent;}
 .btn-theme:active{background:var(--bg-soft);}
+/* navbar theme btn */
+.nav-theme-btn{flex:none!important;width:44px;background:none;border:none;font-size:1.15rem;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:4px;color:var(--text-soft);}
+.nav-theme-btn:active{background:var(--bg-soft);}
+/* sel-wrap — flecha custom para <select> sin SVG inline */
+.sel-wrap{position:relative;display:block;}
+.sel-wrap::after{content:'▾';position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text);font-size:1rem;line-height:1;}
+[data-theme="dark"] select{background-image:none;-webkit-appearance:none;appearance:none;}
 
 [data-theme="dark"]{
   --text:#e8e6e1;--text-soft:#9b9795;--bg:#1a1a1a;--bg-soft:#242424;
@@ -412,7 +419,6 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 [data-theme="dark"] input[type=url],[data-theme="dark"] input[type=email],
 [data-theme="dark"] textarea,[data-theme="dark"] select{background:#252525;color:var(--text);border-color:var(--line-dark);}
 [data-theme="dark"] input:disabled,[data-theme="dark"] textarea:disabled{background:var(--bg-soft);}
-[data-theme="dark"] select{background-image:none;}
 /* botones */
 [data-theme="dark"] .btn{background:var(--bg-soft);color:var(--text);border-color:var(--line-dark);}
 [data-theme="dark"] .btn-accent{background:var(--accent);color:#fff;border-color:var(--accent);}
@@ -471,4 +477,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 [data-theme="dark"] .ct-btn-accent{background:var(--ct);color:#fff;border-color:var(--ct-dark);}
 [data-theme="dark"] .ct-md-pre{background:var(--bg-soft);border-color:var(--line);}
 [data-theme="dark"] .ai-box{border-color:var(--line);}
-[data-theme="dark"] .mascot{mix-blend-mode:screen;}
+/* mascota: fondo blanco explícito para que multiply funcione correctamente en dark */
+[data-theme="dark"] #homeMascotWrap,
+[data-theme="dark"] .mascot-wrap,
+[data-theme="dark"] #resMascotWrap{background:#fff;border-radius:16px;padding:8px;}
+[data-theme="dark"] .mascot{mix-blend-mode:multiply;}

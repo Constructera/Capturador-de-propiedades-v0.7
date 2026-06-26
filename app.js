@@ -20,15 +20,19 @@ function save(k,v){try{localStorage.setItem('cap_'+k,JSON.stringify(v));}catch(e
     var meta=document.querySelector('meta[name="theme-color"]');
     if(meta)meta.content=dark?'#1a1a1a':'#2e6f40';
     save('theme',dark?'dark':'light');
-    var btn=$('btnTheme');if(btn)btn.textContent=dark?'☀️':'🌙';
+    // ícono = modo destino (🌙 para ir a dark, ☀️ para ir a light)
+    var icon=dark?'☀️':'🌙';
+    // #btnTheme en home (solo texto), #btnThemeNav en navbar (tiene <span class="ic">)
+    [$('btnTheme'),$('btnThemeNav')].forEach(function(b){
+      if(!b)return;
+      var ic=b.querySelector('.ic');
+      if(ic)ic.textContent=icon;else b.textContent=icon;
+    });
   }
+  function doToggle(){applyTheme(document.documentElement.getAttribute('data-theme')!=='dark');}
   var saved=load('theme',null);
-  var isDark=saved==='dark'; // default: light si no hay preferencia guardada
-  applyTheme(isDark);
-  var btn=$('btnTheme');
-  if(btn)btn.addEventListener('click',function(){
-    applyTheme(document.documentElement.getAttribute('data-theme')!=='dark');
-  });
+  applyTheme(saved==='dark'); // default: light si no hay preferencia guardada
+  [$('btnTheme'),$('btnThemeNav')].forEach(function(b){if(b)b.addEventListener('click',doToggle);});
 })();
 
 /* zonas conocidas: semilla + las que se agreguen/usen */
@@ -771,6 +775,12 @@ function renderCaractTerr(){
 }
 $('btnCaractTerrMas').addEventListener('click',function(){caractTerrExpanded=!caractTerrExpanded;renderCaractTerr();});
 renderCaract();renderCaractTerr();renderCRM();initHomeMascot();
+// sel-wrap: envuelve todos los <select> para la flechita CSS ::after
+document.querySelectorAll('select').forEach(function(sel){
+  if(sel.parentNode.classList.contains('sel-wrap'))return;
+  var w=document.createElement('div');w.className='sel-wrap';
+  sel.parentNode.insertBefore(w,sel);w.appendChild(sel);
+});
 
 /* ===================== S/I + N/A ===================== */
 document.querySelectorAll('.si-btn').forEach(function(b){
