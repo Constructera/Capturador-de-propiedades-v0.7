@@ -181,7 +181,7 @@ Claude Code debe:
 | 5 | Flujo de captura | ✅ Completa |
 | 6 | Limpieza de interfaz | ✅ Completa |
 | 7 | Animaciones MP4 | ✅ Completa (iOS y fondos diferidos a v0.7) |
-| 8 | Visual Duolingo + dark mode | ⏳ Pendiente |
+| 8 | Visual Duolingo + dark mode | ✅ Completa (microinteracciones Bloque 4; polish diferido a v0.7) |
 
 ---
 
@@ -200,3 +200,7 @@ Claude Code debe:
 - Ganancia de renta = precio de renta (campo o fórmula nueva).
 - Tiempo mínimo de renta (6 meses / 1 año) — campo nuevo.
 - Comisión de renta autocompletada con el primer mes.
+
+---
+
+> **v0.6 cerrada el 26 de junio de 2026. Pendientes diferidos a v0.7 documentados en CLAUDE.md.**

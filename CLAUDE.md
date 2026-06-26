@@ -49,6 +49,22 @@ referencial y evitar campos huérfanos:
 - Conflicto de código PROP-3 (terreno) vs regla TERR-.
 - Si los campos nuevos de terreno van como propiedades de Notion o en Notas.
 
+## Pendientes v0.7
+Los siguientes puntos surgieron durante el desarrollo de v0.6 y quedan diferidos:
+
+- **Mascota iOS:** autoplay MP4 sin interacción previa del usuario no funciona en Safari/iOS; solución correcta es reexportar MP4 con fondo blanco puro o implementar chroma key con canvas.
+- **Fondos running/sad:** `multiply`/`darken` no eliminan el fondo gris de esos MP4; pendiente reexportar o chroma key en canvas.
+- **Captura rápida estilo Duolingo:** flujo condensado para capturar propiedades en <60 s desde la pantalla de inicio.
+- **Campos terreno privados/indivisos:** uso de suelo/densidad, estatus legal, servicios disponibles — decidir si van como propiedades Notion o en campo Notas (ver sección Pendientes abiertos).
+- **Conflicto de código PROP-3 vs TERR-:** pendiente decisión de producto (heredado de v0.5).
+- **Ranking limpio multi-dispositivo:** el ranking compartido vía GAS funciona, pero la UI de ranking necesita paginación y filtros por fecha/asesor.
+- **Polish UI / visual Duolingo completo:** tipografía Nunito, paleta vibrante, botones con sombra 3D, tema claro/oscuro refinado.
+- **Drive integration real:** subida de fotos a Google Drive (actualmente marcada como pendiente en la app).
+- **Easter eggs:** animaciones/recompensas ocultas al alcanzar hitos (ej. 10 capturas, 3 días seguidos, etc.).
+- **Seguridad GAS:** validar origen de las peticiones al endpoint de Apps Script.
+- **Contactos al celular:** exportar/compartir ficha de contacto como vCard desde la app.
+- **Verificar markdown multi-zonas:** probar con el agente Notion que las zonas separadas por coma se vinculan correctamente como multi-relation.
+
 ## Animaciones MP4 de la mascota (para Fase 7)
 Ruta de los archivos: D:\respaldo\TODO EN UNO\1.-ESCRITORIO\ESCRITORIO\CLAUDE\Mascota
 Archivos MP4 disponibles y su mapeo a estados:
