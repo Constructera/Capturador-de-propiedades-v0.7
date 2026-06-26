@@ -1,5 +1,5 @@
 /* Service Worker — Capturador Hauser */
-const CACHE='capturador-v0.6-F8-B3r8-T1b';
+const CACHE='capturador-v0.6-F8-B3r9-T2';
 const ASSETS=['./','./index.html','./app.js','./styles.css','./manifest.json','./icons/icon-192.png','./icons/icon-512.png',
   './mascota/idle.mp4','./mascota/walking.mp4','./mascota/jogging.mp4','./mascota/running.mp4','./mascota/sad.mp4','./mascota/celebrating.mp4'];
 

@@ -1626,6 +1626,7 @@ function generar(){
   // guardar en historial
   var re=realElapsed();
   lastCaptureId=saveCapture(md,estatusProp,falt,estrellas.count,estrellas.quality,re);
+  gasSaveMarkdown(lastCaptureId,asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I'),new Date().toISOString(),'propiedad',estrellas.count===3?'completa':'sin terminar',nombre,md);
   if(asesorActivo)updateAsesorStats(asesorActivo.id,estrellas,re);
   sndSuccess();
   mostrarResultado(estrellas);
@@ -2083,6 +2084,11 @@ function buildGasPayloadContact(rec){
   return{id:rec.id,timestamp:rec.fecha||now,tipo:'contacto',asesor:rec.asesor||'S/I',
     estrellas:0,calidad:'',propiedad_json:'',contacto_json:JSON.stringify(rec),
     capturadoEn:rec.fecha||now,modificadoEn:rec.fecha||now};
+}
+function gasSaveMarkdown(uuid,asesor,fecha,tipo,estatus,nombre,markdownText){
+  if(!CFG.endpoint)return;
+  var p={action:'saveMarkdown',uuid:uuid,asesor:asesor,fecha:fecha,tipo:tipo,estatus:estatus,nombre:nombre,markdown_md:markdownText};
+  gasPost(p).catch(function(){queueForRetry(p);});
 }
 function gasCapturasToLocalHist(capturas){
   return capturas.filter(function(c){return c.tipo==='propiedad';}).map(function(c){
@@ -2603,6 +2609,7 @@ function saveContactHist(rec){
   var bg=$('ctBtnGenerar');if(bg)bg.textContent='Generar markdown';
   updateCtBadge();renderCtHist();
   if(CFG.endpoint){var p=buildGasPayloadContact(rec);gasPost(p).catch(function(){queueForRetry(p);});}
+  gasSaveMarkdown(rec.id,rec.asesor||'S/I',rec.fecha||new Date().toISOString(),'contacto',rec.estrellas>=3?'completa':'sin terminar',rec.nombre||'S/I',rec.md||'');
 }
 function updateCtBadge(){
   var pend=load('ct_hist',[]).filter(function(r){return !r.enviado;}).length;
