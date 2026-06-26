@@ -67,11 +67,18 @@ var MASCOT_SRC={
   'angry':      './mascota/running.mp4',
   'sad':        './mascota/sad.mp4',
   'expired':    './mascota/sad.mp4',
-  'celebrating':'./mascota/walking.mp4'
+  'celebrating':'./mascota/celebrating.mp4'
+};
+// maps timer state name → canonical data-state for CSS brightness selectors
+var MASCOT_STATE_KEY={
+  'idle':'idle','dancing':'walking','focused':'jogging',
+  'angry':'running','sad':'sad','expired':'sad','celebrating':'celebrating'
 };
 function _setMascotVideo(v,st){
   if(!v)return;
   v.setAttribute('class','mascot state-'+st);
+  var stateKey=MASCOT_STATE_KEY[st]||'idle';
+  v.dataset.state=stateKey;
   var src=MASCOT_SRC[st]||MASCOT_SRC['idle'];
   if(v.dataset.mst!==st){
     v.dataset.mst=st;
@@ -85,7 +92,7 @@ function initHomeMascot(){
   v.setAttribute('playsinline','');
   v.className='mascot state-idle';
   v.style.height='110px';v.style.width='auto';
-  v.dataset.mst='idle';
+  v.dataset.mst='idle';v.dataset.state='idle';
   v.src='./mascota/idle.mp4';
   wrap.appendChild(v);
   v.play().catch(function(){});

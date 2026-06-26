@@ -184,7 +184,13 @@ pre{background:#fbfbfa;border:1px solid var(--line);border-radius:6px;padding:16
 
 /* mascot */
 .mascot-wrap{flex-shrink:0;}
-.mascot{height:90px;width:auto;display:block;mix-blend-mode:multiply;transition:filter .4s;}
+.mascot{height:90px;width:auto;display:block;mix-blend-mode:multiply;transition:filter .3s;}
+.mascot[data-state="idle"]        {filter:brightness(1.0);}
+.mascot[data-state="walking"]     {filter:brightness(1.0);}
+.mascot[data-state="jogging"]     {filter:brightness(1.2);}
+.mascot[data-state="running"]     {filter:brightness(1.25);}
+.mascot[data-state="sad"]         {filter:brightness(1.5);}
+.mascot[data-state="celebrating"] {filter:brightness(1.0);}
 /* ring (ready mode) */
 .timer-ring-wrap{position:relative;width:90px;height:90px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 .timer-ring{width:100%;height:100%;}

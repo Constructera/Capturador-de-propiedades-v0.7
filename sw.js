@@ -1,7 +1,7 @@
 /* Service Worker — Capturador Hauser */
-const CACHE='capturador-v0.6-F7-r1';
+const CACHE='capturador-v0.6-F7-r2';
 const ASSETS=['./','./index.html','./app.js','./styles.css','./manifest.json','./icons/icon-192.png','./icons/icon-512.png',
-  './mascota/idle.mp4','./mascota/walking.mp4','./mascota/jogging.mp4','./mascota/running.mp4','./mascota/sad.mp4'];
+  './mascota/idle.mp4','./mascota/walking.mp4','./mascota/jogging.mp4','./mascota/running.mp4','./mascota/sad.mp4','./mascota/celebrating.mp4'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
