@@ -2416,6 +2416,8 @@ function renderCtZonasOperChips(){
   var wrap=$('ctZonasOperChips');if(!wrap)return;
   wrap.innerHTML='';
   var zonas=zonasAll().sort(function(a,b){return(b.uses||0)-(a.uses||0);});
+  var knownNamesLow=zonas.map(function(z){return z.n.toLowerCase();});
+  ctState.zonasOper.forEach(function(n){if(knownNamesLow.indexOf(n.toLowerCase())<0)zonas.push({n:n,uses:0,last:0});});
   zonas.forEach(function(z){
     var b=document.createElement('button');b.type='button';
     b.className='chip chip-sm';b.textContent=z.n;b.dataset.v=z.n;
@@ -2427,6 +2429,8 @@ function renderCtZonasOperAliadoChips(){
   var wrap=$('ctZonasOperAliadoChips');if(!wrap)return;
   wrap.innerHTML='';
   var zonas=zonasAll().sort(function(a,b){return(b.uses||0)-(a.uses||0);});
+  var knownNamesLow=zonas.map(function(z){return z.n.toLowerCase();});
+  ctState.zonasOperAliado.forEach(function(n){if(knownNamesLow.indexOf(n.toLowerCase())<0)zonas.push({n:n,uses:0,last:0});});
   zonas.forEach(function(z){
     var b=document.createElement('button');b.type='button';
     b.className='chip chip-sm';b.textContent=z.n;b.dataset.v=z.n;
@@ -2521,28 +2525,32 @@ function genContact(){
   }
   if(esProp){
     var zonasOper=ctState.zonasOper.slice();
-    if(ctVal('ct_zona_oper_extra'))zonasOper.push(ctVal('ct_zona_oper_extra')+'*');
-    var zonasOperStr=zonasOper.length?zonasOper.join(' / '):'S/I';
+    var extraZonaOp=ctVal('ct_zona_oper_extra').trim();
+    if(extraZonaOp&&zonasOper.indexOf(extraZonaOp)<0)zonasOper.push(extraZonaOp);
+    var knZNOp=zonasAll().map(function(z){return z.n.toLowerCase();});
+    var zonasOperStr=zonasOper.length?zonasOper.map(function(z){return knZNOp.indexOf(z.toLowerCase())<0?z+'*':z;}).join(' / '):'S/I';
     md+='## Oferta\n| Campo | Valor |\n|---|---|\n';
     md+='| Zona de operación | '+zonasOperStr+' |\n';
     md+='| Tipo de propiedad que ofrece | '+ctSI(ctVal('ct_tipo_ofrece'))+' |\n';
     md+='| Propiedad relacionada | '+ctSI(ctVal('ct_propiedad_rel'))+' |\n';
     if(ctVal('ct_notas_oferta'))md+='| Notas | '+ctVal('ct_notas_oferta')+' |\n';
     md+='\n';
-    if(ctVal('ct_zona_oper_extra'))md+='> ⚠️ Zona "'+ctVal('ct_zona_oper_extra')+'" (marcada con *) — verificar si existe en 📍 Zonas o crear.\n\n';
+    zonasOper.filter(function(z){return knZNOp.indexOf(z.toLowerCase())<0;}).forEach(function(z){md+='> ⚠️ Zona "'+z+'" (marcada con *) — verificar si existe en 📍 Zonas o crear.\n\n';});
     if(ctVal('ct_propiedad_rel')){md+='> ⚠️ Si la propiedad existe en la base, vincular en el campo **Propiedades** de este contacto.\n\n';}
   }
   if(esAliado){
     var zonasOpAliado=ctState.zonasOperAliado.slice();
-    if(ctVal('ct_zona_oper_aliado_extra'))zonasOpAliado.push(ctVal('ct_zona_oper_aliado_extra')+'*');
-    var zonasOpAliadoStr=zonasOpAliado.length?zonasOpAliado.join(' / '):'S/I';
+    var extraZonaAl=ctVal('ct_zona_oper_aliado_extra').trim();
+    if(extraZonaAl&&zonasOpAliado.indexOf(extraZonaAl)<0)zonasOpAliado.push(extraZonaAl);
+    var knZNAl=zonasAll().map(function(z){return z.n.toLowerCase();});
+    var zonasOpAliadoStr=zonasOpAliado.length?zonasOpAliado.map(function(z){return knZNAl.indexOf(z.toLowerCase())<0?z+'*':z;}).join(' / '):'S/I';
     md+='## Servicio\n| Campo | Valor |\n|---|---|\n';
     md+='| Zona de operación | '+zonasOpAliadoStr+' |\n';
     md+='| Servicio que ofrece | '+ctSI(ctVal('ct_servicio'))+' |\n';
     md+='| Nivel de confianza | '+ctSI(ctState.confianzaAliado)+' |\n';
     if(ctVal('ct_notas_servicio'))md+='| Notas | '+ctVal('ct_notas_servicio')+' |\n';
     md+='\n';
-    if(ctVal('ct_zona_oper_aliado_extra'))md+='> ⚠️ Zona "'+ctVal('ct_zona_oper_aliado_extra')+'" (marcada con *) — verificar si existe en 📍 Zonas o crear.\n\n';
+    zonasOpAliado.filter(function(z){return knZNAl.indexOf(z.toLowerCase())<0;}).forEach(function(z){md+='> ⚠️ Zona "'+z+'" (marcada con *) — verificar si existe en 📍 Zonas o crear.\n\n';});
   }
   md+='## Gestión\n| Campo | Valor |\n|---|---|\n';
   md+='| Fuente | '+ctSI($('ct_fuente')&&$('ct_fuente').value)+' |\n';
@@ -2642,6 +2650,38 @@ function ctAddZonaInteres(){
   var btn=$('ctBtnZonaInteresAdd');if(btn)btn.addEventListener('click',ctAddZonaInteres);
   var inp=$('ct_zona_interes_extra');
   if(inp)inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();ctAddZonaInteres();}});
+})();
+function ctAddZonaOper(){
+  var inp=$('ct_zona_oper_extra');if(!inp)return;
+  var v=inp.value.trim();if(!v)return;
+  if(ctState.zonasOper.indexOf(v)<0){
+    ctState.zonasOper.push(v);
+    addZonaToLocal(v);
+    renderCtZonasOperChips();
+    renderCtZonaChips();
+    renderCtZonasOperAliadoChips();
+  }
+  inp.value='';ctUpdateProgress();
+}
+function ctAddZonaOperAliado(){
+  var inp=$('ct_zona_oper_aliado_extra');if(!inp)return;
+  var v=inp.value.trim();if(!v)return;
+  if(ctState.zonasOperAliado.indexOf(v)<0){
+    ctState.zonasOperAliado.push(v);
+    addZonaToLocal(v);
+    renderCtZonasOperAliadoChips();
+    renderCtZonaChips();
+    renderCtZonasOperChips();
+  }
+  inp.value='';ctUpdateProgress();
+}
+(function(){
+  var btn=$('ctBtnZonaOperAdd');if(btn)btn.addEventListener('click',ctAddZonaOper);
+  var inp=$('ct_zona_oper_extra');
+  if(inp)inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();ctAddZonaOper();}});
+  var btnA=$('ctBtnZonaOperAliadoAdd');if(btnA)btnA.addEventListener('click',ctAddZonaOperAliado);
+  var inpA=$('ct_zona_oper_aliado_extra');
+  if(inpA)inpA.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();ctAddZonaOperAliado();}});
 })();
 function ctDoReset(){
   ['ct_nombre','ct_alias','ct_empresa','ct_puesto','ct_tel','ct_wa','ct_email',

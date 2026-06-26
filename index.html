@@ -826,7 +826,10 @@
       <div class="field">
         <div class="field-top"><label>Zona de operación</label><span class="hint-inline">Selecciona o escribe nueva</span></div>
         <div class="chips" id="ctZonasOperChips"></div>
-        <input type="text" id="ct_zona_oper_extra" placeholder="Zona nueva (se creará en Notion)" style="margin-top:6px">
+        <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+          <input type="text" id="ct_zona_oper_extra" placeholder="Zona nueva (se creará en Notion)" style="flex:1;margin:0">
+          <button type="button" class="btn chip-sm btn-accent" id="ctBtnZonaOperAdd" style="flex-shrink:0;padding:10px 14px">+</button>
+        </div>
       </div>
       <div class="field">
         <div class="field-top"><label for="ct_tipo_ofrece">Tipo de propiedad que ofrece</label></div>
@@ -848,7 +851,10 @@
       <div class="field">
         <div class="field-top"><label>Zona de operación</label><span class="hint-inline">Selecciona o escribe nueva</span></div>
         <div class="chips" id="ctZonasOperAliadoChips"></div>
-        <input type="text" id="ct_zona_oper_aliado_extra" placeholder="Zona nueva (se creará en Notion)" style="margin-top:6px">
+        <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+          <input type="text" id="ct_zona_oper_aliado_extra" placeholder="Zona nueva (se creará en Notion)" style="flex:1;margin:0">
+          <button type="button" class="btn chip-sm btn-accent" id="ctBtnZonaOperAliadoAdd" style="flex-shrink:0;padding:10px 14px">+</button>
+        </div>
       </div>
       <div class="field">
         <div class="field-top"><label for="ct_servicio">Servicio que ofrece</label></div>
