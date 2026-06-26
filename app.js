@@ -65,6 +65,12 @@ function zonaTouch(n){
   else zonasLocal.push({n:n,uses:1,last:Date.now(),nueva:ZONAS_SEED.indexOf(n)===-1});
   save('zonas',zonasLocal);
 }
+function addZonaToLocal(n){
+  if(!n||n==='S/I')return;
+  if(zonasAll().some(function(z){return z.n.toLowerCase()===n.toLowerCase();}))return;
+  zonasLocal.push({n:n,uses:0,last:Date.now(),nueva:true});
+  save('zonas',zonasLocal);
+}
 
 var state={tipo:'',oper:'Venta',ofrece:'',crm:'No',modo:'A · Reventa de lote',
   serv:[],caract:[],caractTerr:[],lat:null,lng:null,
@@ -570,10 +576,10 @@ function openPerson(id){
     '<input type="number" id="pf_presup" value="'+esc(p.presupuesto||'')+'"></div>'+
     '<div class="field"><div class="field-top"><label>Zona de interés</label></div>'+
     '<div id="pf_zonaIntChips" class="chips-wrap">'+zonaIntChips+'</div>'+
-    '<input type="text" id="pf_zonaIntExtra" placeholder="Otra zona..." style="margin-top:6px"></div>'+
+    '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><input type="text" id="pf_zonaIntExtra" placeholder="Otra zona..." style="flex:1;margin:0"><button type="button" class="btn chip-sm btn-accent" id="pf_btnZonaInt" style="flex-shrink:0;padding:10px 14px">+</button></div></div>'+
     '<div class="field"><div class="field-top"><label>Zona de operación</label></div>'+
     '<div id="pf_zonaOpChips" class="chips-wrap">'+zonaOpChips+'</div>'+
-    '<input type="text" id="pf_zonaOpExtra" placeholder="Otra zona..." style="margin-top:6px"></div>'+
+    '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><input type="text" id="pf_zonaOpExtra" placeholder="Otra zona..." style="flex:1;margin:0"><button type="button" class="btn chip-sm btn-accent" id="pf_btnZonaOp" style="flex-shrink:0;padding:10px 14px">+</button></div></div>'+
     '<div class="field"><div class="field-top"><label>Notas</label></div>'+
     '<textarea id="pf_notas">'+esc(p.notas||'')+'</textarea></div>'+
     '<div class="field"><div class="field-top"><label>Fecha de seguimiento</label></div>'+
@@ -614,6 +620,33 @@ function openPerson(id){
     var v=c.dataset.zop,arr=state._editTmp.zonaOpArr,idx=arr.indexOf(v);
     if(idx>=0)arr.splice(idx,1);else arr.push(v);
   });
+
+  // Rebuild ambos clouds de zona desde zonasAll() + estado actual
+  function pfRebuildZonas(){
+    var wi=$('pf_zonaIntChips'),wo=$('pf_zonaOpChips');
+    var ia=state._editTmp.zonaIntArr,oa=state._editTmp.zonaOpArr;
+    var sorted=zonasAll().sort(function(a,b){return(b.uses||0)-(a.uses||0);});
+    if(wi)wi.innerHTML=sorted.map(function(z){return '<button type="button" class="chip chip-sm'+(ia.indexOf(z.n)>=0?' sel':'')+'" data-zint="'+esc(z.n)+'">'+esc(z.n)+'</button>';}).join('');
+    if(wo)wo.innerHTML=sorted.map(function(z){return '<button type="button" class="chip chip-sm'+(oa.indexOf(z.n)>=0?' sel':'')+'" data-zop="'+esc(z.n)+'">'+esc(z.n)+'</button>';}).join('');
+  }
+  function pfAddZI(){
+    var inp=$('pf_zonaIntExtra');if(!inp)return;
+    var v=inp.value.trim();if(!v)return;
+    var arr=state._editTmp.zonaIntArr;
+    if(arr.indexOf(v)<0){arr.push(v);addZonaToLocal(v);pfRebuildZonas();}
+    inp.value='';
+  }
+  function pfAddZO(){
+    var inp=$('pf_zonaOpExtra');if(!inp)return;
+    var v=inp.value.trim();if(!v)return;
+    var arr=state._editTmp.zonaOpArr;
+    if(arr.indexOf(v)<0){arr.push(v);addZonaToLocal(v);pfRebuildZonas();}
+    inp.value='';
+  }
+  var pfBtnZI=$('pf_btnZonaInt');if(pfBtnZI)pfBtnZI.addEventListener('click',pfAddZI);
+  var pfInpZI=$('pf_zonaIntExtra');if(pfInpZI)pfInpZI.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();pfAddZI();}});
+  var pfBtnZO=$('pf_btnZonaOp');if(pfBtnZO)pfBtnZO.addEventListener('click',pfAddZO);
+  var pfInpZO=$('pf_zonaOpExtra');if(pfInpZO)pfInpZO.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();pfAddZO();}});
 
   $('personOverlay').classList.add('show');
 }
@@ -2596,7 +2629,13 @@ $('ctBtnReset').addEventListener('click',function(){
 function ctAddZonaInteres(){
   var inp=$('ct_zona_interes_extra');if(!inp)return;
   var v=inp.value.trim();if(!v)return;
-  if(ctState.zonasInteres.indexOf(v)<0){ctState.zonasInteres.push(v);renderCtZonaChips();}
+  if(ctState.zonasInteres.indexOf(v)<0){
+    ctState.zonasInteres.push(v);
+    addZonaToLocal(v);
+    renderCtZonaChips();
+    renderCtZonasOperChips();
+    renderCtZonasOperAliadoChips();
+  }
   inp.value='';ctUpdateProgress();
 }
 (function(){

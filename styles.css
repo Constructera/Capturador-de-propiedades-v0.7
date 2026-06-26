@@ -47,7 +47,7 @@ input[type=text],input[type=number],input[type=tel],input[type=date],input[type=
 textarea{min-height:80px;resize:vertical}
 input:focus,textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
 input:disabled,textarea:disabled{background:var(--bg-soft);color:var(--si);border-style:dashed}
-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='%236e6b68' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:10px 6px;padding-right:36px}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath stroke='%23333' stroke-width='1.5' fill='none' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:10px 6px;padding-right:36px}
 
 .si-btn{border:1px solid var(--line-dark);background:#fff;color:var(--si);font-size:.72rem;font-weight:700;border-radius:5px;padding:6px 11px;cursor:pointer;flex-shrink:0}
 .si-btn.active{background:var(--si);border-color:var(--si);color:#fff}
@@ -428,7 +428,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 /* sel-wrap — solo posicionamiento; flecha va via background-image en select */
 .sel-wrap{position:relative;display:block;}
 .sel-wrap::after{content:none}
-[data-theme="dark"] select{background:#252525;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='%239b9795' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:10px 6px;}
+[data-theme="dark"] select{background:#252525;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath stroke='%23e8e6e1' stroke-width='1.5' fill='none' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:10px 6px;}
 
 [data-theme="dark"]{
   --text:#e8e6e1;--text-soft:#9b9795;--bg:#1a1a1a;--bg-soft:#242424;
