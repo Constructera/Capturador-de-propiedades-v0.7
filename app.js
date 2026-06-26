@@ -1462,7 +1462,7 @@ function generar(){
   var zonasStr=zonasArr.length?zonasArr.map(function(z){return z.n;}).join(' / '):'S/I';
   var zonasNota=zonasArr.length?zonasArr.map(function(z){return z.n+(z.nueva?' [CREAR y relacionar]':' [buscar y relacionar]');}).join('; '):'S/I';
 
-  md+=row('Nombre','Title',cell(nombre))+'\n';
+  md+=row('Propiedad','Title',cell(nombre))+'\n';
   md+=row('Tipo de inmueble','Select',cell(state.tipo,state.tipo?'':'S/I'))+'\n';
   md+=row('Operación','Multi-select',{v:operStr,nota:operArr.length>1?'Registrar ambas opciones en el multi-select de Operación':''})+'\n';
   md+=row('Dirección','Text',cell(dirVal,dirNota))+'\n';
@@ -1479,8 +1479,8 @@ function generar(){
   if(!esTerreno)md+=row('Baños','Number',{v:(banTxt.na?'':(banTxt.pend?'':banTxt.v)),nota:(banTxt.na?'N/A':(banTxt.pend?'S/I':''))})+'\n';
   if(!esTerreno)md+=row('Estacionamientos','Number',{v:valNum(est),nota:notaNum(est)})+'\n';
   if(nU>1)md+=row('Cantidad disponible','Number',{v:String(nU),nota:'Unidades en el conjunto'})+'\n';
-  md+=row('Estatus de captura','Select',{v:estatusCaptura,nota:'3⭐→Listo, 2⭐→En progreso, <2⭐→Sin empezar'})+'\n';
-  md+=row('Estatus de propiedad','Select',{v:estatusProp,nota:''})+'\n';
+  md+=row('Estatus de captura','Status',{v:estatusCaptura,nota:'3⭐→Listo, 2⭐→En progreso, <2⭐→Sin empezar'})+'\n';
+  md+=row('Estatus de propiedad','Status',{v:estatusProp,nota:''})+'\n';
   md+=row('Fuente','Select',cell(fuente.nombre,fuente.nueva?'OPCIÓN NUEVA: agregar al select de Fuente en Notion':''))+'\n';
   md+=row('Propietario','Relación → 👥 Contactos',cell(propietarioNombre(),propietarioNota()))+'\n';
   md+=row('Contacto operativo','Relación → 👥 Contactos',cell(contactoOperativoNombre(),contactoOperativoNota()))+'\n';
