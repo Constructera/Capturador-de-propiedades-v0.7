@@ -1545,17 +1545,14 @@ function generar(){
     ?'Direccion generica capturada en campo. Instruccion al agente: buscar esta direccion en web / Google Maps, identificar la ubicacion exacta y rellenar Direccion con referencia tipo Google Maps (link y/o coordenadas).'
     :'S/I';
 
-  // Notas: para terreno incluye servicios/uso_suelo/estatus_legal (Decisiones 8,10,11 → van en Notas, no en propiedades de Notion)
-  var notasTextoCampo=$('f_notas').value.trim();
-  var notasValorNotion,notaNotionRow;
-  if(esTerreno){
-    var servText=state.serv.length?state.serv.join(', '):'S/I';
-    notasValorNotion='Servicios: '+servText+' | Uso de suelo/densidad: '+txt('f_uso')+' | Estatus legal: '+$('f_legal').value+(notasTextoCampo?' | Notas: '+notasTextoCampo:'');
-    notaNotionRow='Datos de terreno incluidos aqui (servicios, uso de suelo, estatus legal). No son propiedades separadas de Notion hasta confirmacion del dueno.';
-  }else{
-    notasValorNotion=notasTextoCampo;
-    notaNotionRow='';
-  }
+  // v0.7 (decisión del dueño 02-jul-2026): servicios/uso de suelo/estatus legal
+  // son propiedades REALES de Notion; Notas vuelve a ser solo notas de campo.
+  var notasValorNotion=$('f_notas').value.trim();
+  var notaNotionRow='';
+  var usoTrim=$('f_uso').value.trim();
+  var usoCell={v:(siOn('f_uso')||naOn('f_uso'))?'':usoTrim,
+    nota:siOn('f_uso')?'S/I':(naOn('f_uso')?'N/A':(usoTrim?'':'S/I'))};
+  var servCell={v:state.serv.join(', '),nota:state.serv.length?'':'S/I'};
 
   // Operación → multi_select de Notion
   var operArr=[];
@@ -1580,6 +1577,11 @@ function generar(){
   md+=row('m² terreno','Number',{v:valNum(m2t),nota:notaNum(m2t)+(m2t.val!=null?' (m² privados)':'')})+'\n';
   md+=row('m² terreno indivisos','Number',{v:valNum(indiv.cell),nota:notaNum(indiv.cell)})+'\n';
   md+=row('Tiene indivisos','Select',{v:indiv.tiene,nota:'Opciones: Sí / No / S/I'})+'\n';
+  if(esTerreno){
+    md+=row('Uso de suelo','Text',usoCell)+'\n';
+    md+=row('Estatus legal','Select',{v:$('f_legal').value,nota:'Opciones: Título limpio / Con gravamen / Ejidal / En trámite / S-I'})+'\n';
+    md+=row('Servicios disponibles','Multi-select',servCell)+'\n';
+  }
   if(!esTerreno)md+=row('m² construcción','Number',{v:valNum(m2c),nota:notaNum(m2c)})+'\n';
   if(!esTerreno)md+=row('Recámaras','Number',{v:valNum(rec),nota:notaNum(rec)})+'\n';
   if(!esTerreno)md+=row('Baños','Number',{v:valNum(ban),nota:notaNum(ban)+(ban.val!=null?' (baños completos)':'')})+'\n';
@@ -1672,7 +1674,7 @@ function generar(){
   // 7. Terreno extra
   if(esTerreno){
     md+='## 7. Datos de terreno (contexto para corrida financiera)\n';
-    md+='> Servicios, Uso de suelo y Estatus legal ya estan en el campo Notas de la seccion 2. Esta seccion es contexto adicional para el analisis financiero.\n\n';
+    md+='> Servicios, Uso de suelo y Estatus legal ya van como propiedades de Notion en la tabla de la seccion 2. Esta seccion es contexto adicional para el analisis financiero.\n\n';
     md+='- Servicios: '+(state.serv.length?state.serv.join(', '):'S/I')+'\n';
     md+='- Frente: '+txt('f_frente')+' m · Fondo: '+txt('f_fondo')+' m\n';
     md+='- Uso de suelo/densidad: '+txt('f_uso')+'\n';

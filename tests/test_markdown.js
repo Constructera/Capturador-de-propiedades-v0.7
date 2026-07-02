@@ -92,7 +92,7 @@ function rowOf(md, campo) {
   return m ? { tipo: m[1].trim(), valor: m[2].trim(), nota: m[3].trim() } : null;
 }
 
-/* ============ 1. Terreno con indivisos numérico ============ */
+/* ============ 1. Terreno con indivisos numérico + campos de terreno directos ============ */
 console.log('\n[1] Terreno con indivisos numérico');
 (function () {
   var w = boot();
@@ -100,7 +100,21 @@ console.log('\n[1] Terreno con indivisos numérico');
   setVal(w, 'f_m2t', '500');
   $(w, 'btnIndiv').click();
   setVal(w, 'f_m2t_indiv', '120');
+  // campos de terreno (decisión 02-jul: propiedades reales de Notion)
+  setVal(w, 'f_uso', 'Habitacional H2');
+  setVal(w, 'f_legal', 'Título limpio');
+  clickChip(w, 'servChips', 'Agua');
+  clickChip(w, 'servChips', 'Luz');
+  w.document.getElementById('f_notas').value = 'Nota de campo simple';
   var md = generar(w);
+  var rUso = rowOf(md, 'Uso de suelo');
+  var rLegal = rowOf(md, 'Estatus legal');
+  var rServ = rowOf(md, 'Servicios disponibles');
+  var rNotas = rowOf(md, 'Notas');
+  assert(rUso && rUso.valor === 'Habitacional H2' && rUso.tipo === 'Text', 'fila "Uso de suelo" como campo directo (Text)');
+  assert(rLegal && rLegal.valor === 'Título limpio' && rLegal.tipo === 'Select', 'fila "Estatus legal" como campo directo (Select)');
+  assert(rServ && rServ.valor === 'Agua, Luz' && rServ.tipo === 'Multi-select', 'fila "Servicios disponibles" (Multi-select, separados por coma)');
+  assert(rNotas && rNotas.valor === 'Nota de campo simple' && rNotas.valor.indexOf('Servicios:') === -1, 'Notas ya NO empaqueta los datos de terreno');
   var rM2t = rowOf(md, 'm² terreno');
   var rInd = rowOf(md, 'm² terreno indivisos');
   var rTiene = rowOf(md, 'Tiene indivisos');
@@ -122,6 +136,8 @@ console.log('\n[2] Terreno con indivisos S/I');
   var rTiene = rowOf(md, 'Tiene indivisos');
   assert(rInd && rInd.valor === '' && rInd.nota === 'S/I', 'm² indivisos vacío con nota S/I (nunca "S/I" en el valor numérico)');
   assert(rTiene && rTiene.valor === 'Sí', 'Tiene indivisos = Sí aunque no haya dato de m²');
+  var rServ2 = rowOf(md, 'Servicios disponibles');
+  assert(rServ2 && rServ2.valor === '' && rServ2.nota === 'S/I', 'terreno sin servicios → multi-select vacío con nota S/I');
 })();
 
 /* ============ 2b. Indivisos sin tocar → S/I · con N/A → No ============ */
@@ -243,6 +259,7 @@ console.log('\n[6] Baños completos / Medios baños');
   clickChip(w2, 'tipoChips', 'Terreno');
   var md2 = generar(w2);
   assert(rowOf(md2, 'Medios baños') === null, 'en Terreno no se emite fila Medios baños');
+  assert(rowOf(md, 'Uso de suelo') === null && rowOf(md, 'Servicios disponibles') === null, 'en Casa no se emiten los campos de terreno');
 })();
 
 /* ============ 7. Cuota de mantenimiento ============ */

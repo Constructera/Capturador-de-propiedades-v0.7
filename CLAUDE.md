@@ -51,13 +51,24 @@ referencial y evitar campos huérfanos:
 - Generación de Código condicional por Tipo de inmueble: PROP-XX (casa/depto),
   TERR-XX (terreno).
 - Estatus: default "En análisis"; transición automática a "Captada" solo con 3 estrellas.
-- Campos de terreno aún no presentes en el esquema (uso_de_suelo_densidad,
-  estatus_legal, servicios_disponibles): el markdown debe instruir su creación como
-  nuevas propiedades, o su registro en Notas. NO asumir; marcar como pendiente.
+- Campos de terreno (creados 02-jul-2026, ya en el esquema): "Uso de suelo"
+  (rich text), "Estatus legal" (select: Título limpio/Con gravamen/Ejidal/
+  En trámite/S-I), "Servicios disponibles" (multi-select: Agua/Luz/Drenaje/
+  Pavimento/Por confirmar). El markdown los escribe como campos directos; ya
+  NO se empaquetan en Notas. Registro viejo con datos en Notas sin migrar:
+  "Terreno en Los Reyes 217 m2 privados" (único; ver CHANGELOG).
 
-## Pendientes abiertos (no decidir solo)
-- Conflicto de código PROP-3 (terreno) vs regla TERR-.
-- Si los campos nuevos de terreno van como propiedades de Notion o en Notas.
+## Decisiones de producto CERRADAS (02-jul-2026, confirmadas por el dueño)
+- **PROP-3 = excepción histórica documentada. NO recodificar.** El registro
+  PROP-3 de la base 🏠 Propiedades es un TERRENO con código legado PROP-*
+  (anterior a la regla TERR-). Se conserva tal cual. El agente Notion y el bot
+  de duplicados deben tratarlo como excepción conocida: la regla "terreno →
+  TERR-XX" aplica solo a registros nuevos; PROP-3 nunca se renombra ni se
+  reasigna su número.
+- **Campos de terreno = propiedades reales de Notion** (ya no van empaquetados
+  en Notas): "Uso de suelo" (rich text), "Estatus legal" (select), "Servicios
+  disponibles" (multi-select). Registros viejos con estos datos dentro de Notas
+  NO se migran todavía (solo documentados; ver CHANGELOG).
 
 ## Estado v0.7
 - **Bloque 1 (02-jul-2026): COMPLETO, pendiente de aprobación del dueño.** Baños completos/medios, cuota de mantenimiento, indivisos, regla Departamento, comisión "Otra", características nuevas (+persistentes), historial solo lectura, bloque META de trazabilidad, campos Notion nuevos en el markdown. Ver CHANGELOG.md.

@@ -25,6 +25,11 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **Tests:** `tests/test_gas.js` (33 asserts, mocks de SpreadsheetApp/DriveApp) y `tests/test_drive_app.js` (16 asserts jsdom async).
 - SW cache: `capturador-v0.7-B2-r1`.
 
+### Retoma 02-jul-2026 (tarde) — reconciliación Sheet + decisiones de producto
+- **GAS v3.1 (reconciliación de pestañas):** getSheet_ se auto-repara — adopta la pestaña legada con el histórico real ("Hoja 1" → renombrada a "Capturas", cero pérdida), borra la canónica vacía y las "*_conflict" vacías; nunca elimina hojas con datos. La hoja "Asesores" queda como legado SIN USO: el ranking se deriva de las capturas reales en cada GET (borrar una captura baja el conteo solo). +12 asserts (escenario real). **Requiere redesplegar el GAS + autorizar Drive con testDrive() (instrucciones en el .gs).**
+- **PROP-3:** decisión cerrada — excepción histórica documentada en CLAUDE.md, NO se recodifica.
+- **Campos de terreno como propiedades reales de Notion (decisión cerrada):** creadas vía API el 02-jul: "Uso de suelo" (rich text), "Estatus legal" (select: Título limpio/Con gravamen/Ejidal/En trámite/S-I), "Servicios disponibles" (multi-select: Agua/Luz/Drenaje/Pavimento/Por confirmar). El markdown de terrenos los escribe como filas directas; Notas vuelve a ser solo notas de campo. **Registros viejos con datos en Notas (sin migrar, documentado): solo 1 — "Terreno en Los Reyes 217 m2 privados" (servicios pavimento/drenaje/luz/agua, uso habitacional, estatus legal S/I).** Tests: 67/67 markdown. SW: B2-r5.
+
 ### Pendientes v0.7 adelantados (02-jul-2026, madrugada)
 - **Ranking limpio multi-dispositivo:** filtros por fecha (Todo/Hoy/7 días/30 días) y por asesor en el ranking compartido, agregando client-side desde las capturas de la nube; paginación de 10 tarjetas con "Ver más". En modo local (sin nube) los filtros se ocultan y el comportamiento previo se conserva. Tests: `tests/test_ranking.js` (15 asserts). SW: `B2-r4`.
 - **Seguridad GAS (clave compartida):** `API_KEY` opcional en el GAS v3 (vacía = apagada, retrocompatible). Con clave activa, todo POST debe traer `k` en el body y todo GET `?k=`; la app la envía desde Configuración → "Clave del backend" (`CFG.gasKey`). Tests: +9 asserts en `test_gas.js`, +4 en `test_drive_app.js`. SW: `B2-r3`.
