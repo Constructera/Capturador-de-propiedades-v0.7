@@ -164,6 +164,21 @@ console.log('\n[3] Regla Departamento (m² terreno N/A o S/I)');
   var md2 = generar(w2);
   assert(md2.indexOf('Falta dato mínimo: m² terreno') === -1, 'Depto + m² terreno S/I → tampoco marca faltante');
 
+  // Penthouse: misma regla que Departamento (N/A y S/I exentos)
+  var wp = boot();
+  clickChip(wp, 'tipoChips', 'Penthouse');
+  naBtn(wp, 'f_m2t').click();
+  var mdp = generar(wp);
+  assert(mdp.indexOf('Falta dato mínimo: m² terreno') === -1, 'Penthouse + m² terreno N/A → sin "Falta dato mínimo: m² terreno"');
+  var histP = JSON.parse(wp.localStorage.getItem('cap_hist'));
+  assert(histP[0].faltantes.join(' | ').indexOf('m² terreno (') === -1, 'Penthouse + N/A → "m² terreno" fuera de faltantes del historial');
+
+  var wp2 = boot();
+  clickChip(wp2, 'tipoChips', 'Penthouse');
+  siBtn(wp2, 'f_m2t').click();
+  var mdp2 = generar(wp2);
+  assert(mdp2.indexOf('Falta dato mínimo: m² terreno') === -1, 'Penthouse + m² terreno S/I → tampoco marca faltante');
+
   // Control: en Casa, S/I en m² terreno SÍ debe marcar faltante
   var w3 = boot();
   clickChip(w3, 'tipoChips', 'Casa');

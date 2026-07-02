@@ -10,7 +10,7 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **Baños divididos:** "Baños completos" (`f_ban`, mapea a campo Notion "Baños") y "Medios baños" (`f_ban_medios`, campo nuevo "Medios baños").
 - **Cuota de mantenimiento:** campo numérico con S/I y N/A → campo Notion "Cuota de mantenimiento" (MXN/mes).
 - **Indivisos:** botón "+ indivisos" bajo m² terreno; m² numérico o S/I (sí tiene, sin dato) o N/A (no tiene). Mapea a "m² terreno indivisos" (number) y "Tiene indivisos" (Sí/No/S-I). "m² terreno" queda como m² privados.
-- **Regla Departamento:** con Tipo = Departamento, m² terreno en S/I o N/A no es obligatorio ni marca la captura como incompleta.
+- **Regla Departamento/Penthouse:** con Tipo = Departamento o Penthouse, m² terreno en S/I o N/A no es obligatorio ni marca la captura como incompleta (Penthouse agregado en B1-r2 por indicación del dueño).
 - **Comisión "Otra":** opción al final del select que abre texto libre (ej. 1.75%); el markdown lleva un único valor en "Comisión de venta" (text), nunca duplicado.
 - **Características:** "Alberca climatizada" y "Pádel" en catálogo; botón "+" para características personalizadas que persisten en localStorage (`cap_caractCustom`).
 - **Historial ver/editar:** tap directo en una captura = detalle SOLO LECTURA (overlay); editar solo con el botón ✏️ explícito.

@@ -1377,12 +1377,15 @@ function numCell(id){
 }
 function lineas(id){return $(id).value.split('\n').map(function(s){return s.trim();}).filter(Boolean);}
 
+/* tipos sin obligación de m² terreno cuando está en S/I o N/A (regla v0.7) */
+var SIN_M2T_OBLIG=['Departamento','Penthouse'];
+
 /* requisitos de "captura completa": m2, recámaras, baños, responsable */
 function faltantesCompletitud(){
   var f=[];var esTerreno=(state.tipo==='Terreno');
-  // Regla v0.7: en Departamento, m² terreno con S/I o N/A no es obligatorio
-  // y no marca la captura como incompleta.
-  var m2tExento=(state.tipo==='Departamento'&&(siOn('f_m2t')||naOn('f_m2t')));
+  // Regla v0.7: en Departamento/Penthouse, m² terreno con S/I o N/A no es
+  // obligatorio y no marca la captura como incompleta.
+  var m2tExento=(SIN_M2T_OBLIG.indexOf(state.tipo)!==-1&&(siOn('f_m2t')||naOn('f_m2t')));
   if(numCell('f_m2t').pend&&!m2tExento)f.push('m² terreno');
   if(!esTerreno && numCell('f_m2c').pend)f.push('m² construcción');
   if(!esTerreno){
@@ -1763,8 +1766,8 @@ function contactoOperativoNota(){
 function camposSI(){
   var f=[];
   [['f_m2t','m² terreno'],['f_m2c','m² construcción'],['f_rec','recámaras'],['f_ban','baños completos'],['f_ban_medios','medios baños'],['f_est','estacionamientos'],['f_precio','precio venta'],['f_precio_renta','precio renta'],['f_cuota','cuota de mantenimiento'],['f_m2t_indiv','m² indivisos'],['f_frente','frente'],['f_fondo','fondo'],['f_uso','uso de suelo']].forEach(function(p){
-    // Regla v0.7: Departamento con m² terreno en S/I o N/A no cuenta como faltante.
-    if(p[0]==='f_m2t'&&state.tipo==='Departamento')return;
+    // Regla v0.7: Departamento/Penthouse con m² terreno en S/I o N/A no cuenta como faltante.
+    if(p[0]==='f_m2t'&&SIN_M2T_OBLIG.indexOf(state.tipo)!==-1)return;
     if($(p[0])&&siOn(p[0]))f.push(p[1]+' (S/I)');
     else if($(p[0])&&naOn(p[0]))f.push(p[1]+' (N/A)');
   });
