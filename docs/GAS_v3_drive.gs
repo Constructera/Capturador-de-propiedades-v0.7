@@ -20,15 +20,30 @@
  *   Reutilización: primero por uuid (columna folderUrl ya llena), luego por
  *   nombre de carpeta en la carpeta madre. Nunca duplica carpetas al editar.
  *
+ * NUEVO EN v3.1 (reconciliación de pestañas):
+ *   getSheet_ se auto-repara: si la pestaña canónica ("Capturas"/"Markdowns")
+ *   está vacía pero existe una pestaña legada CON el histórico real (p. ej.
+ *   "Hoja 1"), borra la canónica vacía y RENOMBRA la legada al nombre canónico
+ *   (cero pérdida de datos). También elimina pestañas "*_conflict" vacías.
+ *   Nunca borra una hoja con datos. La hoja "Asesores" queda SIN USO: el
+ *   ranking se deriva de las capturas reales en cada GET (borrarla es opcional).
+ *
  * INSTRUCCIONES DE DESPLIEGUE:
  * 1. Abre script.google.com → el proyecto EXISTENTE del endpoint actual.
- * 2. Reemplaza el código por este archivo completo.
- * 3. Menú Implementar → Administrar implementaciones → editar la implementación
+ * 2. Reemplaza el código por este archivo completo y GUARDA.
+ * 3. AUTORIZA DRIVE: en el editor selecciona la función `testDrive` en el
+ *    desplegable de funciones y pulsa ▶ Ejecutar. Aparecerá "Autorización
+ *    necesaria" → Revisar permisos → tu cuenta → "Avanzado" → "Ir a … (no
+ *    seguro)" → Permitir. El log debe decir "Carpeta madre OK: …".
+ *    (Si no aparece diálogo y sigue fallando: Configuración del proyecto →
+ *    "Mostrar archivo de manifiesto appsscript.json" → si existe una lista
+ *    "oauthScopes", agrega "https://www.googleapis.com/auth/drive" y
+ *    "https://www.googleapis.com/auth/spreadsheets", guarda y repite.)
+ * 4. Menú Implementar → Administrar implementaciones → editar la implementación
  *    activa → Versión: "Nueva versión" → Implementar. (Así la URL del endpoint
  *    NO cambia y la app no necesita reconfigurarse.)
- * 4. La primera ejecución pedirá autorizar el permiso de Drive (DriveApp).
- * 5. Las hojas "Capturas" y "Markdowns" se crean/actualizan solas (solo agrega
- *    columnas faltantes al final; nunca borra ni reordena las existentes).
+ * 5. Verificación: un GET al endpoint debe devolver el histórico real (la
+ *    pestaña "Hoja 1" habrá sido renombrada a "Capturas" automáticamente).
  */
 
 var PARENT_FOLDER_ID = '1PTKX6TZSR94Hailc3qvWBbK_zQkE6Vhn'; // carpeta madre en Drive
@@ -53,7 +68,7 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (API_KEY && String(body.k || '') !== API_KEY) return jsonOut({ok:false, error:'No autorizado'});
-    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3 online'});
+    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.1 online'});
     if (body.action === 'saveMarkdown') return handleSaveMarkdown_(body);
     if (body.id) return handleSaveCapture_(body); // payload plano de captura
     return jsonOut({ok:false, error:'Payload no reconocido'});
@@ -164,21 +179,75 @@ function buildAsesores_(hdr, rows) {
 
 /* ===================== helpers de hoja ===================== */
 
-/* Devuelve la hoja; la crea con encabezados canónicos si falta, y agrega al
-   final las columnas canónicas que falten (aditivo: nunca borra ni reordena). */
+/* Columnas clave que identifican a una hoja legada como "la de verdad" cuando
+   el histórico quedó en una pestaña con otro nombre (p. ej. "Hoja 1"). */
+var KEY_COLS = {};
+KEY_COLS[CAP_SHEET] = ['id', 'asesor', 'propiedad_json'];
+KEY_COLS[MD_SHEET] = ['uuid', 'markdown_md'];
+
+/* Devuelve la hoja canónica con auto-reconciliación (v3.1):
+   1. Si la hoja canónica existe Y tiene datos → se usa tal cual.
+   2. Si está vacía o falta, busca una hoja legada CON datos cuyos encabezados
+      contengan las columnas clave (p. ej. "Hoja 1" con el histórico real):
+      borra la canónica vacía y RENOMBRA la legada al nombre canónico
+      (renombrar no toca ni una celda: cero pérdida de datos).
+   3. Borra pestañas "<nombre>_conflict*" solo si están vacías (≤1 fila).
+   4. Si no hay nada, la crea con los encabezados canónicos.
+   Nunca se elimina una hoja que tenga datos. Idempotente: tras la primera
+   llamada, todo cae en el caso 1. */
 function getSheet_(name, canonical) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 3. limpiar pestañas _conflict vacías (las genera Sheets en conflictos de edición)
+  ss.getSheets().forEach(function (s) {
+    if (s.getName().indexOf(name + '_conflict') === 0 && s.getLastRow() <= 1) ss.deleteSheet(s);
+  });
+
   var sh = ss.getSheetByName(name);
+  if (sh && sh.getLastRow() > 1) { ensureCols_(sh, canonical); return sh; } // 1
+
+  // 2. adoptar hoja legada con datos y columnas clave
+  var keys = KEY_COLS[name] || [];
+  var legacy = null;
+  ss.getSheets().forEach(function (s) {
+    if (legacy || s.getName() === name) return;
+    if (s.getName().indexOf('_conflict') !== -1) return;
+    if (s.getLastRow() <= 1) return;
+    var hdr = headers_(s);
+    var tieneClaves = keys.length && keys.every(function (k) { return hdr.indexOf(k) !== -1; });
+    if (tieneClaves) legacy = s;
+  });
+  if (legacy) {
+    if (sh) ss.deleteSheet(sh); // solo se borra la canónica VACÍA
+    legacy.setName(name);
+    ensureCols_(legacy, canonical);
+    return legacy;
+  }
+
+  // 4. crear desde cero
   if (!sh) {
     sh = ss.insertSheet(name);
     sh.appendRow(canonical);
     sh.setFrozenRows(1);
     return sh;
   }
+  ensureCols_(sh, canonical);
+  return sh;
+}
+
+/* Agrega al final las columnas canónicas que falten (aditivo). */
+function ensureCols_(sh, canonical) {
   var hdr = headers_(sh);
   var missing = canonical.filter(function (h) { return hdr.indexOf(h) === -1; });
   if (missing.length) sh.getRange(1, hdr.length + 1, 1, missing.length).setValues([missing]);
-  return sh;
+}
+
+/* Ejecuta esta función UNA VEZ desde el editor (▶ Ejecutar) para forzar el
+   diálogo de autorización de Drive si el despliegue da "No cuentas con el
+   permiso para llamar a DriveApp". Debe loguear el nombre de la carpeta madre. */
+function testDrive() {
+  var f = DriveApp.getFolderById(PARENT_FOLDER_ID);
+  Logger.log('Carpeta madre OK: ' + f.getName() + ' (' + f.getUrl() + ')');
 }
 
 function headers_(sh) {

@@ -25,6 +25,7 @@ function MockSheet(name) {
   this._rows = []; // matriz de valores, fila 0 = encabezados
 }
 MockSheet.prototype.getName = function () { return this._name; };
+MockSheet.prototype.setName = function (n) { this._name = n; };
 MockSheet.prototype.appendRow = function (row) { this._rows.push(row.slice()); };
 MockSheet.prototype.setFrozenRows = function () {};
 MockSheet.prototype.getLastRow = function () { return this._rows.length; };
@@ -66,8 +67,16 @@ function freshEnv() {
     SpreadsheetApp: {
       getActiveSpreadsheet: function () {
         return {
-          getSheetByName: function (n) { return sheets[n] || null; },
-          insertSheet: function (n) { sheets[n] = new MockSheet(n); return sheets[n]; }
+          getSheetByName: function (n) {
+            var found = null;
+            Object.keys(sheets).forEach(function (k) { if (sheets[k]._name === n) found = sheets[k]; });
+            return found;
+          },
+          insertSheet: function (n) { sheets[n] = new MockSheet(n); return sheets[n]; },
+          getSheets: function () { return Object.keys(sheets).map(function (k) { return sheets[k]; }); },
+          deleteSheet: function (sh) {
+            Object.keys(sheets).forEach(function (k) { if (sheets[k] === sh) delete sheets[k]; });
+          }
         };
       }
     },
@@ -239,6 +248,74 @@ console.log('\n[G6] clave compartida (API_KEY)');
   var g2 = freshEnv();
   assert(g2.post({action:'ping'}).ok === true, 'API_KEY vacía → sin validación (retrocompatible)');
   assert(JSON.parse(g2.doGet({}).getContent()).ok === true, 'GET sin parámetros también pasa con API_KEY vacía');
+})();
+
+/* ============ 7. Reconciliación de pestañas (escenario real 02-jul) ============ */
+console.log('\n[G7] reconciliación: histórico en "Hoja 1", "Capturas" vacía, conflict vacía');
+(function () {
+  function sheetNames(g) { return Object.keys(g._sheets).map(function (k) { return g._sheets[k]._name; }).sort(); }
+  function byName(g, n) { var r = null; Object.keys(g._sheets).forEach(function (k) { if (g._sheets[k]._name === n) r = g._sheets[k]; }); return r; }
+  var CAPH = ['id','timestamp','tipo','asesor','estrellas','calidad','propiedad_json','contacto_json','capturadoEn','modificadoEn'];
+
+  var g = freshEnv();
+  // estado real reportado por el dueño:
+  var hoja1 = new MockSheet('Hoja 1');
+  hoja1.appendRow(CAPH);
+  [['CAP-R1','2026-06-20T10:00:00Z','propiedad','Daniel',3,'Completa',JSON.stringify({elapsed:120}),'','2026-06-20T10:00:00Z','2026-06-20T10:00:00Z'],
+   ['CAP-R2','2026-06-21T10:00:00Z','propiedad','Carlos',2,'Esencial',JSON.stringify({elapsed:200}),'','2026-06-21T10:00:00Z','2026-06-21T10:00:00Z'],
+   ['CAP-R3','2026-06-22T10:00:00Z','propiedad','Gabriel',1,'Incompleta',JSON.stringify({}),'','2026-06-22T10:00:00Z','2026-06-22T10:00:00Z'],
+   ['CAP-R4','2026-06-23T10:00:00Z','propiedad','Erica',3,'Completa',JSON.stringify({elapsed:90}),'','2026-06-23T10:00:00Z','2026-06-23T10:00:00Z'],
+   ['CAP-R5','2026-06-24T10:00:00Z','propiedad','Daniel',2,'Publicable',JSON.stringify({elapsed:250}),'','2026-06-24T10:00:00Z','2026-06-24T10:00:00Z'],
+   ['CT-R6','2026-06-25T10:00:00Z','contacto','Daniel',0,'','','{}','2026-06-25T10:00:00Z','2026-06-25T10:00:00Z']
+  ].forEach(function (r) { hoja1.appendRow(r); });
+  g._sheets['Hoja 1'] = hoja1;
+  var capVacia = new MockSheet('Capturas'); capVacia.appendRow(CAPH);
+  g._sheets['Capturas'] = capVacia;
+  var conflict = new MockSheet('Capturas_conflict1200737492'); conflict.appendRow(CAPH);
+  g._sheets['Capturas_conflict1200737492'] = conflict;
+  var asesores = new MockSheet('Asesores');
+  asesores.appendRow(['asesor','totalCapturas']); asesores.appendRow(['Daniel', 99]); // desincronizada
+  g._sheets['Asesores'] = asesores;
+
+  var res = g.get();
+  assert(res.ok === true, 'GET ok tras reconciliación');
+  assert(res.capturas.length === 7, 'GET devuelve el histórico REAL (encabezado + 6 filas de Hoja 1)');
+  assert(byName(g, 'Capturas') === hoja1, '"Hoja 1" fue RENOMBRADA a "Capturas" (mismos datos, cero pérdida)');
+  assert(byName(g, 'Hoja 1') === null, 'ya no existe pestaña "Hoja 1"');
+  assert(sheetNames(g).indexOf('Capturas_conflict1200737492') === -1, 'la pestaña _conflict VACÍA fue eliminada');
+  assert(byName(g, 'Asesores') === asesores && asesores._rows[1][1] === 99, 'la hoja "Asesores" NO se toca (queda como legado sin uso)');
+  assert(hoja1._rows.length === 7, 'ninguna fila del histórico se perdió');
+
+  // idempotencia
+  var res2 = g.get();
+  assert(res2.capturas.length === 7 && byName(g, 'Capturas') === hoja1, 'segunda llamada: estable, sin duplicar hojas');
+
+  // una captura nueva cae en la hoja adoptada (upsert)
+  g.post({id:'CAP-R7', timestamp:'2026-07-02T10:00:00Z', tipo:'propiedad', asesor:'Daniel',
+    estrellas:3, calidad:'Completa', propiedad_json:JSON.stringify({elapsed:100}), contacto_json:'',
+    capturadoEn:'2026-07-02T10:00:00Z', modificadoEn:'2026-07-02T10:00:00Z'});
+  assert(hoja1._rows.length === 8, 'las escrituras nuevas caen en la hoja adoptada');
+
+  // punto 3: asesores SIEMPRE derivado — borrar una captura baja el conteo solo
+  var aH = res2.asesores[0];
+  var daniel = res2.asesores.filter(function (r) { return r[aH.indexOf('asesor')] === 'Daniel'; })[0];
+  assert(daniel[aH.indexOf('totalCapturas')] === 2, 'Daniel = 2 (derivado de capturas reales, no del 99 de la hoja Asesores)');
+  hoja1._rows = hoja1._rows.filter(function (r) { return r[0] !== 'CAP-R5'; }); // "borrado manual" de una fila
+  var res3 = g.get();
+  var aH3 = res3.asesores[0];
+  var daniel3 = res3.asesores.filter(function (r) { return r[aH3.indexOf('asesor')] === 'Daniel'; })[0];
+  assert(daniel3[aH3.indexOf('totalCapturas')] === 2, 'tras borrar CAP-R5 a mano: Daniel = 2 (CAP-R1 + CAP-R7) — el conteo baja solo');
+
+  // seguridad extra: si la canónica tiene datos, NUNCA se adopta otra hoja
+  var g2 = freshEnv();
+  var capData = new MockSheet('Capturas'); capData.appendRow(CAPH);
+  capData.appendRow(['CAP-A','2026-07-01T00:00:00Z','propiedad','Erica',1,'Esencial','{}','','','']);
+  g2._sheets['Capturas'] = capData;
+  var otra = new MockSheet('Hoja 1'); otra.appendRow(CAPH);
+  otra.appendRow(['CAP-B','2026-07-01T00:00:00Z','propiedad','Carlos',1,'Esencial','{}','','','']);
+  g2._sheets['Hoja 1'] = otra;
+  g2.get();
+  assert(byName(g2, 'Capturas') === capData && byName(g2, 'Hoja 1') === otra, 'con canónica con datos, ninguna hoja se renombra ni se borra');
 })();
 
 /* ============ resumen ============ */
