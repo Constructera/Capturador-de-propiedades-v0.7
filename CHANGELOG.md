@@ -30,6 +30,11 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **PROP-3:** decisión cerrada — excepción histórica documentada en CLAUDE.md, NO se recodifica.
 - **Campos de terreno como propiedades reales de Notion (decisión cerrada):** creadas vía API el 02-jul: "Uso de suelo" (rich text), "Estatus legal" (select: Título limpio/Con gravamen/Ejidal/En trámite/S-I), "Servicios disponibles" (multi-select: Agua/Luz/Drenaje/Pavimento/Por confirmar). El markdown de terrenos los escribe como filas directas; Notas vuelve a ser solo notas de campo. **Registros viejos con datos en Notas (sin migrar, documentado): solo 1 — "Terreno en Los Reyes 217 m2 privados" (servicios pavimento/drenaje/luz/agua, uso habitacional, estatus legal S/I).** Tests: 67/67 markdown. SW: B2-r5.
 
+### Mascota: chroma key con canvas (02-jul-2026) — pendiente v0.6 resuelto
+- Los MP4 se renderizan en un canvas y el fondo (blanco/gris) se vuelve transparente por flood fill desde los bordes: la panza blanca de la casita queda protegida por su contorno. Erosión 3x3 (cierra huecos de anti-aliasing) + dilatación 2px (sin halo). Umbral calibrado: brillo ≥200, saturación ≤16 (el glow verde del teléfono hacía puente con umbrales laxos).
+- Resuelve los DOS pendientes de mascota de v0.6: fondos grises de running/sad (verificado visualmente en dark mode) y autoplay iOS (listener de primer toque que re-arranca los videos + fallback automático al <video> si canvas falla, p. ej. en file://).
+- En dark mode ya no se fuerza tarjeta blanca ni mix-blend-mode cuando el chroma está activo. SW: B3-r1.
+
 ### Pendientes v0.7 adelantados (02-jul-2026, madrugada)
 - **Ranking limpio multi-dispositivo:** filtros por fecha (Todo/Hoy/7 días/30 días) y por asesor en el ranking compartido, agregando client-side desde las capturas de la nube; paginación de 10 tarjetas con "Ver más". En modo local (sin nube) los filtros se ocultan y el comportamiento previo se conserva. Tests: `tests/test_ranking.js` (15 asserts). SW: `B2-r4`.
 - **Seguridad GAS (clave compartida):** `API_KEY` opcional en el GAS v3 (vacía = apagada, retrocompatible). Con clave activa, todo POST debe traer `k` en el body y todo GET `?k=`; la app la envía desde Configuración → "Clave del backend" (`CFG.gasKey`). Tests: +9 asserts en `test_gas.js`, +4 en `test_drive_app.js`. SW: `B2-r3`.

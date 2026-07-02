@@ -120,7 +120,8 @@ var MASCOT_STATE_KEY={
 };
 function _setMascotVideo(v,st){
   if(!v)return;
-  v.setAttribute('class','mascot state-'+st);
+  var wasChroma=v.classList.contains('chroma-src');
+  v.setAttribute('class','mascot state-'+st+(wasChroma?' chroma-src':''));
   var stateKey=MASCOT_STATE_KEY[st]||'idle';
   v.dataset.state=stateKey;
   var src=MASCOT_SRC[st]||MASCOT_SRC['idle'];
@@ -128,9 +129,129 @@ function _setMascotVideo(v,st){
     v.dataset.mst=st;
     v.muted=true; // iOS requiere muted antes de play
     v.src=src;v.load();
-    v.play().catch(function(){});
+    var p=v.play();if(p&&p.catch)p.catch(function(){});
   }
+  attachChroma(v);
 }
+
+/* ===================== MASCOTA: CHROMA KEY CANVAS — v0.7 =====================
+   Los MP4 traen fondo blanco/gris (no alpha). En vez de mix-blend-mode
+   (parche v0.6), se renderiza el video en un canvas y se hace transparente
+   SOLO el fondo conectado al borde (flood fill): la panza blanca de la casita
+   queda protegida por su contorno oscuro. Si canvas falla (navegador raro,
+   canvas tainted), se revierte solo al <video> visible de siempre. */
+var CHROMA_OK=(function(){
+  try{var c=document.createElement('canvas');return !!(c.getContext&&c.getContext('2d'));}
+  catch(e){return false;}
+})();
+var _CHROMA_W=320,_CHROMA_H=320;
+function attachChroma(v){
+  if(!CHROMA_OK||!v||v.dataset.chroma==='1')return;
+  var parent=v.parentNode;if(!parent)return;
+  var cv=document.createElement('canvas');
+  cv.className='mascot-canvas';cv.width=_CHROMA_W;cv.height=_CHROMA_H;
+  var ctx=cv.getContext('2d',{willReadFrequently:true});
+  if(!ctx)return;
+  v.dataset.chroma='1';
+  parent.classList.add('chroma-on');
+  parent.insertBefore(cv,v.nextSibling);
+  v.classList.add('chroma-src');
+  var N=_CHROMA_W*_CHROMA_H;
+  var fondo=new Uint8Array(N);      // píxel con color de fondo (blanco/gris claro)
+  var pasable=new Uint8Array(N);    // fondo erosionado: cierra huecos finos del contorno
+  var visited=new Uint8Array(N);    // región de fondo conectada al borde
+  var tmp=new Uint8Array(N);
+  var queue=new Int32Array(N);
+  var W=_CHROMA_W,H=_CHROMA_H;
+  function frame(){
+    if(v.dataset.chroma!=='1')return; // desactivado por fallback
+    if(v.readyState>=2&&!document.hidden&&v.offsetParent!==null){
+      try{
+        ctx.drawImage(v,0,0,W,H);
+        var img=ctx.getImageData(0,0,W,H);
+        var d=img.data;
+        var x,y,i,j;
+        // 1. máscara de color de fondo (blanco a gris claro, baja saturación)
+        for(i=0;i<N;i++){
+          var r=d[i*4],g=d[i*4+1],b=d[i*4+2];
+          var mx=r>g?(r>b?r:b):(g>b?g:b);
+          var mn=r<g?(r<b?r:b):(g<b?g:b);
+          // umbral calibrado 02-jul: saturación ≤16 evita que el glow verde
+          // pálido del teléfono haga puente entre fondo y cuerpo blanco
+          fondo[i]=(mx>=200&&(mx-mn)<=16)?1:0;
+        }
+        // 2. erosión 3x3: solo es "pasable" el fondo rodeado de fondo — los
+        //    huecos de 1-2 px del contorno (anti-alias) dejan de ser puente
+        for(y=0;y<H;y++)for(x=0;x<W;x++){
+          i=y*W+x;
+          if(!fondo[i]){pasable[i]=0;continue;}
+          var ok=1;
+          if(x>0&&!fondo[i-1])ok=0;
+          else if(x<W-1&&!fondo[i+1])ok=0;
+          else if(y>0&&!fondo[i-W])ok=0;
+          else if(y<H-1&&!fondo[i+W])ok=0;
+          else if(x>0&&y>0&&!fondo[i-W-1])ok=0;
+          else if(x<W-1&&y>0&&!fondo[i-W+1])ok=0;
+          else if(x>0&&y<H-1&&!fondo[i+W-1])ok=0;
+          else if(x<W-1&&y<H-1&&!fondo[i+W+1])ok=0;
+          pasable[i]=ok;
+        }
+        // 3. flood fill desde los 4 bordes sobre la máscara erosionada
+        visited.fill(0);
+        var qh=0,qt=0;
+        for(x=0;x<W;x++){
+          i=x;if(pasable[i]&&!visited[i]){visited[i]=1;queue[qt++]=i;}
+          i=(H-1)*W+x;if(pasable[i]&&!visited[i]){visited[i]=1;queue[qt++]=i;}
+        }
+        for(y=0;y<H;y++){
+          i=y*W;if(pasable[i]&&!visited[i]){visited[i]=1;queue[qt++]=i;}
+          i=y*W+(W-1);if(pasable[i]&&!visited[i]){visited[i]=1;queue[qt++]=i;}
+        }
+        while(qh<qt){
+          i=queue[qh++];
+          x=i%W;y=(i-x)/W;
+          if(x>0&&!visited[i-1]&&pasable[i-1]){visited[i-1]=1;queue[qt++]=i-1;}
+          if(x<W-1&&!visited[i+1]&&pasable[i+1]){visited[i+1]=1;queue[qt++]=i+1;}
+          if(y>0&&!visited[i-W]&&pasable[i-W]){visited[i-W]=1;queue[qt++]=i-W;}
+          if(y<H-1&&!visited[i+W]&&pasable[i+W]){visited[i+W]=1;queue[qt++]=i+W;}
+        }
+        // 4. dilatar 2 px el resultado SOLO sobre píxeles de fondo: recupera el
+        //    anillo erosionado pegado al contorno y evita el halo blanco
+        for(j=0;j<2;j++){
+          tmp.set(visited);
+          for(y=0;y<H;y++)for(x=0;x<W;x++){
+            i=y*W+x;
+            if(visited[i]||!fondo[i])continue;
+            if((x>0&&tmp[i-1])||(x<W-1&&tmp[i+1])||(y>0&&tmp[i-W])||(y<H-1&&tmp[i+W]))visited[i]=1;
+          }
+        }
+        // 5. transparencia
+        for(i=0;i<N;i++)if(visited[i])d[i*4+3]=0;
+        ctx.putImageData(img,0,0);
+      }catch(e){
+        // fallback: quitar canvas (sin listeners) y mostrar el video normal
+        v.dataset.chroma='0';
+        parent.classList.remove('chroma-on');
+        v.classList.remove('chroma-src');
+        if(cv.parentNode)cv.parentNode.removeChild(cv);
+        return;
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+/* iOS: autoplay de video requiere un gesto previo — al primer toque/click se
+   (re)arrancan todas las mascotas visibles. */
+var _mascotUnlocked=false;
+function _unlockMascots(){
+  if(_mascotUnlocked)return;_mascotUnlocked=true;
+  document.querySelectorAll('video.mascot').forEach(function(v){
+    v.muted=true;var p=v.play();if(p&&p.catch)p.catch(function(){});
+  });
+}
+document.addEventListener('touchstart',_unlockMascots,{once:true,passive:true});
+document.addEventListener('click',_unlockMascots,{once:true});
 function initHomeMascot(){
   var wrap=$('homeMascotWrap');if(!wrap||wrap.hasChildNodes())return;
   var v=document.createElement('video');
@@ -143,7 +264,8 @@ function initHomeMascot(){
   v.src='./mascota/idle.mp4';
   wrap.appendChild(v);
   v.muted=true;
-  v.play().catch(function(){});
+  var p=v.play();if(p&&p.catch)p.catch(function(){});
+  attachChroma(v);
 }
 
 /* ===================== MASCOTA EN CAPTURA DE CONTACTO ===================== */
