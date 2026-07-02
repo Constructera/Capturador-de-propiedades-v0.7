@@ -9,6 +9,7 @@ Aislado: no mezclar con otros proyectos.
 1. `node --check app.js`
 2. `node tests/check_ids.js` — IDs referenciados en app.js deben existir en index.html (o en HTML dinámico del propio app.js).
 3. `node tests/test_markdown.js` — suite jsdom de generación de markdown (leer localStorage con `w.localStorage.getItem()` directo).
+3b. `node tests/test_gas.js` (mocks GAS) y `node tests/test_drive_app.js` (flujo Drive en jsdom) — obligatorios si se toca GAS o el flujo Drive.
 4. Bump del cache key del Service Worker (`sw.js` → `CACHE`) en CADA push.
 5. Nunca eliminar elementos del DOM con listeners activos sin remover el listener primero — crashea el IIFE completo.
 6. jsdom instalado local en `tests/` (npm install jsdom). Node en `C:\Program Files\nodejs` (agregar al PATH en Git Bash).

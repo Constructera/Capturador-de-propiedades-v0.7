@@ -1488,13 +1488,14 @@ function generar(){
   /* trazabilidad (v0.7): UUID + fechas + contador de ediciones, definidos ANTES
      de construir el markdown para poder emitir el bloque META parseable. */
   var nowIso=new Date().toISOString();
-  var meta;
+  var meta;var origDriveUrl='';
   if(state.editId){
     var _orig=getHist().filter(function(x){return x.id===state.editId;})[0];
     meta={uuid:state.editId,
       creado:_orig?(_orig.capturadoEn||_orig.fecha):nowIso,
       modificado:nowIso,
       ediciones:_orig?((_orig.ediciones||0)+1):1};
+    origDriveUrl=(_orig&&_orig.driveUrl)||'';
   }else{
     meta={uuid:genUUID(),creado:nowIso,modificado:nowIso,ediciones:0};
   }
@@ -1596,7 +1597,7 @@ function generar(){
   md+=row('Fecha captura','Date',{v:meta.creado,nota:'Fecha de captura original (ISO-8601)'})+'\n';
   md+=row('Revisión duplicado','Select',{v:'Sin revisar',nota:'Default; lo gestiona el bot de duplicados'})+'\n';
   md+=row('Observaciones captura','Text',{v:meta.ediciones>0?('Editada '+meta.ediciones+(meta.ediciones===1?' vez':' veces')+' · última modificación: '+meta.modificado):'',nota:meta.ediciones>0?'':'Captura original sin ediciones'})+'\n';
-  md+=row('Carpeta Drive','URL',{v:'',nota:'Pendiente — se llenará con la integración Drive (Bloque 2)'})+'\n';
+  md+=row('Carpeta Drive','URL',{v:origDriveUrl,nota:origDriveUrl?'Carpeta de fotos de la propiedad en Drive':'Pendiente — la crea el GAS al guardar y queda visible en el historial (📷)'})+'\n';
   md+='\n';
 
   md+='## 3. Reglas de relaciones\n';
@@ -1738,7 +1739,7 @@ function generar(){
   // guardar en historial
   var re=realElapsed();
   lastCaptureId=saveCapture(md,estatusProp,falt,estrellas.count,estrellas.quality,re,meta);
-  gasSaveMarkdown(lastCaptureId,asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I'),meta.modificado,'propiedad',estrellas.count===3?'completa':'sin terminar',nombre,md);
+  gasSaveMarkdown(lastCaptureId,asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I'),meta.modificado,'propiedad',estrellas.count===3?'completa':'sin terminar',nombre,md,dirVal);
   if(asesorActivo)updateAsesorStats(asesorActivo.id,estrellas,re);
   sndSuccess();
   mostrarResultado(estrellas);
@@ -2011,6 +2012,7 @@ function saveCapture(md,estatus,falt,stars,quality,elapsed,meta){
     tipo:state.tipo,oper:state.oper,estatus:estatus,estatusCaptura:stars===3?'Listo':(stars>=2?'En progreso':'Sin empezar'),fuente:fuenteVal().nombre,
     people:state.people.map(function(p){return (p.nombre||'?')+' ('+personTipos(p).join(', ')+')';}),
     anuncio:state.anuncioUrl||'',maps:$('f_maps').value,
+    driveUrl:(orig&&orig.driveUrl)||'',
     md:md,estado:falt.length?'Con faltantes':'Markdown generado',
     estrellas:stars||0,calidad:quality||'',elapsed:elapsed||0,
     faltantes:falt,copiado:false,enviado:false,edit:now,
@@ -2094,7 +2096,10 @@ function _renderHistList(h){
         '<br>'+new Date(r.capturadoEn||r.fecha).toLocaleString('es-MX')+editDate+'</div></div>'+
         '<span class="hi-state '+sc+'">'+st+'</span></div>'+
         '<div class="hi-actions">'+
-          '<button type="button" class="btn" data-copy="'+r.id+'">Copiar MD</button>'+
+          // B2: con carpeta Drive lista, el botón principal pasa de Copiar MD a Fotos Drive
+          (r.driveUrl
+            ?'<button type="button" class="btn" data-drive="'+r.id+'">📷 Fotos Drive</button>'
+            :'<button type="button" class="btn" data-copy="'+r.id+'">Copiar MD</button>')+
           '<button type="button" class="btn" data-view2="'+r.id+'">Ver MD</button>'+
           (r.maps?'<button type="button" class="btn" data-maps="'+r.id+'">Maps</button>':'')+
           '<button type="button" class="btn" data-edit-prop="'+r.id+'">Editar</button>'+
@@ -2113,6 +2118,7 @@ $('histList').addEventListener('click',function(e){
   if(t.dataset.copy){var r=find(t.dataset.copy);if(r){copyText(r.md);r.copiado=true;setHist(h);t.textContent='Copiado ✓';}}
   if(t.dataset.view2){var pre=$('md_'+t.dataset.view2);if(pre)pre.style.display=pre.style.display==='none'?'block':'none';}
   if(t.dataset.maps){var r2=find(t.dataset.maps);if(r2&&r2.maps)window.open(r2.maps,'_blank');}
+  if(t.dataset.drive){var rDrv=find(t.dataset.drive);if(rDrv&&rDrv.driveUrl)window.open(rDrv.driveUrl,'_blank');}
   if(t.dataset.editProp){abrirEdicion(t.dataset.editProp);}
   if(t.dataset.sent){find(t.dataset.sent).enviado=true;setHist(h);_renderHistList(h);}
   if(t.dataset.pend){find(t.dataset.pend).enviado=false;setHist(h);_renderHistList(h);}
@@ -2153,6 +2159,7 @@ function openHistDetail(id,isCt){
   if(rec.modificadoEn)drow('Última edición',new Date(rec.modificadoEn).toLocaleString('es-MX'));
   if(rec.ediciones)drow('Ediciones',rec.ediciones);
   drow('Enviada',rec.enviado?'Sí':'No');
+  if(!isCt&&rec.driveUrl)drow('Carpeta Drive',rec.driveUrl);
   if(!isCt&&rec.faltantes&&rec.faltantes.length)drow('Faltantes',rec.faltantes.join(', '));
   $('histDetailBody').innerHTML=
     '<div class="hint" style="margin-bottom:8px">👁️ Vista de solo lectura. Para modificar, usa el botón ✏️ Editar.</div>'+
@@ -2247,10 +2254,21 @@ function buildGasPayloadContact(rec){
     estrellas:0,calidad:'',propiedad_json:'',contacto_json:JSON.stringify(rec),
     capturadoEn:rec.fecha||now,modificadoEn:rec.fecha||now};
 }
-function gasSaveMarkdown(uuid,asesor,fecha,tipo,estatus,nombre,markdownText){
+function gasSaveMarkdown(uuid,asesor,fecha,tipo,estatus,nombre,markdownText,direccion){
   if(!CFG.endpoint)return;
-  var p={action:'saveMarkdown',uuid:uuid,asesor:asesor,fecha:fecha,tipo:tipo,estatus:estatus,nombre:nombre,markdown_md:markdownText};
-  gasPost(p).catch(function(){queueForRetry(p);});
+  var p={action:'saveMarkdown',uuid:uuid,asesor:asesor,fecha:fecha,tipo:tipo,estatus:estatus,nombre:nombre,direccion:direccion||'',markdown_md:markdownText};
+  gasPost(p).then(function(r){
+    // B2: el GAS crea/reutiliza la carpeta Drive de la propiedad y devuelve su URL
+    if(r&&r.ok&&r.folderUrl&&tipo==='propiedad'){
+      var h=getHist();var rec=h.filter(function(x){return x.id===uuid;})[0];
+      if(rec&&rec.driveUrl!==r.folderUrl){
+        rec.driveUrl=r.folderUrl;setHist(h);
+        // re-subir la captura con driveUrl para que la nube (fuente de verdad
+        // del historial) no lo pierda en el siguiente sync; GAS v3 hace upsert
+        gasPost(buildGasPayload(rec)).catch(function(){});
+      }
+    }
+  }).catch(function(){queueForRetry(p);});
 }
 function gasCapturasToLocalHist(capturas){
   return capturas.filter(function(c){return c.tipo==='propiedad';}).map(function(c){

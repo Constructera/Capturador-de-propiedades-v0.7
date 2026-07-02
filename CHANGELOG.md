@@ -16,8 +16,14 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **Historial ver/editar:** tap directo en una captura = detalle SOLO LECTURA (overlay); editar solo con el botón ✏️ explícito.
 - **Trazabilidad:** bloque `<!-- META uuid/creado/modificado/ediciones -->` al inicio de cada markdown (propiedades y contactos); cada edición conserva UUID y fecha de creación e incrementa el contador. Filas Notion nuevas: "UUID Captura", "Fecha captura", "Revisión duplicado" (Sin revisar), "Observaciones captura", "Carpeta Drive" (pendiente Bloque 2).
 - **Multi-zona verificada** con prueba automatizada (3 zonas separadas por coma).
-- **Tests:** `tests/check_ids.js` (IDs huérfanos JS↔HTML) y `tests/test_markdown.js` (58 asserts jsdom).
-- SW cache: `capturador-v0.7-B1-r1`.
+- **Tests:** `tests/check_ids.js` (IDs huérfanos JS↔HTML) y `tests/test_markdown.js` (61 asserts jsdom).
+- SW cache: `capturador-v0.7-B1-r1` → `B1-r2` (regla Penthouse).
+
+### Bloque 2 (02-jul-2026) — Integración Drive vía GAS
+- **GAS v3 (`docs/GAS_v3_drive.gs`):** reemplazo completo del Apps Script (el `GAS_v2B.gs` documentado estaba desactualizado respecto a lo desplegado; el v3 implementa el contrato real de app.js reconstruido del cliente). Al recibir `saveMarkdown` de una propiedad crea (o reutiliza, por uuid y por nombre) una carpeta **"Propiedad - \<Dirección\>"** dentro de la carpeta madre de Drive (`1PTKX6TZSR94Hailc3qvWBbK_zQkE6Vhn`), guarda `folderUrl` en la hoja Markdowns y la devuelve en la respuesta. Hojas header-driven (agrega columnas sin romper datos). **PENDIENTE: desplegarlo manualmente en script.google.com (instrucciones en el header del .gs).**
+- **App:** `gasSaveMarkdown` ahora envía la dirección y procesa la respuesta: guarda `driveUrl` en el registro del historial y re-sube la captura para que la nube no lo pierda al sincronizar. En el historial, el botón **"📷 Fotos Drive"** reemplaza a "Copiar MD" cuando la carpeta existe (sin carpeta, Copiar MD se conserva) y abre la carpeta en Drive. Al editar, la fila "Carpeta Drive" del markdown lleva la URL real.
+- **Tests:** `tests/test_gas.js` (33 asserts, mocks de SpreadsheetApp/DriveApp) y `tests/test_drive_app.js` (16 asserts jsdom async).
+- SW cache: `capturador-v0.7-B2-r1`.
 
 ---
 
