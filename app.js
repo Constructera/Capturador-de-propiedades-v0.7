@@ -1888,33 +1888,105 @@ function sortAsesores(lista){
   });
 }
 
+/* ===== ranking v0.7: filtros fecha/asesor + paginación (solo modo nube) ===== */
+var rankFiltro={fecha:'todo',asesor:''};
+var RANK_PAGE=10;var rankShown=RANK_PAGE;
+var _rankCapturasCache=null;var _rankMode='local';
+
+function _rankSetFiltrosVisible(on){
+  var f=$('rankingFiltros');var a=$('rankingAsesores');
+  if(f)f.style.display=on?'flex':'none';
+  if(a)a.style.display=on?'flex':'none';
+}
+function rankCutoff(){
+  var now=Date.now();
+  if(rankFiltro.fecha==='hoy'){var d=new Date();d.setHours(0,0,0,0);return d.getTime();}
+  if(rankFiltro.fecha==='7d')return now-7*864e5;
+  if(rankFiltro.fecha==='30d')return now-30*864e5;
+  return 0;
+}
+/* misma agregación que hace el GAS, pero client-side sobre filas ya filtradas */
+function aggAsesoresFromCapturas(rows){
+  var map={};
+  rows.forEach(function(c){
+    var a=String(c.asesor||'S/I');
+    var m=map[a]||(map[a]={id:null,nombre:a,totalCapturas:0,totalEstrellas:0,
+      capturasCompletas:0,capturasEsenciales:0,mejorTiempo:null,ultimaCaptura:null});
+    m.totalCapturas++;
+    m.totalEstrellas+=parseInt(c.estrellas,10)||0;
+    var cal=String(c.calidad||'');
+    if(cal==='Completa')m.capturasCompletas++;
+    if(cal==='Completa'||cal==='Publicable'||cal==='Esencial')m.capturasEsenciales++;
+    var el=0;try{el=parseInt(JSON.parse(c.propiedad_json).elapsed,10)||0;}catch(e){}
+    if(el>0&&(!m.mejorTiempo||el<m.mejorTiempo))m.mejorTiempo=el;
+    var ts=String(c.timestamp||c.capturadoEn||'');
+    if(ts&&(!m.ultimaCaptura||ts>m.ultimaCaptura))m.ultimaCaptura=ts;
+  });
+  return Object.keys(map).map(function(k){return map[k];});
+}
+function renderRankAsesorChips(rows){
+  var wrap=$('rankingAsesores');if(!wrap)return;
+  var names={};rows.forEach(function(c){names[String(c.asesor||'S/I')]=1;});
+  var list=Object.keys(names).sort();
+  var html='<button type="button" class="chip chip-sm'+(rankFiltro.asesor===''?' sel':'')+'" data-a="">Todos</button>';
+  list.forEach(function(n){
+    html+='<button type="button" class="chip chip-sm'+(rankFiltro.asesor===n?' sel':'')+'" data-a="'+esc(n)+'">'+esc(n)+'</button>';
+  });
+  wrap.innerHTML=html;
+}
+function renderRankingFiltrado(){
+  var rows=(_rankCapturasCache||[]).filter(function(c){return String(c.tipo)==='propiedad';});
+  renderRankAsesorChips(rows);
+  var cut=rankCutoff();
+  var f=rows.filter(function(c){
+    if(cut){var t=Date.parse(c.timestamp||c.capturadoEn||'');if(!(t&&t>=cut))return false;}
+    if(rankFiltro.asesor&&String(c.asesor||'S/I')!==rankFiltro.asesor)return false;
+    return true;
+  });
+  var modoEl=$('rankingModo');
+  var filtrado=(rankFiltro.fecha!=='todo'||rankFiltro.asesor);
+  if(modoEl)modoEl.textContent='🌐 Ranking compartido ('+f.length+' capturas'+(filtrado?' · filtrado':' de todos los dispositivos')+')';
+  renderRankingConLista(sortAsesores(aggAsesoresFromCapturas(f)));
+}
+$('rankingFiltros').addEventListener('click',function(e){
+  var c=e.target.closest('.chip');if(!c)return;
+  this.querySelectorAll('.chip').forEach(function(x){x.classList.remove('sel');});
+  c.classList.add('sel');
+  rankFiltro.fecha=c.dataset.v;rankShown=RANK_PAGE;
+  if(_rankMode==='cloud')renderRankingFiltrado();
+});
+$('rankingAsesores').addEventListener('click',function(e){
+  var c=e.target.closest('.chip');if(!c)return;
+  rankFiltro.asesor=c.dataset.a||'';rankShown=RANK_PAGE;
+  if(_rankMode==='cloud')renderRankingFiltrado();
+});
+$('rankingList').addEventListener('click',function(e){
+  if(!e.target.closest('[data-rank-more]'))return;
+  rankShown+=RANK_PAGE;
+  if(_rankMode==='cloud')renderRankingFiltrado();else renderRankingLocal();
+});
+
 function renderRanking(){
   var wrap=$('rankingList');if(!wrap)return;
   var modoEl=$('rankingModo');
+  rankShown=RANK_PAGE;
   if(CFG.endpoint){
     wrap.innerHTML='<div class="empty" style="margin-top:48px">⏳ Cargando ranking compartido…</div>';
     if(modoEl)modoEl.textContent='';
     gasGet(function(data){
-      if(data&&data.asesores&&data.asesores.length>1){
-        var rows=parseGasRows(data.asesores);
-        var total=data.capturas?data.capturas.length-1:rows.length;
-        var lista=sortAsesores(rows.map(function(a){
-          return{id:null,nombre:a.asesor||'S/I',
-            totalCapturas:parseInt(a.totalCapturas)||0,
-            totalEstrellas:parseInt(a.totalEstrellas)||0,
-            capturasCompletas:parseInt(a.capturasCompletas)||0,
-            capturasEsenciales:parseInt(a.capturasEsenciales)||0,
-            mejorTiempo:parseInt(a.mejorTiempo)||null,
-            ultimaCaptura:a.ultimaCaptura||null};
-        }));
-        if(modoEl)modoEl.textContent='🌐 Ranking compartido ('+total+' capturas de todos los dispositivos)';
-        renderRankingConLista(lista);
+      if(data&&data.capturas&&data.capturas.length>1){
+        _rankMode='cloud';
+        _rankCapturasCache=parseGasRows(data.capturas);
+        _rankSetFiltrosVisible(true);
+        renderRankingFiltrado();
       }else{
+        _rankMode='local';_rankSetFiltrosVisible(false);
         if(modoEl)modoEl.textContent='📱 Ranking local (sin datos en la nube aún)';
         renderRankingLocal();
       }
     });
   }else{
+    _rankMode='local';_rankSetFiltrosVisible(false);
     if(modoEl)modoEl.textContent='📱 Ranking local · Configura un endpoint en ⚙️ para compartir';
     renderRankingLocal();
   }
@@ -1951,8 +2023,9 @@ function renderRankingConLista(full){
   });
   html+='</div>';
 
-  // tarjetas de todos los asesores
-  lista.forEach(function(a,i){
+  // tarjetas de asesores (paginadas v0.7: rankShown por página)
+  var visibles=lista.slice(0,rankShown);
+  visibles.forEach(function(a,i){
     var pos=i+1;
     var init=a.nombre.split(' ').map(function(p){return p[0];}).join('').toUpperCase().slice(0,2);
     var avg=a.totalCapturas?(a.totalEstrellas/a.totalCapturas).toFixed(1):'—';
@@ -1977,6 +2050,11 @@ function renderRankingConLista(full){
       '</div>'+
       '</div>';
   });
+
+  // botón de paginación
+  if(lista.length>rankShown){
+    html+='<button type="button" class="btn" data-rank-more style="width:100%;margin-top:10px">Ver más ↓ ('+(lista.length-rankShown)+' restante'+(lista.length-rankShown===1?'':'s')+')</button>';
+  }
 
   // asesores sin capturas al final
   var sinCap=full.filter(function(a){return !a.totalCapturas;});

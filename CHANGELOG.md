@@ -26,6 +26,7 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - SW cache: `capturador-v0.7-B2-r1`.
 
 ### Pendientes v0.7 adelantados (02-jul-2026, madrugada)
+- **Ranking limpio multi-dispositivo:** filtros por fecha (Todo/Hoy/7 días/30 días) y por asesor en el ranking compartido, agregando client-side desde las capturas de la nube; paginación de 10 tarjetas con "Ver más". En modo local (sin nube) los filtros se ocultan y el comportamiento previo se conserva. Tests: `tests/test_ranking.js` (15 asserts). SW: `B2-r4`.
 - **Seguridad GAS (clave compartida):** `API_KEY` opcional en el GAS v3 (vacía = apagada, retrocompatible). Con clave activa, todo POST debe traer `k` en el body y todo GET `?k=`; la app la envía desde Configuración → "Clave del backend" (`CFG.gasKey`). Tests: +9 asserts en `test_gas.js`, +4 en `test_drive_app.js`. SW: `B2-r3`.
 - **vCard de contactos ("Contactos al celular"):** exportar/compartir la ficha como `.vcf` (vCard 3.0 con teléfono, WhatsApp, email, empresa, puesto y nota con tipo+asesor). Compartir nativo en móvil (`navigator.canShare` con archivo) con fallback a descarga. Botones: "📇 Guardar en contactos" tras generar, "📇 vCard" en ambos historiales. Tests: `tests/test_vcard.js` (16 asserts). SW: `B2-r2`.
 
