@@ -35,6 +35,9 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - Resuelve los DOS pendientes de mascota de v0.6: fondos grises de running/sad (verificado visualmente en dark mode) y autoplay iOS (listener de primer toque que re-arranca los videos + fallback automático al <video> si canvas falla, p. ej. en file://).
 - En dark mode ya no se fuerza tarjeta blanca ni mix-blend-mode cuando el chroma está activo. SW: B3-r1.
 
+### Easter eggs / logros (02-jul-2026)
+- 6 hitos por asesor derivados del historial local: 🎉 primera captura, 🔥 10, 🏆 25, 💎 5 perfectas (3⭐), ⚡ racha 3 días, 🌟 racha 7 días. Celebración con confetti + sonido + vibración tras la animación de estrellas; cola si se desbloquean varios; persisten en cap_logros (nunca se repiten; editar no re-otorga). Tests: tests/test_logros.js (14 asserts). SW: B3-r2.
+
 ### Pendientes v0.7 adelantados (02-jul-2026, madrugada)
 - **Ranking limpio multi-dispositivo:** filtros por fecha (Todo/Hoy/7 días/30 días) y por asesor en el ranking compartido, agregando client-side desde las capturas de la nube; paginación de 10 tarjetas con "Ver más". En modo local (sin nube) los filtros se ocultan y el comportamiento previo se conserva. Tests: `tests/test_ranking.js` (15 asserts). SW: `B2-r4`.
 - **Seguridad GAS (clave compartida):** `API_KEY` opcional en el GAS v3 (vacía = apagada, retrocompatible). Con clave activa, todo POST debe traer `k` en el body y todo GET `?k=`; la app la envía desde Configuración → "Clave del backend" (`CFG.gasKey`). Tests: +9 asserts en `test_gas.js`, +4 en `test_drive_app.js`. SW: `B2-r3`.

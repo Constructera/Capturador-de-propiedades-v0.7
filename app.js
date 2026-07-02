@@ -1868,6 +1868,7 @@ function generar(){
   if(asesorActivo)updateAsesorStats(asesorActivo.id,estrellas,re);
   sndSuccess();
   mostrarResultado(estrellas);
+  checkLogros();
 }
 
 function propietarioNombre(){
@@ -1900,6 +1901,62 @@ function camposSI(){
   if(zonasSel.length===0)f.push('zona');
   return f;
 }
+
+/* ===================== EASTER EGGS / LOGROS — v0.7 ===================== */
+/* Hitos por asesor, derivados SIEMPRE del historial local (cap_hist). Los ya
+   otorgados persisten en cap_logros para no repetir la celebración. */
+var LOGROS=[
+  {id:'primera',emoji:'🎉',titulo:'¡Primera captura!',desc:'Tu primera propiedad en Hauser. El primer ladrillo.',check:function(s){return s.total>=1;}},
+  {id:'cap10',emoji:'🔥',titulo:'10 capturas',desc:'Diez propiedades capturadas. Máquina de scouteo.',check:function(s){return s.total>=10;}},
+  {id:'cap25',emoji:'🏆',titulo:'25 capturas',desc:'Veinticinco propiedades. Leyenda de Hauser.',check:function(s){return s.total>=25;}},
+  {id:'perfectas5',emoji:'💎',titulo:'5 capturas perfectas',desc:'Cinco capturas de 3 estrellas. Calidad pura.',check:function(s){return s.perfectas>=5;}},
+  {id:'racha3',emoji:'⚡',titulo:'Racha de 3 días',desc:'Tres días seguidos capturando. Constancia.',check:function(s){return s.racha>=3;}},
+  {id:'racha7',emoji:'🌟',titulo:'Racha de 7 días',desc:'Una semana entera sin fallar. Imparable.',check:function(s){return s.racha>=7;}}
+];
+function _logroStats(nombre){
+  var caps=getHist().filter(function(r){return (r.asesorNombre||r.resp||'S/I')===nombre;});
+  var dias={};
+  caps.forEach(function(r){
+    var d=new Date(r.capturadoEn||r.fecha);
+    if(!isNaN(d))dias[d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate()]=1;
+  });
+  var racha=0,cur=new Date();
+  while(dias[cur.getFullYear()+'-'+cur.getMonth()+'-'+cur.getDate()]){
+    racha++;cur.setDate(cur.getDate()-1);
+  }
+  return{total:caps.length,
+    perfectas:caps.filter(function(r){return (r.estrellas||0)>=3;}).length,
+    racha:racha};
+}
+var _logroQueue=[];
+function checkLogros(){
+  var nombre=asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I');
+  var earned=load('logros',{});
+  var mios=earned[nombre]||[];
+  var s=_logroStats(nombre);
+  LOGROS.forEach(function(l){
+    if(mios.indexOf(l.id)!==-1)return;
+    if(l.check(s)){mios.push(l.id);_logroQueue.push(l);}
+  });
+  earned[nombre]=mios;save('logros',earned);
+  // esperar a que la animación de estrellas del resultado termine
+  if(_logroQueue.length)setTimeout(_showNextLogro,1600);
+}
+function _showNextLogro(){
+  var l=_logroQueue.shift();if(!l)return;
+  $('logroEmoji').textContent=l.emoji;
+  $('logroTitulo').textContent=l.titulo;
+  $('logroDesc').textContent=l.desc;
+  $('logroOverlay').classList.add('show');
+  launchConfetti();sndSuccess();
+  if(navigator.vibrate)navigator.vibrate([40,60,40]);
+}
+function _closeLogro(){
+  $('logroOverlay').classList.remove('show');
+  if(_logroQueue.length)setTimeout(_showNextLogro,350);
+}
+$('logroCerrar').addEventListener('click',_closeLogro);
+$('logroOverlay').addEventListener('click',function(e){if(e.target===this)_closeLogro();});
 
 /* ===================== RESULTADO + CONFETTI — FASE 5 ===================== */
 function updateAsesorStats(id,strs,elapsed){
