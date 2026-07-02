@@ -530,3 +530,9 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 [data-theme="dark"] .mascot-wrap,
 [data-theme="dark"] #resMascotWrap{background:#fff;border-radius:16px;padding:8px;}
 [data-theme="dark"] .mascot{mix-blend-mode:multiply;}
+
+/* ===== v0.7 — detalle de captura solo lectura ===== */
+.hd-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--bg-soft);font-size:.86rem}
+.hd-label{color:var(--text-soft);font-weight:700;flex-shrink:0}
+.hd-val{text-align:right;word-break:break-word}
+.hd-md{margin-top:12px;background:var(--bg-soft);border-radius:10px;padding:10px;font-size:.72rem;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow-y:auto}

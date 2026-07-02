@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#27a048">
-<meta name="description" content="Capturadora de propiedades Hauser / Inmobitera v0.6">
+<meta name="description" content="Capturadora de propiedades Hauser / Inmobitera v0.7">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Capturadora">
-<title>Capturadora Hauser v0.6</title>
+<title>Capturadora Hauser v0.7</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,7 +28,7 @@
     <div class="home-title">Capturadora Hauser</div>
     <div style="display:flex;align-items:center;gap:8px">
       <button type="button" id="btnTheme" class="btn-theme" title="Modo oscuro">🌙</button>
-      <span class="ver-badge">v0.6</span>
+      <span class="ver-badge">v0.7</span>
     </div>
   </div>
   <div class="home-sub">¿Qué quieres capturar hoy?</div>
@@ -70,7 +70,7 @@
 <main id="viewAdvisor" class="view">
   <div class="view-header">
     <button type="button" class="btn-back" data-view="viewHome">← Inicio</button>
-    <span class="ver-badge">v0.6</span>
+    <span class="ver-badge">v0.7</span>
   </div>
   <div class="doc-title">👤 ¿Quién captura?</div>
   <div class="doc-sub">Selecciona tu nombre. El dispositivo lo recordará para la próxima vez.</div>
@@ -90,7 +90,7 @@
     <button type="button" class="btn-back" data-view="viewHome">← Menú</button>
     <div style="display:flex;gap:8px;align-items:center">
       <button type="button" class="chip chip-sm" id="asesorBadge" data-view="viewAdvisor">👤 —</button>
-      <span class="ver-badge">v0.6</span>
+      <span class="ver-badge">v0.7</span>
     </div>
   </div>
   <div id="editBanner" style="display:none" class="edit-banner">
@@ -287,6 +287,14 @@
       <div class="field-top"><label>m² terreno</label><button type="button" class="si-btn" data-for="f_m2t">S/I</button></div>
       <input type="text" inputmode="decimal" id="f_m2t" placeholder="0">
       <div class="norm" id="n_m2t"></div>
+      <button type="button" class="btn chip-sm" id="btnIndiv" style="margin-top:8px">+ indivisos</button>
+      <div id="indivBox" style="display:none;margin-top:8px">
+        <div class="field-top"><label>m² indivisos</label><button type="button" class="si-btn" data-for="f_m2t_indiv">S/I</button></div>
+        <input type="text" inputmode="decimal" id="f_m2t_indiv" placeholder="0">
+        <div class="norm" id="n_m2t_indiv"></div>
+        <div class="hint">S/I = sí tiene indivisos pero no sabes los m². N/A = no tiene. El m² terreno de arriba queda como los m² privados.</div>
+        <button type="button" class="btn chip-sm" id="btnIndivQuitar">− Quitar indivisos</button>
+      </div>
     </div>
     <div class="field" data-construccion>
       <div class="field-top"><label>m² construcción</label><button type="button" class="si-btn" data-for="f_m2c">S/I</button></div>
@@ -324,15 +332,17 @@
     <div class="row2">
       <div class="field"><div class="field-top"><label>Recámaras</label><button type="button" class="si-btn" data-for="f_rec">S/I</button></div>
         <input type="number" inputmode="numeric" id="f_rec" placeholder="0"></div>
-      <div class="field"><div class="field-top"><label>Baños</label><button type="button" class="si-btn" data-for="f_ban">S/I</button></div>
-        <input type="text" inputmode="decimal" id="f_ban" placeholder="Ej. 2.5"></div>
+      <div class="field"><div class="field-top"><label>Baños completos</label><button type="button" class="si-btn" data-for="f_ban">S/I</button></div>
+        <input type="text" inputmode="numeric" id="f_ban" placeholder="Ej. 2"></div>
     </div>
     <div class="row2">
+      <div class="field"><div class="field-top"><label>Medios baños</label><button type="button" class="si-btn" data-for="f_ban_medios">S/I</button></div>
+        <input type="text" inputmode="numeric" id="f_ban_medios" placeholder="Ej. 1"></div>
       <div class="field"><div class="field-top"><label>Estacionamientos</label><button type="button" class="si-btn" data-for="f_est">S/I</button></div>
         <input type="number" inputmode="numeric" id="f_est" placeholder="0"></div>
-      <div class="field"><div class="field-top"><label>Estado</label></div>
-        <select id="f_estado_fis"><option>S/I</option><option>Nueva</option><option>En construcción</option><option>Usada — buen estado</option><option>Usada — para remodelar</option></select></div>
     </div>
+    <div class="field"><div class="field-top"><label>Estado</label></div>
+      <select id="f_estado_fis"><option>S/I</option><option>Nueva</option><option>En construcción</option><option>Usada — buen estado</option><option>Usada — para remodelar</option></select></div>
     <div class="field">
       <div class="field-top"><label>Características rápidas</label></div>
       <div class="tags" id="caractTags"></div>
@@ -342,7 +352,11 @@
         <button type="button" class="btn chip-sm" id="btnCaractRefresh">↻ Refrescar</button>
       </div>
       <div class="field" style="margin-top:10px">
-        <input type="text" id="f_caract_buscar" placeholder="Buscar o agregar característica… (Enter para agregar)" autocomplete="off">
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" id="f_caract_buscar" placeholder="Buscar o agregar característica… (Enter para agregar)" autocomplete="off" style="flex:1;margin:0">
+          <button type="button" class="btn chip-sm btn-accent" id="btnCaractAdd" title="Agregar característica personalizada" style="flex-shrink:0;padding:10px 14px">+</button>
+        </div>
+        <div class="hint">Las características nuevas se guardan para futuras capturas.</div>
       </div>
     </div>
   </div>
@@ -399,7 +413,8 @@
   </div>
   <div class="row2">
     <div class="field" id="rowComisionVenta"><div class="field-top"><label>Comisión de venta</label></div>
-      <select id="f_comision"><option>0.5%</option><option>1%</option><option>2%</option><option>3%</option><option selected>4%</option><option>5%</option><option>6%</option><option>7%</option></select></div>
+      <select id="f_comision"><option>0.5%</option><option>1%</option><option>2%</option><option>3%</option><option selected>4%</option><option>5%</option><option>6%</option><option>7%</option><option value="__otra">Otra</option></select>
+      <input type="text" id="f_comision_otra" placeholder="Ej. 1.75%" style="display:none;margin-top:8px"></div>
     <div class="field"><div class="field-top"><label>Prioridad</label></div>
       <select id="f_prioridad"><option>Alta</option><option selected>Media</option><option>Baja</option></select></div>
   </div>
@@ -407,6 +422,11 @@
     <div class="field-top"><label>Comisión de renta <span class="h-hint">= 1er mes</span></label></div>
     <input type="text" id="f_comision_renta" inputmode="numeric" placeholder="Se llena con el precio de renta">
     <div class="hint">Ganancia = primer mes. Modificable si hay otro acuerdo.</div>
+  </div>
+  <div class="field">
+    <div class="field-top"><label>Cuota de mantenimiento <span class="h-hint">MXN/mes</span></label><button type="button" class="si-btn" data-for="f_cuota">S/I</button></div>
+    <input type="text" inputmode="numeric" id="f_cuota" placeholder="Ej. 1500">
+    <div class="norm" id="n_cuota"></div>
   </div>
   <div class="row2">
     <div class="field"><div class="field-top"><label>Responsable / quién captura</label></div>
@@ -470,7 +490,7 @@
 <main id="viewHistory" class="view">
   <div class="view-header">
     <button type="button" class="btn-back" data-view="viewHome">← Menú</button>
-    <span class="ver-badge">v0.6</span>
+    <span class="ver-badge">v0.7</span>
   </div>
   <div class="doc-title">🗂️ Historial de capturas</div>
   <div class="doc-sub">Guardado en este dispositivo. Listo para sincronizar con Notion/Sheets.</div>
@@ -482,7 +502,7 @@
 <main id="viewConfig" class="view">
   <div class="view-header">
     <button type="button" class="btn-back" data-view="viewHome">← Menú</button>
-    <span class="ver-badge">v0.6</span>
+    <span class="ver-badge">v0.7</span>
   </div>
   <div class="doc-title">⚙️ Configuración</div>
   <div class="doc-sub">Ajustes locales de la app.</div>
@@ -533,7 +553,7 @@
 <main id="viewHelp" class="view">
   <div class="view-header">
     <button type="button" class="btn-back" data-view="viewHome">← Menú</button>
-    <span class="ver-badge">v0.6</span>
+    <span class="ver-badge">v0.7</span>
   </div>
   <div class="doc-title">❓ Ayuda rápida</div>
   <div class="doc-sub">Criterios de captura y uso correcto de la app.</div>
@@ -589,7 +609,7 @@
 <main id="viewResult" class="view">
   <div class="view-header">
     <button type="button" class="btn-back" data-view="viewHome">← Menú</button>
-    <span class="ver-badge">v0.6</span>
+    <span class="ver-badge">v0.7</span>
   </div>
 
   <div class="result-hero">
@@ -634,7 +654,7 @@
 <main id="viewLeaderboard" class="view">
   <div class="view-header">
     <button type="button" class="btn-back" data-view="viewHome">← Menú</button>
-    <span class="ver-badge">v0.6</span>
+    <span class="ver-badge">v0.7</span>
   </div>
   <div class="doc-title">⭐ Ranking de asesores</div>
   <div class="doc-sub">Estrellas acumuladas · Hauser / Inmobitera</div>
@@ -646,7 +666,7 @@
 <main id="viewContact" class="view">
   <div class="view-header">
     <button type="button" class="btn-back" data-view="viewHome">← Menú</button>
-    <span class="ver-badge">v0.6</span>
+    <span class="ver-badge">v0.7</span>
   </div>
   <div id="ctEditBanner" style="display:none" class="edit-banner">
     ✏️ Editando: <strong id="ctEditBannerNombre"></strong>
@@ -981,6 +1001,18 @@
     <div class="modal-foot">
       <button type="button" class="btn" id="personCancel">Cancelar</button>
       <button type="button" class="btn btn-accent" id="personSave" style="flex:1">Guardar persona</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETALLE DE CAPTURA (solo lectura) -->
+<div class="overlay" id="histDetailOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3 id="histDetailTitle">Detalle de captura</h3><button type="button" class="close-x" id="histDetailClose">×</button></div>
+    <div class="modal-body" id="histDetailBody"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn" id="histDetailCerrar">Cerrar</button>
+      <button type="button" class="btn btn-accent" id="histDetailEditar" style="flex:1">✏️ Editar</button>
     </div>
   </div>
 </div>

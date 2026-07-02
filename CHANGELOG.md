@@ -1,6 +1,23 @@
-# CHANGELOG — Capturadora Hauser v0.5
+# CHANGELOG — Capturadora Hauser
 
 Historial de versiones y fases de desarrollo del capturador de propiedades Hauser / Inmobitera.
+
+---
+
+## v0.7 (en desarrollo) — Bloque 1: campos Notion nuevos, trazabilidad y historial solo lectura
+
+### Bloque 1 (02-jul-2026)
+- **Baños divididos:** "Baños completos" (`f_ban`, mapea a campo Notion "Baños") y "Medios baños" (`f_ban_medios`, campo nuevo "Medios baños").
+- **Cuota de mantenimiento:** campo numérico con S/I y N/A → campo Notion "Cuota de mantenimiento" (MXN/mes).
+- **Indivisos:** botón "+ indivisos" bajo m² terreno; m² numérico o S/I (sí tiene, sin dato) o N/A (no tiene). Mapea a "m² terreno indivisos" (number) y "Tiene indivisos" (Sí/No/S-I). "m² terreno" queda como m² privados.
+- **Regla Departamento:** con Tipo = Departamento, m² terreno en S/I o N/A no es obligatorio ni marca la captura como incompleta.
+- **Comisión "Otra":** opción al final del select que abre texto libre (ej. 1.75%); el markdown lleva un único valor en "Comisión de venta" (text), nunca duplicado.
+- **Características:** "Alberca climatizada" y "Pádel" en catálogo; botón "+" para características personalizadas que persisten en localStorage (`cap_caractCustom`).
+- **Historial ver/editar:** tap directo en una captura = detalle SOLO LECTURA (overlay); editar solo con el botón ✏️ explícito.
+- **Trazabilidad:** bloque `<!-- META uuid/creado/modificado/ediciones -->` al inicio de cada markdown (propiedades y contactos); cada edición conserva UUID y fecha de creación e incrementa el contador. Filas Notion nuevas: "UUID Captura", "Fecha captura", "Revisión duplicado" (Sin revisar), "Observaciones captura", "Carpeta Drive" (pendiente Bloque 2).
+- **Multi-zona verificada** con prueba automatizada (3 zonas separadas por coma).
+- **Tests:** `tests/check_ids.js` (IDs huérfanos JS↔HTML) y `tests/test_markdown.js` (58 asserts jsdom).
+- SW cache: `capturador-v0.7-B1-r1`.
 
 ---
 

@@ -1,8 +1,17 @@
-﻿# Proyecto: Capturadora Hauser v0.5
+﻿# Proyecto: Capturadora Hauser v0.7
 
 ## Qué es esto
-Continuación de la app capturadora de propiedades Hauser/Inmobitera, versión v0.5.
-Repo COPIA del estable. Aislado: no mezclar con otros proyectos.
+Continuación de la app capturadora de propiedades Hauser/Inmobitera, versión v0.7.
+Repo COPIA de v0.6 (carpeta Capturadora-Hauser-v0.5 = repo Capturador-de-propiedades-v0.6).
+Aislado: no mezclar con otros proyectos.
+
+## Validación obligatoria antes de entregar
+1. `node --check app.js`
+2. `node tests/check_ids.js` — IDs referenciados en app.js deben existir en index.html (o en HTML dinámico del propio app.js).
+3. `node tests/test_markdown.js` — suite jsdom de generación de markdown (leer localStorage con `w.localStorage.getItem()` directo).
+4. Bump del cache key del Service Worker (`sw.js` → `CACHE`) en CADA push.
+5. Nunca eliminar elementos del DOM con listeners activos sin remover el listener primero — crashea el IIFE completo.
+6. jsdom instalado local en `tests/` (npm install jsdom). Node en `C:\Program Files\nodejs` (agregar al PATH en Git Bash).
 
 ## Antes de hacer cualquier cosa
 1. Lee docs/PROMPT_MAESTRO_v0.5.md (especificación completa, fuente de verdad).
@@ -48,6 +57,20 @@ referencial y evitar campos huérfanos:
 ## Pendientes abiertos (no decidir solo)
 - Conflicto de código PROP-3 (terreno) vs regla TERR-.
 - Si los campos nuevos de terreno van como propiedades de Notion o en Notas.
+
+## Estado v0.7
+- **Bloque 1 (02-jul-2026): COMPLETO, pendiente de aprobación del dueño.** Baños completos/medios, cuota de mantenimiento, indivisos, regla Departamento, comisión "Otra", características nuevas (+persistentes), historial solo lectura, bloque META de trazabilidad, campos Notion nuevos en el markdown. Ver CHANGELOG.md.
+- **Bloque 2 (siguiente): integración Drive/GAS.** El campo "Carpeta Drive" ya sale en el markdown como pendiente.
+
+## Campos NUEVOS en Notion 🏠 Propiedades (creados 01-jul-2026, NO modificar la base)
+Base ID: be60a02b-18ff-838b-97ea-813e803d1c45. El markdown ya los mapea con estos nombres EXACTOS:
+- "m² terreno indivisos" (number, nullable) — "m² terreno" existente = m² privados, NO se renombró
+- "Tiene indivisos" (select: Sí / No / S/I)
+- "Cuota de mantenimiento" (number, MXN, nullable)
+- "Medios baños" (number) — "Baños" existente = baños completos
+- "Comisión de venta" (text libre, ej. "3%" o "1.75%")
+- "Carpeta Drive" (url), "UUID Captura" (text), "Fecha captura" (date), "Revisión duplicado" (select: Sin revisar/Revisado/Posible duplicado/Fusionado), "Observaciones captura" (text)
+Reglas vigentes: título = "Propiedad"; "Estatus de captura" y "Estatus de propiedad" son tipo Status; nunca escribir Precio/m², Precio/m² (terreno) ni Código; Operación es multi-select; nunca escribir "S/I" en campos numéricos (numérico vacío + nota).
 
 ## Pendientes v0.7
 Los siguientes puntos surgieron durante el desarrollo de v0.6 y quedan diferidos:
