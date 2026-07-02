@@ -28,22 +28,37 @@
  *   Nunca borra una hoja con datos. La hoja "Asesores" queda SIN USO: el
  *   ranking se deriva de las capturas reales en cada GET (borrarla es opcional).
  *
- * INSTRUCCIONES DE DESPLIEGUE:
+ * NUEVO EN v3.2 (fix autorización de escritura):
+ *   testDrive ahora crea y trashea una subcarpeta temporal para forzar el
+ *   scope completo https://www.googleapis.com/auth/drive al autorizar (leer la
+ *   carpeta madre pasaba con drive.readonly y saveMarkdown seguía fallando en
+ *   createFolder). Instrucciones de manifiesto appsscript.json abajo.
+ *
+ * INSTRUCCIONES DE DESPLIEGUE (v3.2):
  * 1. Abre script.google.com → el proyecto EXISTENTE del endpoint actual.
  * 2. Reemplaza el código por este archivo completo y GUARDA.
- * 3. AUTORIZA DRIVE: en el editor selecciona la función `testDrive` en el
- *    desplegable de funciones y pulsa ▶ Ejecutar. Aparecerá "Autorización
- *    necesaria" → Revisar permisos → tu cuenta → "Avanzado" → "Ir a … (no
- *    seguro)" → Permitir. El log debe decir "Carpeta madre OK: …".
- *    (Si no aparece diálogo y sigue fallando: Configuración del proyecto →
- *    "Mostrar archivo de manifiesto appsscript.json" → si existe una lista
- *    "oauthScopes", agrega "https://www.googleapis.com/auth/drive" y
- *    "https://www.googleapis.com/auth/spreadsheets", guarda y repite.)
- * 4. Menú Implementar → Administrar implementaciones → editar la implementación
+ * 3. ARREGLA EL MANIFIESTO (causa del error "No cuentas con el permiso para
+ *    llamar a DriveApp.Folder.createFolder" aunque testDrive haya pasado):
+ *    ⚙ Configuración del proyecto → marca "Mostrar el archivo de manifiesto
+ *    appsscript.json" → abre appsscript.json en el editor. Si existe una lista
+ *    "oauthScopes", DEBE incluir el scope COMPLETO de Drive (no el .readonly):
+ *      "oauthScopes": [
+ *        "https://www.googleapis.com/auth/drive",
+ *        "https://www.googleapis.com/auth/spreadsheets"
+ *      ]
+ *    Guarda. (Si NO existe la lista "oauthScopes", no agregues nada: los
+ *    scopes se detectan solos.)
+ * 4. AUTORIZA: selecciona `testDrive` en el desplegable de funciones y pulsa
+ *    ▶ Ejecutar. Acepta el diálogo de permisos (Avanzado → Ir a … → Permitir).
+ *    testDrive ahora CREA y manda a la papelera una subcarpeta temporal, así
+ *    que si el log dice "Drive escritura OK", el scope de escritura quedó
+ *    concedido de verdad (leer la carpeta madre NO basta: eso funciona hasta
+ *    con permiso de solo lectura).
+ * 5. Menú Implementar → Administrar implementaciones → editar la implementación
  *    activa → Versión: "Nueva versión" → Implementar. (Así la URL del endpoint
  *    NO cambia y la app no necesita reconfigurarse.)
- * 5. Verificación: un GET al endpoint debe devolver el histórico real (la
- *    pestaña "Hoja 1" habrá sido renombrada a "Capturas" automáticamente).
+ * 6. Verificación: POST {"action":"ping"} debe responder "Hauser GAS v3.2
+ *    online"; un saveMarkdown de propiedad debe devolver folderUrl no vacío.
  */
 
 var PARENT_FOLDER_ID = '1PTKX6TZSR94Hailc3qvWBbK_zQkE6Vhn'; // carpeta madre en Drive
@@ -68,7 +83,7 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (API_KEY && String(body.k || '') !== API_KEY) return jsonOut({ok:false, error:'No autorizado'});
-    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.1 online'});
+    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.2 online'});
     if (body.action === 'saveMarkdown') return handleSaveMarkdown_(body);
     if (body.id) return handleSaveCapture_(body); // payload plano de captura
     return jsonOut({ok:false, error:'Payload no reconocido'});
@@ -243,11 +258,16 @@ function ensureCols_(sh, canonical) {
 }
 
 /* Ejecuta esta función UNA VEZ desde el editor (▶ Ejecutar) para forzar el
-   diálogo de autorización de Drive si el despliegue da "No cuentas con el
-   permiso para llamar a DriveApp". Debe loguear el nombre de la carpeta madre. */
+   diálogo de autorización de Drive con scope de ESCRITURA. Leer la carpeta
+   madre no basta (funciona con drive.readonly); por eso además crea una
+   subcarpeta temporal y la manda a la papelera. Si el log termina en
+   "Drive escritura OK", saveMarkdown ya puede crear carpetas. */
 function testDrive() {
   var f = DriveApp.getFolderById(PARENT_FOLDER_ID);
   Logger.log('Carpeta madre OK: ' + f.getName() + ' (' + f.getUrl() + ')');
+  var tmp = f.createFolder('__test_autorizacion__ (se borra sola)');
+  tmp.setTrashed(true);
+  Logger.log('Drive escritura OK: createFolder + papelera funcionaron.');
 }
 
 function headers_(sh) {

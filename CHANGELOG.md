@@ -35,6 +35,11 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - Resuelve los DOS pendientes de mascota de v0.6: fondos grises de running/sad (verificado visualmente en dark mode) y autoplay iOS (listener de primer toque que re-arranca los videos + fallback automático al <video> si canvas falla, p. ej. en file://).
 - En dark mode ya no se fuerza tarjeta blanca ni mix-blend-mode cuando el chroma está activo. SW: B3-r1.
 
+### Verificación E2E Drive (02-jul-2026, noche) — GAS v3.2
+- **Verificado contra el endpoint real:** ping OK (v3.1 online), GET devuelve el histórico completo (6 capturas reconciliadas desde "Hoja 1") y el ranking de asesores cuadra 1:1 con las capturas (Daniel 3/3⭐, Carlos 1/3⭐, Gabriel 1/2⭐, Erica 1/1⭐).
+- **saveMarkdown AÚN FALLA en Drive:** `createFolder` devuelve "Permisos necesarios: auth/drive". Causa: `testDrive` v3.1 solo LEÍA la carpeta madre, así que la autorización quedó con alcance de lectura; crear carpetas exige el scope completo. Nada se escribió en el Sheet (el error corta antes del upsert).
+- **GAS v3.2:** `testDrive` ahora crea y trashea una subcarpeta temporal (fuerza el scope de escritura al autorizar y lo verifica de verdad); instrucciones de manifiesto `appsscript.json` (oauthScopes con `auth/drive` completo) en el header. Ping responde "v3.2". **Requiere: pegar v3.2 + revisar manifiesto + re-ejecutar testDrive + Nueva versión.**
+
 ### Easter eggs / logros (02-jul-2026)
 - 6 hitos por asesor derivados del historial local: 🎉 primera captura, 🔥 10, 🏆 25, 💎 5 perfectas (3⭐), ⚡ racha 3 días, 🌟 racha 7 días. Celebración con confetti + sonido + vibración tras la animación de estrellas; cola si se desbloquean varios; persisten en cap_logros (nunca se repiten; editar no re-otorga). Tests: tests/test_logros.js (14 asserts). SW: B3-r2.
 
