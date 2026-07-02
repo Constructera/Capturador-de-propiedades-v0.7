@@ -2081,6 +2081,7 @@ function _renderHistList(h){
         '<span class="hi-state '+sc+'">'+st+'</span></div>'+
         '<div class="hi-actions">'+
           '<button type="button" class="btn" data-copy-ct="'+r.id+'">Copiar</button>'+
+          '<button type="button" class="btn" data-vcard2-ct="'+r.id+'">📇 vCard</button>'+
           '<button type="button" class="btn" data-view2-ct="'+r.id+'">Ver MD</button>'+
           '<button type="button" class="btn" data-edit-ct="'+r.id+'">Editar</button>'+
           (r.enviado?'<button type="button" class="btn" data-pend-ct="'+r.id+'">Marcar pendiente</button>':'<button type="button" class="btn" data-sent-ct="'+r.id+'">Marcar enviada</button>')+
@@ -2125,6 +2126,7 @@ $('histList').addEventListener('click',function(e){
   if(t.dataset.del2){if(confirm('¿Borrar esta captura del historial?')){h=h.filter(function(r){return r.id!==t.dataset.del2;});setHist(h);_renderHistList(h);}}
   // Contactos
   if(t.dataset.copyCt){var rc=findCt(t.dataset.copyCt);if(rc){copyText(rc.md);t.textContent='Copiado ✓';}}
+  if(t.dataset.vcard2Ct){shareVCard(findCt(t.dataset.vcard2Ct));}
   if(t.dataset.view2Ct){var pre2=$('md_ct_'+t.dataset.view2Ct);if(pre2)pre2.style.display=pre2.style.display==='none'?'block':'none';}
   if(t.dataset.editCt){abrirEdicionCt(t.dataset.editCt);}
   if(t.dataset.sentCt){var ch=load('ct_hist',[]);var rc2=ch.filter(function(r){return r.id===t.dataset.sentCt;})[0];if(rc2){rc2.enviado=true;save('ct_hist',ch);updateCtBadge();_renderHistList(getHist());}}
@@ -2546,7 +2548,7 @@ var CT_ALIADO=['Arquitecto','Notario','Maestro de obra','Broker','Asesor inmobil
 
 var ctState={tipos:[],confianza:'',estatus:'Nuevo',urgencia:'',confianzaAliado:'',
   zonasInteres:[],formaPago:[],amenidades:[],uso:'',zonasOper:[],zonasOperAliado:[]};
-var ctMd='';
+var ctMd='';var ctLastId=null;
 
 function ctVal(id){var el=$(id);return el?el.value.trim():'';}
 function ctSI(v){return v||'S/I';}
@@ -2802,7 +2804,7 @@ function genContact(){
   if(ctVal('ct_notas'))md+='## Notas\n'+ctVal('ct_notas')+'\n\n';
   md+='---\nCapturado por: **'+asesor+'** · '+fecha+' · ID provisional: `'+id+'`\n';
 
-  ctMd=md;
+  ctMd=md;ctLastId=id;
   $('ctMdOut').textContent=md;
   $('ctOutputArea').style.display='';
   $('ctOutputArea').scrollIntoView({behavior:'smooth',block:'start'});
@@ -2819,6 +2821,43 @@ function genContact(){
     formData:ctSnap});
   sndSuccess();
 }
+
+/* ===================== vCARD DE CONTACTOS — v0.7 ===================== */
+/* Exporta la ficha como .vcf: share nativo con archivo si el navegador lo
+   permite (móvil), si no descarga directa. */
+function buildVCard(rec){
+  var fd=rec.formData||{};
+  function vesc(s){return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');}
+  var lines=['BEGIN:VCARD','VERSION:3.0'];
+  lines.push('FN:'+vesc(rec.nombre||'Contacto'));
+  lines.push('N:'+vesc(rec.nombre||'Contacto')+';;;;');
+  if(rec.tel)lines.push('TEL;TYPE=CELL:'+vesc(rec.tel));
+  if(fd.ct_wa&&fd.ct_wa!==rec.tel)lines.push('TEL;TYPE=CELL:'+vesc(fd.ct_wa));
+  if(rec.email)lines.push('EMAIL:'+vesc(rec.email));
+  if(fd.ct_empresa)lines.push('ORG:'+vesc(fd.ct_empresa));
+  if(fd.ct_puesto)lines.push('TITLE:'+vesc(fd.ct_puesto));
+  lines.push('NOTE:'+vesc('Tipo: '+(rec.tipo||'S/I')+' · Capturado por: '+(rec.asesor||'S/I')+' (Capturadora Hauser)'));
+  lines.push('END:VCARD');
+  return lines.join('\r\n');
+}
+function shareVCard(rec){
+  if(!rec)return;
+  var vcf=buildVCard(rec);
+  var fname=((rec.nombre||'contacto').replace(/[^\w\-. À-ÿ]/g,'').trim()||'contacto')+'.vcf';
+  try{
+    var file=new File([vcf],fname,{type:'text/vcard'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
+      navigator.share({files:[file],title:rec.nombre||'Contacto'}).catch(function(){});
+      return;
+    }
+  }catch(e){}
+  var blob=new Blob([vcf],{type:'text/vcard'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=fname;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},4000);
+}
+function findCtRec(id){return load('ct_hist',[]).filter(function(r){return r.id===id;})[0];}
 
 function saveContactHist(rec){
   if(!rec.id)rec.id='CT-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).substr(2,8).toUpperCase();
@@ -2851,6 +2890,7 @@ function renderCtHist(){
       '</div><span class="hi-state '+(r.enviado?'sent':'gen')+'">'+(r.enviado?'Enviado':'Generado')+'</span></div>'+
       '<div class="hi-actions">'+
         '<button type="button" class="btn" data-ct-copy="'+r.id+'">Copiar MD</button>'+
+        '<button type="button" class="btn" data-ct-vcard="'+r.id+'">📇 vCard</button>'+
         (r.enviado?
           '<button type="button" class="btn" data-ct-pend="'+r.id+'">Marcar pendiente</button>':
           '<button type="button" class="btn" data-ct-sent="'+r.id+'">Marcar enviado</button>')+
@@ -2863,6 +2903,7 @@ $('ctHistList').addEventListener('click',function(e){
   var t=e.target;var h=load('ct_hist',[]);
   function ctFind(id){return h.filter(function(r){return r.id===id;})[0];}
   if(t.dataset.ctCopy){var rc=ctFind(t.dataset.ctCopy);if(rc)copyText(rc.md);t.textContent='Copiado ✓';}
+  if(t.dataset.ctVcard){shareVCard(ctFind(t.dataset.ctVcard));}
   if(t.dataset.ctSent){var rs=ctFind(t.dataset.ctSent);if(rs){rs.enviado=true;save('ct_hist',h);updateCtBadge();renderCtHist();}}
   if(t.dataset.ctPend){var rp=ctFind(t.dataset.ctPend);if(rp){rp.enviado=false;save('ct_hist',h);updateCtBadge();renderCtHist();}}
   if(t.dataset.ctDel){if(confirm('¿Borrar este contacto del historial?')){var nh=h.filter(function(r){return r.id!==t.dataset.ctDel;});save('ct_hist',nh);updateCtBadge();renderCtHist();}}
@@ -2871,6 +2912,9 @@ $('ctBtnGenerar').addEventListener('click',genContact);
 $('ctBtnCopy').addEventListener('click',function(){
   copyText(ctMd);var b=$('ctBtnCopy');b.textContent='Copiado ✓';
   setTimeout(function(){b.textContent='Copiar markdown';},1800);
+});
+$('ctBtnVcard').addEventListener('click',function(){
+  if(ctLastId)shareVCard(findCtRec(ctLastId));
 });
 $('ctBtnReset').addEventListener('click',function(){
   if(!confirm('¿Limpiar el formulario de contacto?'))return;
