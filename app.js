@@ -2290,12 +2290,31 @@ function renderHist(){
   var filt=$('histFilters');
   if(!filt.dataset.built){
     ['Todos','Pendientes','Enviados','Con faltantes'].forEach(function(f,i){
-      var b=document.createElement('button');b.type='button';b.className='chip chip-sm'+(i===0?' sel':'');b.textContent=f;b.dataset.f=f;
-      b.addEventListener('click',function(){filt.querySelectorAll('.chip').forEach(function(x){x.classList.remove('sel');});b.classList.add('sel');_renderHistList(getHist());});
+      var b=document.createElement('button');b.type='button';b.className='chip chip-sm'+(i===0?' sel':'');b.textContent=f;b.dataset.f=f;b.dataset.estado='1';
+      b.addEventListener('click',function(){filt.querySelectorAll('.chip[data-estado]').forEach(function(x){x.classList.remove('sel');});b.classList.add('sel');_renderHistList(getHist());});
       filt.appendChild(b);
+    });
+    // v0.7 B3: botón que despliega el panel de filtros combinables del catálogo
+    catFiltersBtn=document.createElement('button');
+    catFiltersBtn.type='button';catFiltersBtn.className='chip chip-sm';
+    catFiltersBtn.innerHTML='🎛️ + filtros<span class="cat-fbadge"></span>';
+    catFiltersBtn.addEventListener('click',function(){
+      var p=$('catPanel');var abrir=p.hidden;
+      if(abrir)buildCatPanel();
+      p.hidden=!abrir;
+      catSyncFiltersBtn();
+    });
+    filt.appendChild(catFiltersBtn);
+    $('catPanel').addEventListener('click',catPanelClick);
+    $('catActive').addEventListener('click',catActiveClick);
+    $('catClear').addEventListener('click',function(){
+      catFilt={precio:null,tipos:[],zonas:[],amen:[]};
+      this.classList.remove('flash-ok');void this.offsetWidth;this.classList.add('flash-ok');
+      buildCatPanel();catRefresh();
     });
     filt.dataset.built='1';
   }
+  if(!$('catPanel').hidden)buildCatPanel();
   // Render local immediately
   _renderHistList(getHist());
   // Cloud sync in background (cloud is source of truth)
@@ -2317,15 +2336,18 @@ function _renderHistList(h){
   var ctH=load('ct_hist',[]).map(function(r){return Object.assign({},r,{_isCt:true});});
   var all=h.concat(ctH).sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
   var filt=$('histFilters');
-  var active=(filt.querySelector('.chip.sel')||{}).dataset?filt.querySelector('.chip.sel').dataset.f:'Todos';
+  var selEstado=filt.querySelector('.chip[data-estado].sel');
+  var active=selEstado?selEstado.dataset.f:'Todos';
   var list=all.filter(function(r){
-    if(active==='Pendientes')return !r.enviado;
-    if(active==='Enviados')return r.enviado;
-    if(active==='Con faltantes')return !r._isCt&&r.faltantes&&r.faltantes.length;
-    return true;
+    if(active==='Pendientes'&&r.enviado)return false;
+    if(active==='Enviados'&&!r.enviado)return false;
+    if(active==='Con faltantes'&&(r._isCt||!r.faltantes||!r.faltantes.length))return false;
+    return catMatch(r);
   });
+  catRenderActive();
+  catUpdateCount(list.length,all.length);
   var wrap=$('histList');wrap.innerHTML='';
-  if(!list.length){wrap.innerHTML='<div class="empty">Sin capturas todavía.</div>';return;}
+  if(!list.length){wrap.innerHTML='<div class="empty">'+(catActiveCount()?'Sin resultados con estos filtros.':'Sin capturas todavía.')+'</div>';return;}
   list.forEach(function(r){
     var item=document.createElement('div');
     item.dataset.rid=r.id;if(r._isCt)item.dataset.ct='1';
@@ -2348,14 +2370,25 @@ function _renderHistList(h){
           '<button type="button" class="btn btn-danger" data-del-ct="'+r.id+'">Borrar</button>'+
         '</div><pre style="display:none" id="md_ct_'+r.id+'">'+esc(r.md||'')+'</pre>';
     } else {
-      item.className='hist-item';
+      // v0.7 B3: tarjeta de catálogo — hero visual arriba, precio grande, secundarios abajo
+      item.className='hist-item cat-card';
       var sc=r.enviado?'sent':(r.faltantes&&r.faltantes.length?'miss':'gen');
       var st=r.enviado?'Enviada a Notion':(r.faltantes&&r.faltantes.length?'Con faltantes':'Generada');
-      item.innerHTML='<div class="hi-top"><div><div class="hi-name">'+esc(r.nombre||'Sin nombre')+'</div>'+
+      var pr=catPrecioDe(r);
+      var monedaCard=((r.formData||{}).f_moneda||'MXN');
+      var precioHtml=pr.v!=null
+        ?'<div class="cat-price">$'+fmt(pr.v)+' <span class="cat-cur">'+esc(monedaCard)+'</span></div>'
+        :(pr.r!=null
+          ?'<div class="cat-price">$'+fmt(pr.r)+' <span class="cat-cur">'+esc(monedaCard)+'/mes</span></div>'
+          :'<div class="cat-price cat-price-si">Precio S/I</div>');
+      item.innerHTML='<div class="cat-hero">'+(CAT_TIPO_EMOJI[r.tipo]||'🏠')+
+        '<span class="hi-state '+sc+'">'+st+'</span>'+
+        (r.driveUrl?'<span class="cat-hero-badge">📷</span>':'')+'</div>'+
+        '<div class="cat-body">'+precioHtml+
+        '<div class="hi-name">'+esc(r.nombre||'Sin nombre')+'</div>'+
         (r.estrellas!=null?'<div class="hi-stars">'+histStars(r.estrellas,r.calidad)+'</div>':'')+
         '<div class="hi-meta">'+(r.tipo||'?')+' · '+(r.oper||'?')+' · '+(r.zona||'?')+' · '+(r.asesorNombre||r.resp||'S/I')+
-        '<br>'+new Date(r.capturadoEn||r.fecha).toLocaleString('es-MX')+editDate+'</div></div>'+
-        '<span class="hi-state '+sc+'">'+st+'</span></div>'+
+        '<br>'+new Date(r.capturadoEn||r.fecha).toLocaleString('es-MX')+editDate+'</div>'+
         '<div class="hi-actions">'+
           // B2: con carpeta Drive lista, el botón principal pasa de Copiar MD a Fotos Drive
           (r.driveUrl
@@ -2366,26 +2399,167 @@ function _renderHistList(h){
           '<button type="button" class="btn" data-edit-prop="'+r.id+'">Editar</button>'+
           (r.enviado?'<button type="button" class="btn" data-pend="'+r.id+'">Marcar pendiente</button>':'<button type="button" class="btn" data-sent="'+r.id+'">Marcar enviada</button>')+
           '<button type="button" class="btn btn-danger" data-del2="'+r.id+'">Borrar</button>'+
-        '</div><pre style="display:none" id="md_'+r.id+'">'+esc(r.md||'')+'</pre>';
+        '</div><pre style="display:none" id="md_'+r.id+'">'+esc(r.md||'')+'</pre></div>';
     }
     wrap.appendChild(item);
   });
 }
+
+/* ===================== CATÁLOGO FILTRABLE — v0.7 B3 =====================
+   Filtros combinables (precio, tipo, zonas, amenidades) por manipulación
+   directa de chips. OR dentro de tipo/zona, AND en amenidades, precio único.
+   Los contactos se ocultan mientras haya filtros de catálogo activos (no
+   tienen precio/zona/amenidades). */
+var catFilt={precio:null,tipos:[],zonas:[],amen:[]};
+var catFiltersBtn=null;
+var CAT_PRECIOS_VENTA=[{l:'< $1M',min:0,max:1e6},{l:'$1–3M',min:1e6,max:3e6},{l:'$3–5M',min:3e6,max:5e6},{l:'> $5M',min:5e6,max:Infinity}];
+var CAT_PRECIOS_RENTA=[{l:'< $10k',min:0,max:1e4},{l:'$10–20k',min:1e4,max:2e4},{l:'$20–35k',min:2e4,max:3.5e4},{l:'> $35k',min:3.5e4,max:Infinity}];
+var CAT_TIPO_EMOJI={'Casa':'🏡','Casa fin de semana':'🏖️','Casa en condominio':'🏘️','Departamento':'🏢','Penthouse':'🌆','Terreno':'🌳','Local comercial':'🏬','Oficina':'💼','Bodega / Nave':'🏭','Edificio':'🏙️','Rancho / Quinta':'🌾'};
+
+function catPrecioDe(r){
+  var fd=r.formData||{};
+  return{v:parseNumeroES(fd.f_precio||''),r:parseNumeroES(fd.f_precio_renta||'')};
+}
+function catZonasDe(r){
+  return String(r.zona||'').split(/[\/,]/).map(function(z){return z.trim();}).filter(function(z){return z&&z!=='S/I';});
+}
+function catAmenDe(r){
+  var st=(r.formData||{})._state||{};
+  return(st.caract||[]).concat(st.caractTerr||[]);
+}
+function catActiveCount(){return(catFilt.precio?1:0)+catFilt.tipos.length+catFilt.zonas.length+catFilt.amen.length;}
+function catMatch(r){
+  if(!catActiveCount())return true;
+  if(r._isCt)return false;
+  if(catFilt.tipos.length&&catFilt.tipos.indexOf(r.tipo)===-1)return false;
+  if(catFilt.zonas.length){
+    var zs=catZonasDe(r);
+    if(!catFilt.zonas.some(function(z){return zs.indexOf(z)!==-1;}))return false;
+  }
+  if(catFilt.amen.length){
+    var am=catAmenDe(r);
+    if(!catFilt.amen.every(function(a){return am.indexOf(a)!==-1;}))return false;
+  }
+  if(catFilt.precio){
+    var p=catPrecioDe(r);
+    var val=catFilt.precio.t==='venta'?p.v:p.r;
+    if(val==null||val<catFilt.precio.min||val>=catFilt.precio.max)return false;
+  }
+  return true;
+}
+function catChipEl(label,cg,cv,sel,extraData){
+  var b=document.createElement('button');b.type='button';
+  b.className='chip'+(sel?' sel':'');b.textContent=label;
+  b.dataset.cg=cg;b.dataset.cv=cv;
+  if(extraData)Object.keys(extraData).forEach(function(k){b.dataset[k]=extraData[k];});
+  return b;
+}
+function buildCatPanel(){
+  var h=getHist();
+  // precio (rangos fijos, agrupados venta/renta)
+  [['cgPrecioVenta',CAT_PRECIOS_VENTA,'venta'],['cgPrecioRenta',CAT_PRECIOS_RENTA,'renta']].forEach(function(cfg){
+    var box=$(cfg[0]);box.innerHTML='';
+    cfg[1].forEach(function(rg){
+      var sel=!!(catFilt.precio&&catFilt.precio.t===cfg[2]&&catFilt.precio.l===rg.l);
+      box.appendChild(catChipEl(rg.l,'precio',rg.l,sel,{ct:cfg[2],min:String(rg.min),max:rg.max===Infinity?'inf':String(rg.max)}));
+    });
+  });
+  // grupos dinámicos derivados de las capturas reales, ordenados por frecuencia
+  function freqMap(getVals){
+    var m={};
+    h.forEach(function(r){getVals(r).forEach(function(v){if(v)m[v]=(m[v]||0)+1;});});
+    return Object.keys(m).sort(function(a,b){return m[b]-m[a]||a.localeCompare(b);});
+  }
+  [['cgTipo','cgTipoWrap','tipos',freqMap(function(r){return r.tipo?[r.tipo]:[];}),Infinity],
+   ['cgZona','cgZonaWrap','zonas',freqMap(catZonasDe),Infinity],
+   ['cgAmen','cgAmenWrap','amen',freqMap(catAmenDe),12]
+  ].forEach(function(cfg){
+    var box=$(cfg[0]),vals=cfg[3].slice(0,cfg[4]);
+    // conservar seleccionados aunque salgan del top por frecuencia
+    catFilt[cfg[2]].forEach(function(v){if(vals.indexOf(v)===-1)vals.push(v);});
+    box.innerHTML='';
+    vals.forEach(function(v){box.appendChild(catChipEl(v,cfg[2],v,catFilt[cfg[2]].indexOf(v)!==-1));});
+    $(cfg[1]).style.display=vals.length?'':'none';
+  });
+}
+function catPanelClick(e){
+  var c=e.target.closest('.chip');if(!c||!c.dataset.cg)return;
+  var g=c.dataset.cg,v=c.dataset.cv;
+  if(g==='precio'){
+    var ya=!!(catFilt.precio&&catFilt.precio.t===c.dataset.ct&&catFilt.precio.l===v);
+    catFilt.precio=ya?null:{t:c.dataset.ct,l:v,min:parseFloat(c.dataset.min),max:c.dataset.max==='inf'?Infinity:parseFloat(c.dataset.max)};
+    // selección única entre venta y renta: refrescar ambos grupos
+    ['cgPrecioVenta','cgPrecioRenta'].forEach(function(id){
+      $(id).querySelectorAll('.chip').forEach(function(x){
+        x.classList.toggle('sel',!!(catFilt.precio&&catFilt.precio.t===x.dataset.ct&&catFilt.precio.l===x.dataset.cv));
+      });
+    });
+  }else{
+    var arr=catFilt[g],i=arr.indexOf(v);
+    if(i===-1)arr.push(v);else arr.splice(i,1);
+    c.classList.toggle('sel',i===-1);
+  }
+  catRefresh();
+}
+function catActiveClick(e){
+  var b=e.target.closest('[data-rmcg]');if(!b)return;
+  var g=b.dataset.rmcg,v=b.dataset.rmcv;
+  if(g==='precio')catFilt.precio=null;
+  else{var arr=catFilt[g],i=arr.indexOf(v);if(i!==-1)arr.splice(i,1);}
+  if(!$('catPanel').hidden)buildCatPanel();
+  catRefresh();
+}
+function catRenderActive(){
+  var box=$('catActive');if(!box)return;
+  var tags=[];
+  if(catFilt.precio)tags.push({g:'precio',v:catFilt.precio.l,l:'💰 '+catFilt.precio.l+(catFilt.precio.t==='renta'?' /mes':'')});
+  catFilt.tipos.forEach(function(v){tags.push({g:'tipos',v:v,l:(CAT_TIPO_EMOJI[v]||'🏠')+' '+v});});
+  catFilt.zonas.forEach(function(v){tags.push({g:'zonas',v:v,l:'📍 '+v});});
+  catFilt.amen.forEach(function(v){tags.push({g:'amen',v:v,l:'✨ '+v});});
+  box.innerHTML=tags.map(function(t){
+    return '<span class="tag">'+esc(t.l)+'<button type="button" data-rmcg="'+esc(t.g)+'" data-rmcv="'+esc(t.v)+'" aria-label="Quitar filtro">×</button></span>';
+  }).join('');
+}
+function catUpdateCount(n,total){
+  var el=$('catCount');if(!el)return;
+  var txt=catActiveCount()?(n+' de '+total+' capturas'):(total+' capturas');
+  if(el.textContent!==txt){
+    el.textContent=txt;
+    el.classList.remove('pulse');void el.offsetWidth;el.classList.add('pulse');
+  }
+}
+function catSyncFiltersBtn(){
+  if(!catFiltersBtn)return;
+  var nAct=catActiveCount();
+  catFiltersBtn.classList.toggle('sel',nAct>0||!$('catPanel').hidden);
+  var badge=catFiltersBtn.querySelector('.cat-fbadge');
+  if(badge){badge.textContent=nAct;badge.style.display=nAct?'inline-block':'none';}
+}
+function catRefresh(){
+  catSyncFiltersBtn();
+  _renderHistList(getHist());
+}
+/* Feedback inmediato: flash del pill de estado tras marcar enviada/pendiente */
+function flashHistState(id){
+  var el=$('histList').querySelector('[data-rid="'+id+'"] .hi-state');
+  if(el)el.classList.add('flash-ok');
+}
+
 $('histList').addEventListener('click',function(e){
   var t=e.target;var h=getHist();
   function find(id){return h.filter(function(r){return r.id===id;})[0];}
   function findCt(id){var ch=load('ct_hist',[]);return ch.filter(function(r){return r.id===id;})[0];}
   // Propiedades
-  if(t.dataset.copy){var r=find(t.dataset.copy);if(r){copyText(r.md);r.copiado=true;setHist(h);t.textContent='Copiado ✓';}}
+  if(t.dataset.copy){var r=find(t.dataset.copy);if(r){copyText(r.md);r.copiado=true;setHist(h);t.textContent='Copiado ✓';t.classList.add('flash-ok');}}
   if(t.dataset.view2){var pre=$('md_'+t.dataset.view2);if(pre)pre.style.display=pre.style.display==='none'?'block':'none';}
   if(t.dataset.maps){var r2=find(t.dataset.maps);if(r2&&r2.maps)window.open(r2.maps,'_blank');}
   if(t.dataset.drive){var rDrv=find(t.dataset.drive);if(rDrv&&rDrv.driveUrl)window.open(rDrv.driveUrl,'_blank');}
   if(t.dataset.editProp){abrirEdicion(t.dataset.editProp);}
-  if(t.dataset.sent){find(t.dataset.sent).enviado=true;setHist(h);_renderHistList(h);}
-  if(t.dataset.pend){find(t.dataset.pend).enviado=false;setHist(h);_renderHistList(h);}
+  if(t.dataset.sent){find(t.dataset.sent).enviado=true;setHist(h);_renderHistList(h);flashHistState(t.dataset.sent);}
+  if(t.dataset.pend){find(t.dataset.pend).enviado=false;setHist(h);_renderHistList(h);flashHistState(t.dataset.pend);}
   if(t.dataset.del2){if(confirm('¿Borrar esta captura del historial?')){h=h.filter(function(r){return r.id!==t.dataset.del2;});setHist(h);_renderHistList(h);}}
   // Contactos
-  if(t.dataset.copyCt){var rc=findCt(t.dataset.copyCt);if(rc){copyText(rc.md);t.textContent='Copiado ✓';}}
+  if(t.dataset.copyCt){var rc=findCt(t.dataset.copyCt);if(rc){copyText(rc.md);t.textContent='Copiado ✓';t.classList.add('flash-ok');}}
   if(t.dataset.vcard2Ct){shareVCard(findCt(t.dataset.vcard2Ct));}
   if(t.dataset.view2Ct){var pre2=$('md_ct_'+t.dataset.view2Ct);if(pre2)pre2.style.display=pre2.style.display==='none'?'block':'none';}
   if(t.dataset.editCt){abrirEdicionCt(t.dataset.editCt);}

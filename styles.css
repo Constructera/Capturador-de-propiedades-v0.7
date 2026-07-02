@@ -537,6 +537,47 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .hd-val{text-align:right;word-break:break-word}
 .hd-md{margin-top:12px;background:var(--bg-soft);border-radius:10px;padding:10px;font-size:.72rem;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow-y:auto}
 
+/* ===== v0.7 B3 — catálogo filtrable ===== */
+/* Panel de filtros: contenedores por grupo (la agrupación visual comunica relación) */
+.cat-panel{border:1px solid var(--line);border-radius:14px;background:var(--bg-soft);padding:14px 14px 6px;margin-top:10px;animation:cat-panel-in 180ms ease}
+@keyframes cat-panel-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.cat-group{border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:10px 12px 12px;margin-bottom:10px}
+.cat-group-title{font-size:.8rem;font-weight:800;margin-bottom:8px;color:var(--text)}
+.cat-sub{font-size:.7rem;font-weight:700;color:var(--text-soft);margin:6px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+.cat-panel .chips{gap:6px}
+.cat-panel .chip{padding:7px 11px;font-size:.82rem}
+.cat-panel .btn-row{margin:2px 0 8px}
+.cat-panel .btn{padding:10px 16px;font-size:.85rem}
+/* Chips de filtro aplicados (removibles) con micro-interacción de entrada */
+.cat-active{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.cat-active .tag{animation:tag-in 160ms cubic-bezier(.34,1.56,.64,1)}
+@keyframes tag-in{from{opacity:0;transform:translateX(-8px) scale(.9)}to{opacity:1;transform:none}}
+.cat-count{font-size:.78rem;font-weight:700;color:var(--text-soft);margin-top:8px}
+.cat-count.pulse{animation:count-pulse 300ms ease}
+@keyframes count-pulse{50%{color:var(--accent);transform:scale(1.03)}}
+.cat-fbadge{display:none;background:var(--accent);color:#fff;border-radius:999px;font-size:.68rem;font-weight:800;min-width:17px;height:17px;line-height:17px;text-align:center;margin-left:4px;padding:0 4px}
+.chip.sel .cat-fbadge{background:#fff;color:var(--accent)}
+/* Tarjeta de catálogo: jerarquía visual — hero arriba, precio grande, secundarios abajo */
+.cat-card{padding:0;overflow:hidden;border-radius:14px}
+.cat-hero{position:relative;display:flex;align-items:center;justify-content:center;height:64px;font-size:2rem;background:linear-gradient(135deg,var(--accent-bg),var(--bg-soft));border-bottom:1px solid var(--line)}
+.cat-hero .hi-state{position:absolute;top:8px;right:10px}
+.cat-hero-badge{position:absolute;bottom:6px;right:10px;font-size:.85rem;background:var(--bg);border-radius:999px;padding:2px 7px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.cat-body{padding:10px 14px 12px}
+.cat-price{font-size:1.3rem;font-weight:800;color:var(--accent);line-height:1.2}
+.cat-price .cat-cur{font-size:.75rem;font-weight:700;color:var(--text-soft)}
+.cat-price-si{font-size:.85rem;color:var(--si);font-weight:700}
+.cat-card .hi-name{margin-top:2px}
+/* Flash de confirmación (feedback inmediato en acciones) */
+.flash-ok{animation:flash-ok 400ms ease}
+@keyframes flash-ok{30%{background-color:var(--accent);color:#fff;border-color:var(--accent)}}
+@media(prefers-reduced-motion:reduce){.cat-panel,.cat-active .tag,.cat-count.pulse,.flash-ok{animation:none!important}}
+/* Dark mode: tarjetas más claras que el fondo, sin bordes de alto contraste */
+[data-theme="dark"] .cat-card{background:var(--bg-soft);border-color:transparent}
+[data-theme="dark"] .cat-hero{background:linear-gradient(135deg,#1f2b22,#242424);border-bottom-color:transparent}
+[data-theme="dark"] .cat-hero-badge{background:#333;box-shadow:none}
+[data-theme="dark"] .cat-panel{background:#202020;border-color:var(--line)}
+[data-theme="dark"] .cat-group{background:var(--bg-soft);border-color:transparent}
+
 /* ===== v0.7 — mascota chroma key (canvas) ===== */
 .chroma-on{position:relative}
 canvas.mascot-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}

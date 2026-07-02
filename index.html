@@ -492,9 +492,36 @@
     <button type="button" class="btn-back" data-view="viewHome">← Menú</button>
     <span class="ver-badge">v0.7</span>
   </div>
-  <div class="doc-title">🗂️ Historial de capturas</div>
+  <div class="doc-title">🗂️ Catálogo de capturas</div>
   <div class="doc-sub">Guardado en este dispositivo. Listo para sincronizar con Notion/Sheets.</div>
   <div class="hist-filters" id="histFilters"></div>
+  <!-- v0.7 B3: panel de filtros combinables del catálogo (chips dinámicos desde app.js) -->
+  <div class="cat-panel" id="catPanel" hidden>
+    <div class="cat-group">
+      <div class="cat-group-title">💰 Precio</div>
+      <div class="cat-sub">Venta</div>
+      <div class="chips" id="cgPrecioVenta"></div>
+      <div class="cat-sub">Renta / mes</div>
+      <div class="chips" id="cgPrecioRenta"></div>
+    </div>
+    <div class="cat-group" id="cgTipoWrap">
+      <div class="cat-group-title">🏠 Tipo</div>
+      <div class="chips" id="cgTipo"></div>
+    </div>
+    <div class="cat-group" id="cgZonaWrap">
+      <div class="cat-group-title">📍 Zonas</div>
+      <div class="chips" id="cgZona"></div>
+    </div>
+    <div class="cat-group" id="cgAmenWrap">
+      <div class="cat-group-title">✨ Amenidades</div>
+      <div class="chips" id="cgAmen"></div>
+    </div>
+    <div class="btn-row">
+      <button type="button" class="btn btn-ghost" id="catClear">Limpiar filtros</button>
+    </div>
+  </div>
+  <div class="cat-active" id="catActive"></div>
+  <div class="cat-count" id="catCount"></div>
   <div id="histList"></div>
 </main>
 
