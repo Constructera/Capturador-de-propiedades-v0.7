@@ -219,6 +219,28 @@ console.log('\n[G5] robustez');
   assert(g2._sheets['Markdowns']._rows.length === 2, 'la fila legada se actualizó (no se duplicó)');
 })();
 
+/* ============ 6. Seguridad: API_KEY opcional ============ */
+console.log('\n[G6] clave compartida (API_KEY)');
+(function () {
+  var g = freshEnv();
+  g.API_KEY = 'clave-equipo-2026';
+  assert(g.post({action:'ping'}).ok === false, 'con API_KEY activa, POST sin clave → rechazado');
+  assert(g.post({action:'ping', k:'incorrecta'}).ok === false, 'clave incorrecta → rechazado');
+  assert(g.post({action:'ping', k:'clave-equipo-2026'}).ok === true, 'clave correcta → aceptado');
+  var out = JSON.parse(g.doGet({parameter:{}}).getContent());
+  assert(out.ok === false, 'GET sin ?k= → rechazado');
+  var out2 = JSON.parse(g.doGet({parameter:{k:'clave-equipo-2026'}}).getContent());
+  assert(out2.ok === true, 'GET con ?k= correcta → aceptado');
+  var r = g.post({action:'saveMarkdown', k:'clave-equipo-2026', uuid:'CAP-SEC', tipo:'propiedad', nombre:'Casa Sec', direccion:'X 1', markdown_md:'#'});
+  assert(r.ok && r.folderUrl !== '', 'saveMarkdown con clave funciona igual (carpeta creada)');
+  var hdr = g._sheets['Markdowns']._rows[0];
+  assert(hdr.indexOf('k') === -1, 'la clave "k" NO se guarda como columna en la hoja');
+  // API_KEY vacía (default) = todo abierto, retrocompatible
+  var g2 = freshEnv();
+  assert(g2.post({action:'ping'}).ok === true, 'API_KEY vacía → sin validación (retrocompatible)');
+  assert(JSON.parse(g2.doGet({}).getContent()).ok === true, 'GET sin parámetros también pasa con API_KEY vacía');
+})();
+
 /* ============ resumen ============ */
 console.log('\n========================================');
 console.log('Pruebas GAS: ' + (passed + failed) + ' · ✅ ' + passed + ' · ❌ ' + failed);

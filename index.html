@@ -533,6 +533,9 @@
     <div class="field"><div class="field-top"><label>Endpoint del backend (Apps Script / Worker)</label></div>
       <input type="url" id="cfg_endpoint" placeholder="https://script.google.com/macros/s/…/exec"></div>
     <div class="hint">Con endpoint activo: ranking compartido entre todos los dispositivos del equipo, sincronización de historial y zonas. Sin endpoint: todo funciona local en este dispositivo.</div>
+    <div class="field"><div class="field-top"><label>Clave del backend (opcional)</label></div>
+      <input type="text" id="cfg_gaskey" placeholder="Vacío = sin clave" autocomplete="off"></div>
+    <div class="hint">Si el Apps Script tiene API_KEY configurada, escribe aquí la misma clave. Debe coincidir en todos los dispositivos del equipo.</div>
     <div class="btn-row">
       <button type="button" class="btn" id="cfg_test">Probar conexión</button>
       <button type="button" class="btn" id="cfg_sync">Sincronizar historial</button>

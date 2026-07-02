@@ -33,6 +33,12 @@
 
 var PARENT_FOLDER_ID = '1PTKX6TZSR94Hailc3qvWBbK_zQkE6Vhn'; // carpeta madre en Drive
 
+/* Seguridad (opcional): si se define una clave aquí, TODA petición (POST y GET)
+ * debe traerla — POST: propiedad "k" en el body JSON; GET: parámetro ?k=...
+ * La misma clave se escribe en la app: Configuración → "Clave del backend".
+ * Vacía ('') = validación apagada (compatible con la app sin clave). */
+var API_KEY = '';
+
 var CAP_SHEET = 'Capturas';
 var CAP_HEADERS = ['id','timestamp','tipo','asesor','estrellas','calidad',
   'propiedad_json','contacto_json','capturadoEn','modificadoEn'];
@@ -46,6 +52,7 @@ var MD_HEADERS = ['uuid','fecha','asesor','tipo','estatus','nombre','direccion',
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
+    if (API_KEY && String(body.k || '') !== API_KEY) return jsonOut({ok:false, error:'No autorizado'});
     if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3 online'});
     if (body.action === 'saveMarkdown') return handleSaveMarkdown_(body);
     if (body.id) return handleSaveCapture_(body); // payload plano de captura
@@ -57,6 +64,9 @@ function doPost(e) {
 
 function doGet(e) {
   try {
+    if (API_KEY && String((e && e.parameter && e.parameter.k) || '') !== API_KEY) {
+      return jsonOut({ok:false, error:'No autorizado'});
+    }
     var sh = getSheet_(CAP_SHEET, CAP_HEADERS);
     var hdr = headers_(sh);
     var n = sh.getLastRow();

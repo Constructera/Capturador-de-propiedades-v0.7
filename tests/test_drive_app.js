@@ -26,7 +26,7 @@ function sleep(ms) { return new Promise(function (res) { setTimeout(res, ms); })
 
 var FOLDER_URL = 'https://drive.google.com/drive/folders/FLDTEST99';
 
-function boot() {
+function boot(seed) {
   var vc = new VirtualConsole();
   vc.on('jsdomError', function () {});
   var dom = new JSDOM(htmlSrc, {
@@ -34,6 +34,7 @@ function boot() {
     pretendToBeVisual: true, virtualConsole: vc
   });
   var w = dom.window;
+  if (seed) Object.keys(seed).forEach(function (k) { w.localStorage.setItem(k, seed[k]); });
   w._alerts = []; w._opened = []; w._gasPosts = [];
   w.alert = function (m) { w._alerts.push(String(m)); };
   w.confirm = function () { return true; };
@@ -137,6 +138,28 @@ function clickChip(w, gid, val) {
   console.log('\n[D5] contactos');
   var smdCt = w._gasPosts.filter(function (p) { return p.action === 'saveMarkdown' && p.tipo === 'contacto'; });
   assert(smdCt.length === 0, 'ningún saveMarkdown de contacto disparado en el flujo de propiedad');
+
+  /* ============ D6. Clave compartida: la app la envía en POST y GET ============ */
+  console.log('\n[D6] clave compartida del backend');
+  var w6 = boot({cap_cfg: JSON.stringify({resp:'Daniel', endpoint:'https://gas.test/exec', gasKey:'clave-equipo-2026'})});
+  var getUrls = [];
+  var origFetch = w6.fetch;
+  w6.fetch = function (url, opts) {
+    if (!opts || !opts.method) getUrls.push(String(url));
+    return origFetch.call(this, url, opts);
+  };
+  clickChip(w6, 'tipoChips', 'Casa');
+  $(w6, 'btnGen').click();
+  await sleep(60);
+  var withKey = w6._gasPosts.filter(function (p) { return p.k === 'clave-equipo-2026'; });
+  assert(w6._gasPosts.length > 0 && withKey.length === w6._gasPosts.length, 'todos los POST llevan k (clave compartida)');
+  w6.document.querySelector('#navbar button[data-view="viewHistory"]').click();
+  await sleep(30);
+  assert(getUrls.some(function (u) { return u.indexOf('k=clave-equipo-2026') !== -1; }), 'el GET del historial lleva ?k=');
+  assert($(w6, 'cfg_gaskey').value === 'clave-equipo-2026', 'el campo de Config muestra la clave guardada');
+  // sin clave configurada, el payload no lleva k (retrocompatible con GAS viejo)
+  var noKey = w._gasPosts.filter(function (p) { return p.hasOwnProperty('k'); });
+  assert(noKey.length === 0, 'sin clave configurada, los POST no llevan k');
 
   /* ============ resumen ============ */
   console.log('\n========================================');

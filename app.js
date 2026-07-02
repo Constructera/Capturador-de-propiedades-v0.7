@@ -79,7 +79,8 @@ var state={tipo:'',oper:'Venta',ofrece:'',crm:'No',modo:'A · Reventa de lote',
 var hoy=new Date().toISOString().slice(0,10);
 $('f_fecha').value=hoy;$('f_seguimiento').value=hoy;
 $('f_resp').value=CFG.resp;
-$('cfg_resp').value=CFG.resp;$('cfg_endpoint').value=CFG.endpoint;save('cfg',CFG);
+if(CFG.gasKey==null)CFG.gasKey='';
+$('cfg_resp').value=CFG.resp;$('cfg_endpoint').value=CFG.endpoint;$('cfg_gaskey').value=CFG.gasKey;save('cfg',CFG);
 
 /* ===================== NAVEGACIÓN ===================== */
 // Un solo listener cubre navbar, tarjetas del menú y botones "← Menú"
@@ -2231,12 +2232,15 @@ function genUUID(){return 'CAP-'+Date.now().toString(36).toUpperCase()+'-'+Math.
 function parseGasRows(rows){if(!rows||rows.length<2)return[];var h=rows[0];return rows.slice(1).map(function(r){var o={};h.forEach(function(k,i){o[k]=r[i];});return o;});}
 function gasPost(payload){
   if(!CFG.endpoint)return Promise.reject(new Error('sin endpoint'));
+  // seguridad v0.7: clave compartida opcional; el GAS la valida si tiene API_KEY
+  var body=CFG.gasKey?Object.assign({k:CFG.gasKey},payload):payload;
   return fetch(CFG.endpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify(payload)}).then(function(r){return r.json();});
+    body:JSON.stringify(body)}).then(function(r){return r.json();});
 }
 function gasGet(cb){
   if(!CFG.endpoint){cb(null);return;}
-  fetch(CFG.endpoint).then(function(r){return r.json();}).then(function(d){cb(d.ok?d:null);}).catch(function(){cb(null);});
+  var url=CFG.gasKey?CFG.endpoint+(CFG.endpoint.indexOf('?')<0?'?':'&')+'k='+encodeURIComponent(CFG.gasKey):CFG.endpoint;
+  fetch(url).then(function(r){return r.json();}).then(function(d){cb(d.ok?d:null);}).catch(function(){cb(null);});
 }
 function queueForRetry(payload){var q=load('gasqueue',[]);q.push(payload);save('gasqueue',q);}
 function processQueue(){
@@ -2322,6 +2326,7 @@ $('cfg_resp').addEventListener('change',function(){
 });
 // cfg_drive removed (Drive feature not implemented)
 $('cfg_endpoint').addEventListener('input',function(){CFG.endpoint=this.value.trim();save('cfg',CFG);});
+$('cfg_gaskey').addEventListener('input',function(){CFG.gasKey=this.value.trim();save('cfg',CFG);});
 $('cfg_test').addEventListener('click',function(){
   if(!CFG.endpoint){$('cfgStatus').textContent='Pega primero el endpoint.';return;}
   $('cfgStatus').className='status';$('cfgStatus').textContent='Probando conexión…';
