@@ -580,6 +580,9 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 
 /* ===== v0.7 — mascota chroma key (canvas) ===== */
 .chroma-on{position:relative}
+/* Regresión v0.7: chroma-on pisaba el position:fixed del float de contactos
+   (misma especificidad, regla posterior). El float debe seguir fijo. */
+.ct-mascot-float.chroma-on{position:fixed}
 canvas.mascot-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
 video.mascot.chroma-src{opacity:0}
 /* con chroma activo ya no hace falta el fondo blanco forzado ni multiply del parche v0.6 */
