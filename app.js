@@ -2322,6 +2322,15 @@ function renderHist(){
     gasGet(function(data){
       if(data&&data.capturas&&data.capturas.length>1){
         var cloudRecs=gasCapturasToLocalHist(parseGasRows(data.capturas));
+        // B4: tombstones — capturas borradas con PIN cuya eliminación del Sheet
+        // aún no se confirma NO deben revivir; si la nube ya no las trae, purgar
+        var tomb=load('del_pend',[]);
+        if(tomb.length){
+          var cloudIds=cloudRecs.map(function(r){return r.id;});
+          var tomb2=tomb.filter(function(id){return cloudIds.indexOf(id)!==-1;});
+          if(tomb2.length!==tomb.length)save('del_pend',tomb2);
+          cloudRecs=cloudRecs.filter(function(r){return tomb2.indexOf(r.id)===-1;});
+        }
         var queueIds=load('gasqueue',[]).map(function(p){return p.id;});
         var localOnly=getHist().filter(function(r){return queueIds.indexOf(r.id)!==-1;});
         var merged=cloudRecs.concat(localOnly);
@@ -2557,7 +2566,7 @@ $('histList').addEventListener('click',function(e){
   if(t.dataset.editProp){abrirEdicion(t.dataset.editProp);}
   if(t.dataset.sent){find(t.dataset.sent).enviado=true;setHist(h);_renderHistList(h);flashHistState(t.dataset.sent);}
   if(t.dataset.pend){find(t.dataset.pend).enviado=false;setHist(h);_renderHistList(h);flashHistState(t.dataset.pend);}
-  if(t.dataset.del2){if(confirm('¿Borrar esta captura del historial?')){h=h.filter(function(r){return r.id!==t.dataset.del2;});setHist(h);_renderHistList(h);}}
+  if(t.dataset.del2){openPinDelete(t.dataset.del2,false);}
   // Contactos
   if(t.dataset.copyCt){var rc=findCt(t.dataset.copyCt);if(rc){copyText(rc.md);t.textContent='Copiado ✓';t.classList.add('flash-ok');}}
   if(t.dataset.vcard2Ct){shareVCard(findCt(t.dataset.vcard2Ct));}
@@ -2565,13 +2574,63 @@ $('histList').addEventListener('click',function(e){
   if(t.dataset.editCt){abrirEdicionCt(t.dataset.editCt);}
   if(t.dataset.sentCt){var ch=load('ct_hist',[]);var rc2=ch.filter(function(r){return r.id===t.dataset.sentCt;})[0];if(rc2){rc2.enviado=true;save('ct_hist',ch);updateCtBadge();_renderHistList(getHist());}}
   if(t.dataset.pendCt){var ch=load('ct_hist',[]);var rc3=ch.filter(function(r){return r.id===t.dataset.pendCt;})[0];if(rc3){rc3.enviado=false;save('ct_hist',ch);updateCtBadge();_renderHistList(getHist());}}
-  if(t.dataset.delCt){if(confirm('¿Borrar este contacto del historial?')){var ch=load('ct_hist',[]);save('ct_hist',ch.filter(function(r){return r.id!==t.dataset.delCt;}));updateCtBadge();_renderHistList(getHist());}}
+  if(t.dataset.delCt){openPinDelete(t.dataset.delCt,true);}
   // v0.7: tap directo en la tarjeta (fuera de botones y del <pre> de markdown) = detalle SOLO LECTURA
   if(!t.closest('button')&&!t.closest('pre')){
     var it=t.closest('.hist-item');
     if(it&&it.dataset.rid)openHistDetail(it.dataset.rid,it.dataset.ct==='1');
   }
 });
+
+/* ===================== BORRADO CON PIN — v0.7 B4 =====================
+   Borrar del historial exige PIN. Con PIN correcto se elimina de localStorage
+   Y del Sheet vía GAS deleteCapture (que revalida el PIN como doble seguro).
+   Tombstones (del_pend): mientras el Sheet no confirme el borrado, el sync de
+   nube no puede revivir la captura. La carpeta Drive nunca se toca. */
+var DELETE_PIN='1512';
+var pinDelTarget=null;
+function openPinDelete(id,isCt){
+  pinDelTarget={id:id,isCt:!!isCt};
+  $('pinMsg').style.display='none';
+  $('pinInput').value='';
+  $('pinOverlay').classList.add('show');
+  setTimeout(function(){$('pinInput').focus();},60);
+}
+function closePinDelete(){$('pinOverlay').classList.remove('show');pinDelTarget=null;}
+$('pinClose').addEventListener('click',closePinDelete);
+$('pinCancel').addEventListener('click',closePinDelete);
+$('pinOk').addEventListener('click',confirmPinDelete);
+$('pinInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();confirmPinDelete();}});
+function confirmPinDelete(){
+  if(!pinDelTarget)return;
+  if($('pinInput').value.trim()!==DELETE_PIN){
+    $('pinMsg').style.display='';
+    var modal=$('pinOverlay').querySelector('.modal');
+    modal.classList.remove('pin-shake');void modal.offsetWidth;modal.classList.add('pin-shake');
+    $('pinInput').value='';$('pinInput').focus();
+    sndError();
+    return;
+  }
+  var tgt=pinDelTarget;closePinDelete();
+  if(tgt.isCt){
+    var ch=load('ct_hist',[]);save('ct_hist',ch.filter(function(r){return r.id!==tgt.id;}));
+    updateCtBadge();
+  }else{
+    setHist(getHist().filter(function(r){return r.id!==tgt.id;}));
+    var tomb=load('del_pend',[]);
+    if(tomb.indexOf(tgt.id)===-1){tomb.push(tgt.id);save('del_pend',tomb);}
+  }
+  _renderHistList(getHist());
+  gasDeleteCapture(tgt.id);
+}
+function gasDeleteCapture(uuid){
+  if(!CFG.endpoint)return;
+  var p={action:'deleteCapture',uuid:uuid,pin:DELETE_PIN};
+  gasPost(p).then(function(r){
+    // confirmado en el Sheet → el tombstone ya no hace falta
+    if(r&&r.ok){var tomb=load('del_pend',[]);save('del_pend',tomb.filter(function(x){return x!==uuid;}));}
+  }).catch(function(){queueForRetry(p);}); // sin red: reintento; el tombstone protege mientras tanto
+}
 
 /* ===================== DETALLE SOLO LECTURA — v0.7 ===================== */
 var histDetailCur=null;

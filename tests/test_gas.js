@@ -28,6 +28,7 @@ MockSheet.prototype.getName = function () { return this._name; };
 MockSheet.prototype.setName = function (n) { this._name = n; };
 MockSheet.prototype.appendRow = function (row) { this._rows.push(row.slice()); };
 MockSheet.prototype.setFrozenRows = function () {};
+MockSheet.prototype.deleteRow = function (rowIdx) { this._rows.splice(rowIdx - 1, 1); };
 MockSheet.prototype.getLastRow = function () { return this._rows.length; };
 MockSheet.prototype.getLastColumn = function () {
   return this._rows.length ? Math.max.apply(null, this._rows.map(function (r) { return r.length; })) : 0;
@@ -316,6 +317,57 @@ console.log('\n[G7] reconciliación: histórico en "Hoja 1", "Capturas" vacía, 
   g2._sheets['Hoja 1'] = otra;
   g2.get();
   assert(byName(g2, 'Capturas') === capData && byName(g2, 'Hoja 1') === otra, 'con canónica con datos, ninguna hoja se renombra ni se borra');
+})();
+
+/* ============ 8. Borrado con PIN (v3.3) ============ */
+console.log('\n[G8] deleteCapture con PIN');
+(function () {
+  var g = freshEnv();
+  // sembrar: captura + su markdown con carpeta
+  g.post({id:'CAP-DEL', timestamp:'2026-07-02T10:00:00Z', tipo:'propiedad', asesor:'Daniel',
+    estrellas:2, calidad:'Esencial', propiedad_json:'{}', contacto_json:'',
+    capturadoEn:'2026-07-02T10:00:00Z', modificadoEn:'2026-07-02T10:00:00Z'});
+  g.post({id:'CAP-KEEP', timestamp:'2026-07-02T11:00:00Z', tipo:'propiedad', asesor:'Erica',
+    estrellas:3, calidad:'Completa', propiedad_json:'{}', contacto_json:'',
+    capturadoEn:'2026-07-02T11:00:00Z', modificadoEn:'2026-07-02T11:00:00Z'});
+  g.post({action:'saveMarkdown', uuid:'CAP-DEL', tipo:'propiedad', nombre:'Casa Borrable', direccion:'Calle 9', markdown_md:'#'});
+
+  var bad = g.post({action:'deleteCapture', uuid:'CAP-DEL', pin:'0000'});
+  assert(bad.ok === false && /PIN/.test(bad.error), 'PIN incorrecto → rechazado con error claro');
+  assert(g._sheets['Capturas']._rows.length === 3, 'PIN incorrecto: NO se borró nada de Capturas');
+  assert(g.post({action:'deleteCapture', pin:'1512'}).ok === false, 'sin uuid → error controlado');
+
+  var okDel = g.post({action:'deleteCapture', uuid:'CAP-DEL', pin:'1512'});
+  assert(okDel.ok === true, 'PIN correcto → ok');
+  assert(okDel.deleted.capturas === true && okDel.deleted.markdowns === true, 'reporta borrado en Capturas y Markdowns');
+  var ids = g._sheets['Capturas']._rows.slice(1).map(function (r) { return r[0]; });
+  assert(ids.length === 1 && ids[0] === 'CAP-KEEP', 'solo se borró la fila pedida; CAP-KEEP intacta');
+  assert(g._sheets['Markdowns']._rows.length === 1, 'fila de Markdowns eliminada (solo queda encabezado)');
+  assert(g._drive.length === 1, 'la carpeta Drive NO se toca (fotos a salvo)');
+
+  var again = g.post({action:'deleteCapture', uuid:'CAP-DEL', pin:'1512'});
+  assert(again.ok === true && again.deleted.capturas === false, 'borrar dos veces: idempotente (segunda vez no encuentra fila)');
+})();
+
+/* ============ 9. Diagnóstico solo lectura (v3.3) ============ */
+console.log('\n[G9] diag');
+(function () {
+  var g = freshEnv();
+  g.post({id:'CAP-OK', timestamp:'2026-07-02T10:00:00Z', tipo:'propiedad', asesor:'Daniel',
+    estrellas:2, calidad:'Esencial', propiedad_json:'{}', contacto_json:'',
+    capturadoEn:'2026-07-02T10:00:00Z', modificadoEn:'2026-07-02T10:00:00Z'});
+  // fila corrupta simulada (json roto + id raro), como la vería un corrimiento
+  g._sheets['Capturas'].appendRow(['sin-prefijo','2026-07-02','propiedad','X','1','','{roto','','','']);
+  var d = g.post({action:'diag'});
+  assert(d.ok === true, 'diag ok');
+  var cap = d.sheets.filter(function (s) { return s.name === 'Capturas'; })[0];
+  assert(!!cap && cap.ordenCanonico === true, 'reporta orden canónico de Capturas');
+  assert(cap.filas === 2, 'conteo de filas correcto');
+  assert(cap.anomalias.length === 2 && /id raro/.test(cap.anomalias[0]) && /no parsea/.test(cap.anomalias[1]),
+    'detecta id raro y JSON roto con número de fila');
+  var antes = JSON.stringify(g._sheets['Capturas']._rows);
+  g.post({action:'diag'});
+  assert(JSON.stringify(g._sheets['Capturas']._rows) === antes, 'diag es solo lectura (no modifica nada)');
 })();
 
 /* ============ resumen ============ */

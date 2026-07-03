@@ -34,6 +34,16 @@
  *   carpeta madre pasaba con drive.readonly y saveMarkdown seguía fallando en
  *   createFolder). Instrucciones de manifiesto appsscript.json abajo.
  *
+ * NUEVO EN v3.3 (borrado con PIN + diagnóstico):
+ *   POST {action:'deleteCapture', uuid, pin} → borra la fila de "Capturas"
+ *   (por id) y la de "Markdowns" (por uuid). El PIN se valida AQUÍ además de
+ *   en la app (doble seguro). La carpeta Drive NO se toca: puede tener fotos
+ *   reales; borrarla sería pérdida de datos (se hace a mano si se desea).
+ *   POST {action:'diag'} → radiografía de SOLO LECTURA del spreadsheet:
+ *   pestañas, encabezados, conteo de filas y anomalías fila por fila
+ *   (ids con formato raro, JSON que no parsea, celdas clave vacías). Para
+ *   diagnosticar corrimientos de columnas sin abrir el Sheet.
+ *
  * INSTRUCCIONES DE DESPLIEGUE (v3.2):
  * 1. Abre script.google.com → el proyecto EXISTENTE del endpoint actual.
  * 2. Reemplaza el código por este archivo completo y GUARDA.
@@ -69,6 +79,10 @@ var PARENT_FOLDER_ID = '1PTKX6TZSR94Hailc3qvWBbK_zQkE6Vhn'; // carpeta madre en 
  * Vacía ('') = validación apagada (compatible con la app sin clave). */
 var API_KEY = '';
 
+/* PIN de borrado (v3.3): deleteCapture exige este PIN aunque la app ya lo
+ * haya pedido — doble seguro contra borrados accidentales o requests sueltos. */
+var DELETE_PIN = '1512';
+
 var CAP_SHEET = 'Capturas';
 var CAP_HEADERS = ['id','timestamp','tipo','asesor','estrellas','calidad',
   'propiedad_json','contacto_json','capturadoEn','modificadoEn'];
@@ -83,8 +97,10 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (API_KEY && String(body.k || '') !== API_KEY) return jsonOut({ok:false, error:'No autorizado'});
-    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.2 online'});
+    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.3 online'});
     if (body.action === 'saveMarkdown') return handleSaveMarkdown_(body);
+    if (body.action === 'deleteCapture') return handleDeleteCapture_(body);
+    if (body.action === 'diag') return jsonOut(diag_());
     if (body.id) return handleSaveCapture_(body); // payload plano de captura
     return jsonOut({ok:false, error:'Payload no reconocido'});
   } catch (err) {
@@ -159,6 +175,67 @@ function ensureDriveFolder_(sh, p) {
   var it = parent.getFoldersByName(name);
   var folder = it.hasNext() ? it.next() : parent.createFolder(name);
   return folder.getUrl();
+}
+
+/* ===================== borrado con PIN (v3.3) ===================== */
+
+function handleDeleteCapture_(p) {
+  if (String(p.pin || '') !== DELETE_PIN) return jsonOut({ok:false, error:'PIN incorrecto'});
+  if (!p.uuid) return jsonOut({ok:false, error:'deleteCapture sin uuid'});
+  var delCap = deleteRowByKey_(getSheet_(CAP_SHEET, CAP_HEADERS), 'id', p.uuid);
+  var delMd = deleteRowByKey_(getSheet_(MD_SHEET, MD_HEADERS), 'uuid', p.uuid);
+  // La carpeta Drive se conserva a propósito (puede tener fotos reales).
+  return jsonOut({ok:true, deleted:{capturas:delCap, markdowns:delMd}});
+}
+
+/* Borra la primera fila cuya celda clave coincida. false si no existe. */
+function deleteRowByKey_(sh, keyName, val) {
+  var hdr = headers_(sh);
+  var k = hdr.indexOf(keyName);
+  if (k === -1) return false;
+  var n = sh.getLastRow();
+  if (n < 2) return false;
+  var keys = sh.getRange(2, k + 1, n - 1, 1).getValues();
+  for (var i = 0; i < keys.length; i++) {
+    if (String(keys[i][0]) === String(val)) { sh.deleteRow(i + 2); return true; }
+  }
+  return false;
+}
+
+/* ===================== diagnóstico solo lectura (v3.3) ===================== */
+
+function diag_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var out = {ok:true, sheets:[]};
+  ss.getSheets().forEach(function (s) {
+    var hdr = headers_(s);
+    var n = s.getLastRow();
+    var info = {name:s.getName(), filas:Math.max(0, n - 1), headers:hdr, anomalias:[]};
+    var canon = s.getName() === CAP_SHEET ? CAP_HEADERS : (s.getName() === MD_SHEET ? MD_HEADERS : null);
+    if (canon) {
+      info.ordenCanonico = JSON.stringify(hdr) === JSON.stringify(canon);
+      if (n > 1) {
+        var data = s.getRange(2, 1, n - 1, Math.max(hdr.length, 1)).getValues();
+        data.forEach(function (row, idx) {
+          var fila = idx + 2;
+          var o = {};
+          hdr.forEach(function (h, i) { o[h] = row[i]; });
+          if (s.getName() === CAP_SHEET) {
+            if (!/^(CAP|CT)-/.test(String(o.id || ''))) info.anomalias.push('fila ' + fila + ': id raro "' + o.id + '"');
+            if (['propiedad', 'contacto'].indexOf(String(o.tipo)) === -1) info.anomalias.push('fila ' + fila + ': tipo "' + o.tipo + '"');
+            if (String(o.tipo) === 'propiedad') {
+              try { JSON.parse(o.propiedad_json); } catch (_e) { info.anomalias.push('fila ' + fila + ': propiedad_json no parsea'); }
+            }
+          } else {
+            if (!String(o.uuid || '')) info.anomalias.push('fila ' + fila + ': uuid vacío');
+            if (o.folderUrl && String(o.folderUrl).indexOf('http') !== 0) info.anomalias.push('fila ' + fila + ': folderUrl rara "' + String(o.folderUrl).slice(0, 30) + '"');
+          }
+        });
+      }
+    }
+    out.sheets.push(info);
+  });
+  return out;
 }
 
 /* ===================== ranking (asesores agregados) ===================== */

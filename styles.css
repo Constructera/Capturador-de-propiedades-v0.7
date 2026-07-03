@@ -570,7 +570,10 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 /* Flash de confirmación (feedback inmediato en acciones) */
 .flash-ok{animation:flash-ok 400ms ease}
 @keyframes flash-ok{30%{background-color:var(--accent);color:#fff;border-color:var(--accent)}}
-@media(prefers-reduced-motion:reduce){.cat-panel,.cat-active .tag,.cat-count.pulse,.flash-ok{animation:none!important}}
+/* Shake del modal de PIN cuando el PIN es incorrecto */
+.pin-shake{animation:pin-shake 320ms ease}
+@keyframes pin-shake{20%{transform:translateX(-8px)}45%{transform:translateX(7px)}70%{transform:translateX(-4px)}90%{transform:translateX(2px)}}
+@media(prefers-reduced-motion:reduce){.cat-panel,.cat-active .tag,.cat-count.pulse,.flash-ok,.pin-shake{animation:none!important}}
 /* Dark mode: tarjetas más claras que el fondo, sin bordes de alto contraste */
 [data-theme="dark"] .cat-card{background:var(--bg-soft);border-color:transparent}
 [data-theme="dark"] .cat-hero{background:linear-gradient(135deg,#1f2b22,#242424);border-bottom-color:transparent}

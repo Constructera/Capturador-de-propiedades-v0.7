@@ -1058,6 +1058,22 @@
 </div>
 
 <!-- DETALLE DE CAPTURA (solo lectura) -->
+<!-- v0.7 B4: confirmación de borrado con PIN -->
+<div class="overlay" id="pinOverlay">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-head"><h3>🔒 Confirmar borrado</h3><button type="button" class="close-x" id="pinClose">×</button></div>
+    <div class="modal-body">
+      <div class="hint" id="pinHint">La captura se eliminará del historial de este dispositivo <strong>y de la nube (Sheet)</strong>. La carpeta de fotos en Drive no se toca. Escribe el PIN para confirmar.</div>
+      <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" id="pinInput" placeholder="····" autocomplete="off" style="text-align:center;font-size:1.4rem;letter-spacing:.4em;margin-top:12px">
+      <div class="status err" id="pinMsg" style="display:none">❌ PIN incorrecto. No se borró nada.</div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" id="pinCancel">Cancelar</button>
+      <button type="button" class="btn btn-danger" id="pinOk" style="flex:1">Borrar definitivamente</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="histDetailOverlay">
   <div class="modal">
     <div class="modal-head"><h3 id="histDetailTitle">Detalle de captura</h3><button type="button" class="close-x" id="histDetailClose">×</button></div>
