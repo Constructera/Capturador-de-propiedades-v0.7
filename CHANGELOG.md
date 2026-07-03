@@ -66,6 +66,11 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **Tests:** G10 migración con el escenario real (23 asserts: backup, fusión, headers únicos, conflicto Erica/Daniel, idempotencia, shape del GET) + G11 guard (5) + D7 app (6). GAS 96/96, Drive app 26/26. SW: B4-r2.
 - **Hallazgo de despliegue:** `testDrive` en el editor corre el código GUARDADO, pero el web app sirve la VERSIÓN DESPLEGADA — el ping seguía en v3.2 aunque el dueño creyó desplegar v3.3. Verificación fiable = `{"action":"ping"}` al endpoint.
 
+### Migración ejecutada en producción (03-jul-2026) — Sheet limpio ✅
+- **v3.4 confirmado desplegado** (ping). `migrateMarkdowns` corrió con éxito: backup `Markdowns_backup_20260703_2047` (16 filas, TODO el estado previo), Markdowns unificada en bloque canónico único (11 columnas, `ordenCanonico:true`, sin headers duplicados, cero anomalías), "Asesores" → `Asesores_DEPRECATED` con aviso en fila 1.
+- **El equipo ya captura en producción:** 5 capturas nuevas del 03-jul (4× "Jacarandas" de Erica — comparten carpeta Drive por ser el mismo nombre de propiedad, probablemente reintentos; + "Ponton" 3⭐ de Carlos). Backfill de `driveUrl` completado para las 11 capturas. GET verificado: 11 filas shape uniforme, ranking cuadra (Daniel 3/3⭐, Carlos 2/6⭐, Gabriel 1/2⭐, Erica 5/4⭐).
+- Pendiente sugerido al dueño: depurar los 3 duplicados de "Jacarandas" con el borrado PIN desde la app, y borrar la pestaña backup cuando la haya revisado.
+
 ### Easter eggs / logros (02-jul-2026)
 - 6 hitos por asesor derivados del historial local: 🎉 primera captura, 🔥 10, 🏆 25, 💎 5 perfectas (3⭐), ⚡ racha 3 días, 🌟 racha 7 días. Celebración con confetti + sonido + vibración tras la animación de estrellas; cola si se desbloquean varios; persisten en cap_logros (nunca se repiten; editar no re-otorga). Tests: tests/test_logros.js (14 asserts). SW: B3-r2.
 
