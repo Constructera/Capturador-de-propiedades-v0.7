@@ -34,6 +34,27 @@
  *   carpeta madre pasaba con drive.readonly y saveMarkdown seguía fallando en
  *   createFolder). Instrucciones de manifiesto appsscript.json abajo.
  *
+ * NUEVO EN v3.4 (unificación Markdowns + asesor inmutable):
+ *   - POST {action:'migrateMarkdowns', pin} → repara la pestaña Markdowns que
+ *     quedó con DOS bloques de columnas paralelos (A-H con headers viejos
+ *     "UUID/Asesor/Fecha/…/Markdown/Última actualización" y I-R con los
+ *     canónicos v3.2). Hace BACKUP completo en una pestaña nueva, fusiona
+ *     todo al bloque canónico (en duplicados por uuid gana la fila nueva,
+ *     pero el asesor ORIGINAL de la fila legada se conserva y el editor pasa
+ *     a editadoPor), reescribe la hoja con SOLO las columnas canónicas y
+ *     también corrige el asesor en Capturas si hubo conflicto. Idempotente.
+ *   - Columna nueva "editadoPor" en Markdowns.
+ *   - saveMarkdown ya NO permite pisar el asesor de una fila existente: si
+ *     llega un asesor distinto, se conserva el original y el entrante queda
+ *     como editadoPor (regla de producto: el editor no reemplaza al captador).
+ *   - Carpetas Drive: el nombre ahora prefiere el NOMBRE de la propiedad
+ *     ("Propiedad - Casa 87") en vez de la dirección — dos propiedades del
+ *     mismo condominio compartían dirección y habrían compartido carpeta.
+ *     Las carpetas ya creadas se reusan por uuid (no se duplica nada).
+ *   - migrateMarkdowns además marca la pestaña "Asesores" como DEPRECATED
+ *     (fila 1 de aviso + renombrada a "Asesores_DEPRECATED"): el ranking real
+ *     se deriva de Capturas en cada GET; ningún bot debe leerla.
+ *
  * NUEVO EN v3.3 (borrado con PIN + diagnóstico):
  *   POST {action:'deleteCapture', uuid, pin} → borra la fila de "Capturas"
  *   (por id) y la de "Markdowns" (por uuid). El PIN se valida AQUÍ además de
@@ -89,7 +110,7 @@ var CAP_HEADERS = ['id','timestamp','tipo','asesor','estrellas','calidad',
 
 var MD_SHEET = 'Markdowns';
 var MD_HEADERS = ['uuid','fecha','asesor','tipo','estatus','nombre','direccion',
-  'markdown_md','folderUrl','modificadoEn'];
+  'markdown_md','folderUrl','modificadoEn','editadoPor'];
 
 /* ===================== entradas ===================== */
 
@@ -97,9 +118,10 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (API_KEY && String(body.k || '') !== API_KEY) return jsonOut({ok:false, error:'No autorizado'});
-    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.3 online'});
+    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.4 online'});
     if (body.action === 'saveMarkdown') return handleSaveMarkdown_(body);
     if (body.action === 'deleteCapture') return handleDeleteCapture_(body);
+    if (body.action === 'migrateMarkdowns') return handleMigrateMarkdowns_(body);
     if (body.action === 'diag') return jsonOut(diag_());
     if (body.id) return handleSaveCapture_(body); // payload plano de captura
     return jsonOut({ok:false, error:'Payload no reconocido'});
@@ -140,19 +162,47 @@ function handleSaveMarkdown_(p) {
   var sh = getSheet_(MD_SHEET, MD_HEADERS);
   var folderUrl = '';
   if (p.tipo === 'propiedad') folderUrl = ensureDriveFolder_(sh, p);
+  // v3.4: el asesor original NUNCA se pisa. Si llega uno distinto para una
+  // fila existente, se conserva el original y el entrante queda en editadoPor.
+  var asesor = p.asesor || 'S/I';
+  var editadoPor = p.editadoPor || '';
+  var prev = findByKey_(sh, 'uuid', p.uuid);
+  if (prev && prev.asesor && String(prev.asesor) !== String(asesor)) {
+    if (!editadoPor) editadoPor = asesor;
+    asesor = String(prev.asesor);
+  }
   upsert_(sh, 'uuid', {
     uuid: p.uuid,
     fecha: p.fecha || new Date().toISOString(),
-    asesor: p.asesor || 'S/I',
+    asesor: asesor,
     tipo: p.tipo || '',
     estatus: p.estatus || '',
     nombre: p.nombre || '',
     direccion: p.direccion || '',
     markdown_md: p.markdown_md || '',
     folderUrl: folderUrl,
-    modificadoEn: new Date().toISOString()
+    modificadoEn: new Date().toISOString(),
+    editadoPor: editadoPor
   });
   return jsonOut({ok:true, folderUrl: folderUrl});
+}
+
+/* Devuelve la fila (como objeto header→valor) cuya celda clave coincida. */
+function findByKey_(sh, keyName, val) {
+  var hdr = headers_(sh);
+  var k = hdr.indexOf(keyName);
+  if (k === -1) return null;
+  var n = sh.getLastRow();
+  if (n < 2) return null;
+  var data = sh.getRange(2, 1, n - 1, hdr.length).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (String(data[i][k]) === String(val)) {
+      var o = {_row: i + 2};
+      hdr.forEach(function (h, j) { o[h] = data[i][j]; });
+      return o;
+    }
+  }
+  return null;
 }
 
 /* Crea o reutiliza la carpeta Drive de una propiedad. Nunca duplica. */
@@ -167,9 +217,10 @@ function ensureDriveFolder_(sh, p) {
       if (String(data[i][kU]) === String(p.uuid) && data[i][kF]) return String(data[i][kF]);
     }
   }
-  // 2. nombre de carpeta: "Propiedad - <Dirección>" (fallback: nombre, uuid)
-  var base = (p.direccion && String(p.direccion).trim()) || (p.nombre && String(p.nombre).trim()) || p.uuid;
-  var name = 'Propiedad - ' + base;
+  // 2. nombre de carpeta (v3.4): "Propiedad - <Nombre>" — el nombre es único por
+  //    propiedad; la dirección puede repetirse (condominios) y colisionar carpetas
+  var base = (p.nombre && String(p.nombre).trim()) || (p.direccion && String(p.direccion).trim()) || p.uuid;
+  var name = 'Propiedad - ' + String(base).slice(0, 100);
   var parent = DriveApp.getFolderById(PARENT_FOLDER_ID);
   // 3. reusar por nombre dentro de la carpeta madre (por si la hoja se limpió)
   var it = parent.getFoldersByName(name);
@@ -202,6 +253,131 @@ function deleteRowByKey_(sh, keyName, val) {
   return false;
 }
 
+/* ===================== unificación Markdowns (v3.4) ===================== */
+
+/* Headers legados (v2B) → canónicos. Se comparan normalizados (minúsculas,
+   sin acentos) pero solo se consideran LEGADOS los que no son idénticos al
+   canónico (así "uuid" es canónico y "UUID" es legado). */
+var LEGACY_MD_MAP = {
+  'uuid':'uuid', 'asesor':'asesor', 'fecha':'fecha', 'tipo':'tipo',
+  'estatus':'estatus', 'nombre':'nombre', 'markdown':'markdown_md',
+  'markdown_md':'markdown_md', 'direccion':'direccion', 'folderurl':'folderUrl',
+  'ultima actualizacion':'modificadoEn', 'modificadoen':'modificadoEn',
+  'editadopor':'editadoPor'
+};
+function normHdr_(h) {
+  return String(h).toLowerCase()
+    .replace(/[áà]/g, 'a').replace(/[éè]/g, 'e').replace(/[íì]/g, 'i')
+    .replace(/[óò]/g, 'o').replace(/[úù]/g, 'u').replace(/\s+/g, ' ').trim();
+}
+
+function handleMigrateMarkdowns_(p) {
+  if (String(p.pin || '') !== DELETE_PIN) return jsonOut({ok:false, error:'PIN incorrecto'});
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var res = {ok:true, acciones:[], conflictosAsesor:[]};
+  var sh = ss.getSheetByName(MD_SHEET);
+
+  if (sh && sh.getLastRow() > 0) {
+    var lastCol = sh.getLastColumn();
+    var all = sh.getRange(1, 1, sh.getLastRow(), Math.max(lastCol, 1)).getValues();
+    var hdr = all[0].map(String);
+
+    // columnas canónicas = primera aparición EXACTA de cada header canónico
+    var canonCols = {};
+    MD_HEADERS.forEach(function (h) {
+      var idx = hdr.indexOf(h);
+      if (idx !== -1) canonCols[h] = idx;
+    });
+    // columnas legadas = normalizadas que mapean a un canónico pero NO son la exacta
+    var legacyCols = {};
+    hdr.forEach(function (h, idx) {
+      if (canonCols[h] === idx) return;
+      var canon = LEGACY_MD_MAP[normHdr_(h)];
+      if (canon && legacyCols[canon] === undefined) legacyCols[canon] = idx;
+    });
+    var hayLegado = Object.keys(legacyCols).length > 0;
+
+    if (hayLegado) {
+      // 1. BACKUP completo antes de tocar nada (cero riesgo de pérdida)
+      var backupName = MD_SHEET + '_backup_' + new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').slice(0, 13);
+      var bk = sh.copyTo(ss);
+      bk.setName(backupName);
+      res.backup = backupName;
+      res.acciones.push('backup creado: ' + backupName);
+
+      // 2. extraer registros de ambos bloques
+      var canonRecs = [], legacyRecs = [];
+      all.slice(1).forEach(function (row) {
+        var c = {}, l = {};
+        Object.keys(canonCols).forEach(function (h) { c[h] = row[canonCols[h]]; });
+        Object.keys(legacyCols).forEach(function (h) { l[h] = row[legacyCols[h]]; });
+        if (String(c.uuid || '').trim()) canonRecs.push(c);
+        if (String(l.uuid || '').trim()) legacyRecs.push(l);
+      });
+
+      // 3. fusionar por uuid: gana la fila canónica (más nueva, con folderUrl),
+      //    pero el asesor ORIGINAL legado se conserva; el entrante → editadoPor
+      var porUuid = {}, orden = [];
+      legacyRecs.forEach(function (r) { porUuid[String(r.uuid)] = r; orden.push(String(r.uuid)); });
+      canonRecs.forEach(function (r) {
+        var id = String(r.uuid);
+        var prev = porUuid[id];
+        if (prev) {
+          if (prev.asesor && r.asesor && String(prev.asesor) !== String(r.asesor)) {
+            if (!r.editadoPor) r.editadoPor = r.asesor;
+            r.asesor = prev.asesor;
+            res.conflictosAsesor.push({uuid:id, asesorOriginal:String(prev.asesor), editadoPor:String(r.editadoPor)});
+          }
+        } else orden.push(id);
+        porUuid[id] = prev ? Object.assign({}, prev, r, {asesor:r.asesor}) : r;
+      });
+
+      // 4. reescribir la hoja SOLO con columnas canónicas
+      sh.clear();
+      var salida = [MD_HEADERS];
+      orden.forEach(function (id) {
+        var r = porUuid[id];
+        salida.push(MD_HEADERS.map(function (h) { return r[h] !== undefined ? r[h] : ''; }));
+      });
+      sh.getRange(1, 1, salida.length, MD_HEADERS.length).setValues(salida);
+      sh.setFrozenRows(1);
+      res.acciones.push('Markdowns unificada: ' + (salida.length - 1) + ' filas en bloque canónico único');
+
+      // 5. propagar conflictos de asesor a la hoja Capturas (columna + json)
+      res.conflictosAsesor.forEach(function (cf) {
+        var shc = ss.getSheetByName(CAP_SHEET);
+        if (!shc) return;
+        var fila = findByKey_(shc, 'id', cf.uuid);
+        if (!fila) return;
+        var hdrC = headers_(shc);
+        var iA = hdrC.indexOf('asesor'), iPJ = hdrC.indexOf('propiedad_json');
+        if (iA !== -1) shc.getRange(fila._row, iA + 1, 1, 1).setValues([[cf.asesorOriginal]]);
+        if (iPJ !== -1) {
+          try {
+            var pj = JSON.parse(fila.propiedad_json);
+            pj.asesorNombre = cf.asesorOriginal;
+            if (!pj.editadoPor) pj.editadoPor = cf.editadoPor;
+            shc.getRange(fila._row, iPJ + 1, 1, 1).setValues([[JSON.stringify(pj)]]);
+          } catch (_e) {}
+        }
+        res.acciones.push('Capturas: asesor de ' + cf.uuid + ' restaurado a ' + cf.asesorOriginal);
+      });
+    } else {
+      res.acciones.push('Markdowns ya está en bloque canónico único: nada que migrar');
+    }
+  } else res.acciones.push('sin hoja Markdowns con datos');
+
+  // 6. deprecar la hoja Asesores (ranking real se deriva de Capturas)
+  var sa = ss.getSheetByName('Asesores');
+  if (sa) {
+    sa.insertRowBefore(1);
+    sa.getRange(1, 1, 1, 1).setValues([['DEPRECATED — no leer; el ranking real se deriva de la pestaña Capturas en cada GET']]);
+    sa.setName('Asesores_DEPRECATED');
+    res.acciones.push('hoja Asesores marcada DEPRECATED y renombrada');
+  }
+  return jsonOut(res);
+}
+
 /* ===================== diagnóstico solo lectura (v3.3) ===================== */
 
 function diag_() {
@@ -211,6 +387,15 @@ function diag_() {
     var hdr = headers_(s);
     var n = s.getLastRow();
     var info = {name:s.getName(), filas:Math.max(0, n - 1), headers:hdr, anomalias:[]};
+    // headers duplicados con distinta capitalización = bloques paralelos (bug v3.2)
+    var vistos = {};
+    hdr.forEach(function (h) {
+      var k = normHdr_(h);
+      if (vistos[k]) {
+        info.headersDuplicados = info.headersDuplicados || [];
+        info.headersDuplicados.push(vistos[k] + ' / ' + h);
+      } else vistos[k] = h;
+    });
     var canon = s.getName() === CAP_SHEET ? CAP_HEADERS : (s.getName() === MD_SHEET ? MD_HEADERS : null);
     if (canon) {
       info.ordenCanonico = JSON.stringify(hdr) === JSON.stringify(canon);

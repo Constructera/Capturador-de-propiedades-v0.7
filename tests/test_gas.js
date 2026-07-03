@@ -29,6 +29,13 @@ MockSheet.prototype.setName = function (n) { this._name = n; };
 MockSheet.prototype.appendRow = function (row) { this._rows.push(row.slice()); };
 MockSheet.prototype.setFrozenRows = function () {};
 MockSheet.prototype.deleteRow = function (rowIdx) { this._rows.splice(rowIdx - 1, 1); };
+MockSheet.prototype.clear = function () { this._rows = []; };
+MockSheet.prototype.insertRowBefore = function (rowIdx) { this._rows.splice(rowIdx - 1, 0, []); };
+MockSheet.prototype.copyTo = function (ss) {
+  var c = ss.insertSheet(this._name + '_copy' + Math.random().toString(36).slice(2, 6));
+  c._rows = this._rows.map(function (r) { return r.slice(); });
+  return c;
+};
 MockSheet.prototype.getLastRow = function () { return this._rows.length; };
 MockSheet.prototype.getLastColumn = function () {
   return this._rows.length ? Math.max.apply(null, this._rows.map(function (r) { return r.length; })) : 0;
@@ -134,7 +141,7 @@ console.log('\n[G1] saveMarkdown de propiedad crea carpeta y devuelve folderUrl'
   assert(r.ok === true, 'respuesta ok');
   assert(r.folderUrl === 'https://drive.google.com/drive/folders/FLD1', 'devuelve folderUrl en la misma respuesta');
   assert(g._drive.length === 1, 'se creó exactamente UNA carpeta en Drive');
-  assert(g._drive[0].name === 'Propiedad - Av. Palmira 123, Cuernavaca', 'nombre "Propiedad - <Dirección>"');
+  assert(g._drive[0].name === 'Propiedad - Casa Palmira', 'nombre "Propiedad - <Nombre>" (v3.4: el nombre no colisiona entre propiedades del mismo condominio)');
   var md = g._sheets['Markdowns']._rows;
   var hdr = md[0];
   assert(hdr.indexOf('folderUrl') !== -1, 'hoja Markdowns tiene columna folderUrl');
@@ -163,9 +170,11 @@ console.log('\n[G3] fallbacks de nombre y contactos');
   var g = freshEnv();
   var r = g.post({action:'saveMarkdown', uuid:'CAP-Y', tipo:'propiedad', nombre:'Depto Centro', direccion:'', markdown_md:'#'});
   assert(g._drive[0] && g._drive[0].name === 'Propiedad - Depto Centro', 'sin dirección → usa el nombre de la propiedad');
+  var rSin = g.post({action:'saveMarkdown', uuid:'CAP-SN', tipo:'propiedad', nombre:'', direccion:'Calle Sola 77', markdown_md:'#'});
+  assert(rSin.ok && g._drive[1] && g._drive[1].name === 'Propiedad - Calle Sola 77', 'sin nombre → cae a la dirección');
   var rc = g.post({action:'saveMarkdown', uuid:'CT-1', tipo:'contacto', nombre:'Juan Pérez', markdown_md:'#'});
   assert(rc.ok === true && rc.folderUrl === '', 'contacto: ok sin carpeta (folderUrl vacía)');
-  assert(g._drive.length === 1, 'contacto no creó carpeta');
+  assert(g._drive.length === 2, 'contacto no creó carpeta');
   // carpeta huérfana con mismo nombre → se reutiliza aunque la hoja no la tenga
   var g2 = freshEnv();
   g2.DriveApp.getFolderById('1PTKX6TZSR94Hailc3qvWBbK_zQkE6Vhn').createFolder('Propiedad - Casa B');
@@ -368,6 +377,121 @@ console.log('\n[G9] diag');
   var antes = JSON.stringify(g._sheets['Capturas']._rows);
   g.post({action:'diag'});
   assert(JSON.stringify(g._sheets['Capturas']._rows) === antes, 'diag es solo lectura (no modifica nada)');
+})();
+
+/* ============ 10. migrateMarkdowns: unificación de bloques paralelos (v3.4) ============ */
+console.log('\n[G10] migrateMarkdowns — escenario real (bloques A-H legado + I-R canónico)');
+(function () {
+  var g = freshEnv();
+  // reproducir el Sheet real reportado por el dueño: DOS bloques paralelos
+  var md = new MockSheet('Markdowns');
+  var LEG = ['UUID','Asesor','Fecha','Tipo','Estatus','Nombre','Markdown','Última actualización'];
+  var CAN = ['uuid','fecha','asesor','tipo','estatus','nombre','direccion','markdown_md','folderUrl','modificadoEn'];
+  md.appendRow(LEG.concat(CAN));
+  var v = function (leg, can) { return leg.concat(can); };
+  var vac = ['','','','','','','','','',''];
+  // filas 2-6: solo bloque legado
+  md.appendRow(v(['CAP-H1','Daniel','2026-06-26','propiedad','sin terminar','Jacarandas','# md h1','2026-06-26'], vac));
+  md.appendRow(v(['CAP-H2','Daniel','2026-06-26','propiedad','sin terminar','Casa','# md h2','2026-06-26'], vac));
+  md.appendRow(v(['CAP-H3','Carlos','2026-06-30','propiedad','completa','Casa 87','# md h3 viejo','2026-06-30'], vac));
+  md.appendRow(v(['CAP-H4','Gabriel','2026-06-30','propiedad','sin terminar','Kloster','# md h4','2026-06-30'], vac));
+  md.appendRow(v(['CAP-H5','Erica','2026-06-30','propiedad','sin terminar','Tlaltenango','# md h5 de Erica','2026-06-30'], vac));
+  // filas 7-8: solo bloque canónico (re-subidas por el flujo Drive)
+  md.appendRow(v(['','','','','','','',''], ['CAP-H3','2026-06-30','Carlos','propiedad','completa','Casa 87','Dir 87','# md h3 nuevo','https://drive/f87','2026-07-02']));
+  md.appendRow(v(['','','','','','','',''], ['CAP-H5','2026-07-02','Daniel','propiedad','sin terminar','Tlaltenango','Av. Zapata','# md h5 editado','https://drive/ftl','2026-07-02']));
+  g._sheets['Markdowns'] = md;
+  // Capturas con el asesor pisado (como pasó en producción) + hoja Asesores legada
+  var cap = new MockSheet('Capturas');
+  cap.appendRow(['id','timestamp','tipo','asesor','estrellas','calidad','propiedad_json','contacto_json','capturadoEn','modificadoEn']);
+  cap.appendRow(['CAP-H5','2026-06-30','propiedad','Daniel',1,'Incompleta',JSON.stringify({id:'CAP-H5',asesorNombre:'Daniel'}),'','2026-06-30','2026-07-02']);
+  g._sheets['Capturas'] = cap;
+  var ase = new MockSheet('Asesores');
+  ase.appendRow(['asesor','totalCapturas']); ase.appendRow(['Daniel', 99]);
+  g._sheets['Asesores'] = ase;
+
+  assert(g.post({action:'migrateMarkdowns', pin:'0000'}).ok === false, 'PIN incorrecto → no migra');
+  var r = g.post({action:'migrateMarkdowns', pin:'1512'});
+  assert(r.ok === true, 'migración ok');
+  assert(!!r.backup, 'se creó backup antes de tocar nada: ' + r.backup);
+  var bk = null;
+  Object.keys(g._sheets).forEach(function (k) { if (g._sheets[k]._name === r.backup) bk = g._sheets[k]; });
+  assert(!!bk && bk._rows.length === 8 && bk._rows[0].length === 18, 'el backup conserva TODAS las filas y columnas originales');
+
+  var hdr = md._rows[0].map(String);
+  assert(hdr.length === 11 && hdr[0] === 'uuid' && hdr[10] === 'editadoPor', 'un solo bloque canónico (11 columnas, con editadoPor)');
+  // headers únicos sin duplicados por capitalización (pedido explícito del dueño)
+  var norm = {}; var unicos = true;
+  hdr.forEach(function (h) { var k = h.toLowerCase(); if (norm[k]) unicos = false; norm[k] = 1; });
+  assert(unicos, 'headers únicos: sin duplicados con distinta capitalización');
+
+  var rows = md._rows.slice(1).map(function (row) {
+    var o = {}; hdr.forEach(function (h, i) { o[h] = row[i]; }); return o;
+  });
+  assert(rows.length === 5, '5 filas únicas (5 históricas; Casa 87 y Tlaltenango fusionadas con sus re-subidas)');
+  assert(rows.every(function (o) { return String(o.uuid).indexOf('CAP-') === 0; }), 'todas las filas tienen uuid en la columna canónica');
+  var h3 = rows.filter(function (o) { return o.uuid === 'CAP-H3'; })[0];
+  assert(h3.markdown_md === '# md h3 nuevo' && h3.folderUrl === 'https://drive/f87', 'en duplicados gana la fila nueva (markdown + folderUrl)');
+  assert(h3.asesor === 'Carlos', 'asesor coincidente se mantiene sin conflicto');
+  var h5 = rows.filter(function (o) { return o.uuid === 'CAP-H5'; })[0];
+  assert(h5.asesor === 'Erica', 'CONFLICTO: el asesor ORIGINAL (Erica) se conserva sobre el editor');
+  assert(h5.editadoPor === 'Daniel', 'el editor queda registrado en editadoPor');
+  assert(h5.markdown_md === '# md h5 editado', 'el contenido editado (más nuevo) sí gana');
+  var h1 = rows.filter(function (o) { return o.uuid === 'CAP-H1'; })[0];
+  assert(h1.markdown_md === '# md h1' && h1.asesor === 'Daniel', 'filas solo-legado migradas campo por campo');
+
+  // propagación del conflicto a Capturas
+  var capRow = cap._rows[1];
+  assert(capRow[3] === 'Erica', 'Capturas: columna asesor restaurada a Erica');
+  var pj = JSON.parse(capRow[6]);
+  assert(pj.asesorNombre === 'Erica' && pj.editadoPor === 'Daniel', 'Capturas: propiedad_json.asesorNombre restaurado + editadoPor');
+
+  // Asesores deprecada
+  var aseNow = null;
+  Object.keys(g._sheets).forEach(function (k) { if (g._sheets[k]._name === 'Asesores_DEPRECATED') aseNow = g._sheets[k]; });
+  assert(!!aseNow && String(aseNow._rows[0][0]).indexOf('DEPRECATED') === 0, 'hoja Asesores renombrada y marcada DEPRECATED en fila 1');
+
+  // idempotencia: segunda corrida no cambia nada ni crea otro backup
+  var antes = JSON.stringify(md._rows);
+  var r2 = g.post({action:'migrateMarkdowns', pin:'1512'});
+  assert(r2.ok && !r2.backup, 'segunda corrida: nada que migrar (sin backup nuevo)');
+  assert(JSON.stringify(md._rows) === antes, 'idempotente: la hoja no cambia');
+
+  // GET post-migración: shape determinista (todas las filas con las columnas del encabezado)
+  var res = g.get();
+  var nCols = res.capturas[0].length;
+  assert(res.capturas.slice(1).every(function (row) { return row.length === nCols; }), 'GET: todas las filas con el mismo shape que el encabezado');
+
+  // diag detecta bloques paralelos ANTES y limpio DESPUÉS
+  var g2 = freshEnv();
+  var md2 = new MockSheet('Markdowns');
+  md2.appendRow(['UUID','Asesor','uuid','asesor']);
+  md2.appendRow(['CAP-1','Daniel','','']);
+  g2._sheets['Markdowns'] = md2;
+  var d2 = g2.post({action:'diag'});
+  var infoMd = d2.sheets.filter(function (s) { return s.name === 'Markdowns'; })[0];
+  assert(!!infoMd.headersDuplicados && infoMd.headersDuplicados.length === 2, 'diag reporta headers duplicados (bloques paralelos)');
+  var dPost = g.post({action:'diag'});
+  var infoPost = dPost.sheets.filter(function (s) { return s.name === 'Markdowns'; })[0];
+  assert(!infoPost.headersDuplicados, 'diag post-migración: sin headers duplicados');
+})();
+
+/* ============ 11. saveMarkdown no pisa al asesor original (v3.4) ============ */
+console.log('\n[G11] asesor inmutable en saveMarkdown');
+(function () {
+  var g = freshEnv();
+  g.post({action:'saveMarkdown', uuid:'CAP-AS', tipo:'propiedad', asesor:'Erica', nombre:'Casa E', direccion:'', markdown_md:'# v1'});
+  // un editor distinto re-sube (app vieja cacheada que aún manda al editor como asesor)
+  var r = g.post({action:'saveMarkdown', uuid:'CAP-AS', tipo:'propiedad', asesor:'Daniel', nombre:'Casa E', direccion:'', markdown_md:'# v2'});
+  assert(r.ok === true, 'resave ok');
+  var hdr = g._sheets['Markdowns']._rows[0];
+  var row = g._sheets['Markdowns']._rows[1];
+  assert(row[hdr.indexOf('asesor')] === 'Erica', 'el asesor original NO se pisa');
+  assert(row[hdr.indexOf('editadoPor')] === 'Daniel', 'el editor queda en editadoPor');
+  assert(row[hdr.indexOf('markdown_md')] === '# v2', 'el contenido sí se actualiza');
+  // editadoPor explícito del app nuevo tiene prioridad
+  g.post({action:'saveMarkdown', uuid:'CAP-AS', tipo:'propiedad', asesor:'Erica', editadoPor:'Carlos', nombre:'Casa E', direccion:'', markdown_md:'# v3'});
+  var row2 = g._sheets['Markdowns']._rows[1];
+  assert(row2[hdr.indexOf('asesor')] === 'Erica' && row2[hdr.indexOf('editadoPor')] === 'Carlos', 'editadoPor explícito se respeta');
 })();
 
 /* ============ resumen ============ */

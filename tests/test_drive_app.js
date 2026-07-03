@@ -161,6 +161,34 @@ function clickChip(w, gid, val) {
   var noKey = w._gasPosts.filter(function (p) { return p.hasOwnProperty('k'); });
   assert(noKey.length === 0, 'sin clave configurada, los POST no llevan k');
 
+  /* ============ D7. Editar NO pisa al asesor original (v0.7 B4) ============ */
+  console.log('\n[D7] trazabilidad del asesor original en ediciones');
+  var w8 = boot({cap_asesor_activo: JSON.stringify({id:'as_erica', nombre:'Erica'})});
+  clickChip(w8, 'tipoChips', 'Casa');
+  setVal(w8, 'f_direccion', 'Av. Zapata 55, Tlaltenango');
+  $(w8, 'btnGen').click();
+  await sleep(60);
+  var h8 = JSON.parse(w8.localStorage.getItem('cap_hist'));
+  assert(h8[0].asesorNombre === 'Erica' && (h8[0].editadoPor || '') === '', 'captura nueva: asesor = Erica, sin editadoPor');
+  var smd8 = w8._gasPosts.filter(function (p) { return p.action === 'saveMarkdown'; });
+  assert(smd8[0].asesor === 'Erica', 'saveMarkdown inicial lleva a Erica');
+  // cambia el asesor activo a Daniel (como pasó en producción) y edita
+  setVal(w8, 'cfg_resp', 'Daniel');
+  w8.document.querySelector('#navbar button[data-view="viewHistory"]').click();
+  await sleep(30);
+  var uuid8 = h8[0].id;
+  w8.document.querySelector('[data-edit-prop="' + uuid8 + '"]').click();
+  $(w8, 'btnGen').click();
+  await sleep(60);
+  var h8b = JSON.parse(w8.localStorage.getItem('cap_hist'));
+  assert(h8b.length === 1 && h8b[0].asesorNombre === 'Erica', 'tras editar con Daniel activo: asesor sigue siendo Erica');
+  assert(h8b[0].editadoPor === 'Daniel', 'el editor queda en rec.editadoPor');
+  var smd8b = w8._gasPosts.filter(function (p) { return p.action === 'saveMarkdown'; });
+  assert(smd8b.length === 2 && smd8b[1].asesor === 'Erica' && smd8b[1].editadoPor === 'Daniel',
+    'el saveMarkdown de la edición manda asesor original + editadoPor');
+  var flat8 = w8._gasPosts.filter(function (p) { return !p.action && p.id === uuid8; });
+  assert(flat8.length >= 2 && flat8[flat8.length - 1].asesor === 'Erica', 'la captura re-subida conserva asesor Erica en la columna');
+
   /* ============ resumen ============ */
   console.log('\n========================================');
   console.log('Pruebas Drive app: ' + (passed + failed) + ' · ✅ ' + passed + ' · ❌ ' + failed);

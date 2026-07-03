@@ -1864,7 +1864,9 @@ function generar(){
   // guardar en historial
   var re=realElapsed();
   lastCaptureId=saveCapture(md,estatusProp,falt,estrellas.count,estrellas.quality,re,meta);
-  gasSaveMarkdown(lastCaptureId,asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I'),meta.modificado,'propiedad',estrellas.count===3?'completa':'sin terminar',nombre,md,dirVal);
+  // B4: al GAS va el asesor ORIGINAL del registro (no quien edita) + editadoPor
+  var recGuardado=getHist().filter(function(x){return x.id===lastCaptureId;})[0]||{};
+  gasSaveMarkdown(lastCaptureId,recGuardado.asesorNombre||'S/I',meta.modificado,'propiedad',estrellas.count===3?'completa':'sin terminar',nombre,md,dirVal,recGuardado.editadoPor||'');
   if(asesorActivo)updateAsesorStats(asesorActivo.id,estrellas,re);
   sndSuccess();
   mostrarResultado(estrellas);
@@ -2261,12 +2263,15 @@ function saveCapture(md,estatus,falt,stars,quality,elapsed,meta){
   var orig=isEdit?h.filter(function(x){return x.id===id;})[0]:null;
   var capturadoEn=meta?meta.creado:(orig?(orig.capturadoEn||orig.fecha):now);
   var ediciones=meta?meta.ediciones:(orig?((orig.ediciones||0)+(isEdit?1:0)):0);
+  // B4: en ediciones el asesor ORIGINAL se conserva; quien edita queda en editadoPor
+  var actorNombre=asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I');
   var rec={
     id:id,fecha:now,
     capturadoEn:capturadoEn,modificadoEn:ediciones>0?now:null,
     ediciones:ediciones,
-    asesorId:asesorActivo?asesorActivo.id:null,
-    asesorNombre:asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I'),
+    asesorId:(isEdit&&orig&&orig.asesorId)?orig.asesorId:(asesorActivo?asesorActivo.id:null),
+    asesorNombre:(isEdit&&orig&&orig.asesorNombre)?orig.asesorNombre:actorNombre,
+    editadoPor:isEdit?actorNombre:((orig&&orig.editadoPor)||''),
     resp:$('f_resp').value,
     nombre:nombreBase(),direccion:$('f_direccion').value.trim(),zona:zonasSel.map(function(z){return z.n;}).join(' / ')||'S/I',
     tipo:state.tipo,oper:state.oper,estatus:estatus,estatusCaptura:stars===3?'Listo':(stars>=2?'En progreso':'Sin empezar'),fuente:fuenteVal().nombre,
@@ -2752,9 +2757,9 @@ function buildGasPayloadContact(rec){
     estrellas:0,calidad:'',propiedad_json:'',contacto_json:JSON.stringify(rec),
     capturadoEn:rec.fecha||now,modificadoEn:rec.fecha||now};
 }
-function gasSaveMarkdown(uuid,asesor,fecha,tipo,estatus,nombre,markdownText,direccion){
+function gasSaveMarkdown(uuid,asesor,fecha,tipo,estatus,nombre,markdownText,direccion,editadoPor){
   if(!CFG.endpoint)return;
-  var p={action:'saveMarkdown',uuid:uuid,asesor:asesor,fecha:fecha,tipo:tipo,estatus:estatus,nombre:nombre,direccion:direccion||'',markdown_md:markdownText};
+  var p={action:'saveMarkdown',uuid:uuid,asesor:asesor,fecha:fecha,tipo:tipo,estatus:estatus,nombre:nombre,direccion:direccion||'',markdown_md:markdownText,editadoPor:editadoPor||''};
   gasPost(p).then(function(r){
     // B2: el GAS crea/reutiliza la carpeta Drive de la propiedad y devuelve su URL
     if(r&&r.ok&&r.folderUrl&&tipo==='propiedad'){

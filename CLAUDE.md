@@ -70,6 +70,21 @@ referencial y evitar campos huérfanos:
   disponibles" (multi-select). Registros viejos con estos datos dentro de Notas
   NO se migran todavía (solo documentados; ver CHANGELOG).
 
+## Reglas del Sheet compartido (bot ChatGPT de las 9am y cualquier integración)
+- Leer SOLO las pestañas **"Capturas"** y **"Markdowns"**. La pestaña
+  "Asesores" está **DEPRECATED** (renombrada "Asesores_DEPRECATED"): el ranking
+  real se deriva de Capturas en cada GET del GAS; sus datos están congelados.
+- Mapear columnas **POR NOMBRE de encabezado, nunca por posición** (el GAS
+  agrega columnas nuevas al final; por nombre es determinista).
+- Markdowns canónico (v3.4, minúsculas): uuid, fecha, asesor, tipo, estatus,
+  nombre, direccion, markdown_md, folderUrl, modificadoEn, editadoPor.
+- **"asesor" = captador ORIGINAL, inmutable.** Quien edita queda en
+  "editadoPor" (regla de producto 03-jul-2026). El GAS lo garantiza aunque un
+  cliente viejo mande al editor como asesor.
+- Borrado real solo vía `deleteCapture` con PIN; las pestañas
+  "Markdowns_backup_*" son respaldos de migración (no parsear, borrables por
+  el dueño cuando quiera).
+
 ## Estado v0.7
 - **Bloque 1 (02-jul-2026): COMPLETO, pendiente de aprobación del dueño.** Baños completos/medios, cuota de mantenimiento, indivisos, regla Departamento, comisión "Otra", características nuevas (+persistentes), historial solo lectura, bloque META de trazabilidad, campos Notion nuevos en el markdown. Ver CHANGELOG.md.
 - **Bloque 2 (siguiente): integración Drive/GAS.** El campo "Carpeta Drive" ya sale en el markdown como pendiente.
