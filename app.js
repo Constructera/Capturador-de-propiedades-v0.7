@@ -94,6 +94,9 @@ function showView(id){
   document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
   document.querySelectorAll('#navbar button').forEach(function(b){b.classList.toggle('active',b.dataset.view===id);});
   document.body.classList.toggle('capture-active',id==='viewCapture');
+  // v0.7 B6: entrada/salida del modo Captura Rápida
+  if(id==='viewCapture'&&quickPending){quickPending=false;setTimeout(qkStart,0);}
+  else if(id!=='viewCapture'&&qkOn)qkStop();
   document.body.classList.toggle('contact-active',id==='viewContact');
   window.scrollTo(0,0);
   if(id==='viewHistory')renderHist();
@@ -2785,6 +2788,121 @@ function gasCapturasToLocalHist(capturas){
 if(CFG.endpoint)setTimeout(processQueue,3000);
 // Stub para acciones legadas (Drive) no soportadas por GAS v2B
 function api(action){return Promise.reject(new Error('No implementado: '+action));}
+
+/* ===================== CAPTURA RÁPIDA — v0.7 B6 =====================
+   El MISMO formulario de viewCapture navegado slide por slide (1-3 campos).
+   No se mueve ni duplica DOM: solo se ocultan con .qk-hide los slides no
+   activos (los listeners quedan intactos). Esenciales bloqueantes: valor o
+   S/I / N/A EXPLÍCITO antes de avanzar; el resto se salta libre. El timer de
+   5 min es referencia visual, no corta nada. Mismo markdown/historial/GAS. */
+var quickPending=false,qkOn=false,qkSlides=[],qkIdx=0;
+
+/* esenciales = los mismos campos que determinan estrellas (updateProgress) */
+var QK_ESSENTIALS=[
+  {sel:'tipoChips',hard:true,ok:function(){return !!state.tipo;},msg:'Elige el tipo de inmueble para continuar (define el código PROP/TERR).'},
+  {sel:'zonaChips',ok:function(){return zonasSel.length>0;},msg:'Elige al menos una zona, o Saltar para dejarla S/I.'},
+  {sel:'f_direccion',ok:function(){return filled('f_direccion')||$('f_nombre').value.trim()!=='';},msg:'La dirección (o el nombre) identifica la propiedad. Escríbela o Saltar para S/I.'},
+  {sel:'f_precio',when:function(){return state.oper==='Venta'||state.oper==='Venta y Renta';},ok:function(){return filled('f_precio');},msg:'Precio de venta: escríbelo o márcalo S/I.'},
+  {sel:'f_precio_renta',when:function(){return state.oper==='Renta'||state.oper==='Venta y Renta';},ok:function(){return filled('f_precio_renta');},msg:'Precio de renta: escríbelo o márcalo S/I.'},
+  {sel:'f_m2t',when:function(){return !!state.tipo&&SIN_M2T_OBLIG.indexOf(state.tipo)===-1;},ok:function(){return filled('f_m2t');},msg:'m² de terreno: escríbelo o márcalo S/I.'},
+  {sel:'f_m2c',when:function(){return !!state.tipo&&state.tipo!=='Terreno';},ok:function(){return filled('f_m2c');},msg:'m² de construcción: escríbelo o márcalo S/I.'},
+  {sel:'f_rec',when:function(){return !!state.tipo&&state.tipo!=='Terreno';},ok:function(){return filled('f_rec');},msg:'Recámaras: escríbelas o márcalas S/I.'},
+  {sel:'f_ban',when:function(){return !!state.tipo&&state.tipo!=='Terreno';},ok:function(){return filled('f_ban');},msg:'Baños: escríbelos o márcalos S/I.'},
+  {sel:'f_uso',when:function(){return state.tipo==='Terreno';},ok:function(){return filled('f_uso');},msg:'Uso de suelo: escríbelo o márcalo S/I.'},
+  {sel:'f_frente',when:function(){return state.tipo==='Terreno';},ok:function(){return filled('f_frente');},msg:'Frente del terreno: escríbelo o márcalo S/I.'}
+];
+
+function qkHiddenEl(el){return el.hidden||el.style.display==='none';}
+function qkCollectSlides(){
+  qkSlides=[];var titulo='';
+  Array.prototype.forEach.call($('viewCapture').children,function(ch){
+    if(ch.id==='outputArea'||ch.id==='qkNav')return;
+    var cl=ch.classList;
+    if(cl.contains('view-header')||cl.contains('doc-title')||cl.contains('doc-sub')||cl.contains('progress-wrap')||cl.contains('timer-widget'))return;
+    if(ch.tagName==='H2'){titulo=(ch.childNodes[0]&&ch.childNodes[0].textContent||ch.textContent).trim();return;}
+    if(cl.contains('actions')){qkSlides.push({el:ch,titulo:'¡Listo!',gen:true});return;} // (la danger-zone interna se oculta por CSS en quick-mode)
+    var h2i=ch.querySelector&&ch.querySelector('h2');
+    qkSlides.push({el:ch,titulo:h2i?(h2i.childNodes[0]&&h2i.childNodes[0].textContent||h2i.textContent).trim():titulo});
+  });
+}
+function qkPendientes(slideEl){
+  return QK_ESSENTIALS.filter(function(q){
+    var el=$(q.sel);
+    if(!el||!slideEl.contains(el))return false;
+    if(q.when&&!q.when())return false;
+    return !q.ok();
+  });
+}
+function qkAviso(txt){
+  var m=$('qkMsg');m.textContent=txt;m.hidden=false;
+  sndError();
+}
+function qkShow(i){
+  qkIdx=i;
+  qkSlides.forEach(function(s,j){s.el.classList.toggle('qk-hide',j!==i);});
+  var s=qkSlides[i];
+  s.el.classList.remove('qk-slide-in');void s.el.offsetWidth;s.el.classList.add('qk-slide-in');
+  $('qkSec').textContent=s.titulo||'Captura rápida';
+  $('qkCount').textContent=(i+1)+' / '+qkSlides.length;
+  $('qkPrev').disabled=(qkSiguiente(i,-1)===-1);
+  $('qkSkip').style.visibility=s.gen?'hidden':'visible';
+  $('qkNext').textContent=s.gen?'⚡ Generar Markdown':'Siguiente →';
+  $('qkMsg').hidden=true;
+  if(window.scrollTo)window.scrollTo(0,0);
+}
+/* siguiente slide visible en dirección dir (los ocultos por tipo/oper se saltan) */
+function qkSiguiente(from,dir){
+  for(var j=from+dir;j>=0&&j<qkSlides.length;j+=dir){
+    if(!qkHiddenEl(qkSlides[j].el))return j;
+  }
+  return -1;
+}
+function qkStart(){
+  qkCollectSlides();
+  if(!qkSlides.length)return;
+  qkOn=true;
+  document.body.classList.add('quick-mode');
+  $('qkNav').hidden=false;
+  // timer 5 min como referencia visual (no corta nada; no pisa la preferencia guardada)
+  if(timerState!=='running'){timerLimit=300;startTimer();}
+  var first=qkHiddenEl(qkSlides[0].el)?qkSiguiente(0,1):0;
+  qkShow(first===-1?0:first);
+}
+function qkStop(){
+  if(!qkOn)return;
+  qkOn=false;
+  document.body.classList.remove('quick-mode');
+  $('qkNav').hidden=true;
+  qkSlides.forEach(function(s){s.el.classList.remove('qk-hide','qk-slide-in');});
+  timerLimit=load('cfg_timer_limit',600); // restaurar preferencia del asesor
+}
+$('homeQuickCard').addEventListener('click',function(){quickPending=true;});
+$('qkExit').addEventListener('click',qkStop);
+$('qkPrev').addEventListener('click',function(){
+  var j=qkSiguiente(qkIdx,-1);if(j!==-1)qkShow(j);
+});
+$('qkNext').addEventListener('click',function(){
+  var s=qkSlides[qkIdx];if(!s)return;
+  var pend=qkPendientes(s.el);
+  if(pend.length){qkAviso(pend[0].msg);return;}
+  if(s.gen){$('btnGen').click();return;} // mismo pipeline; al llegar a resultado, showView apaga el modo
+  var j=qkSiguiente(qkIdx,1);if(j!==-1)qkShow(j);
+});
+$('qkSkip').addEventListener('click',function(){
+  var s=qkSlides[qkIdx];if(!s||s.gen)return;
+  var pend=qkPendientes(s.el);
+  var dura=pend.filter(function(q){return q.hard;})[0];
+  if(dura){qkAviso(dura.msg);return;}
+  if(pend.length){
+    if(!confirm('Hay datos esenciales sin llenar en este paso. ¿Marcarlos como S/I y continuar?'))return;
+    // consentimiento explícito: activar S/I donde exista el botón
+    pend.forEach(function(q){
+      var b=document.querySelector('.si-btn[data-for="'+q.sel+'"]');
+      if(b&&!siOn(q.sel))b.click();
+    });
+  }
+  var j=qkSiguiente(qkIdx,1);if(j!==-1)qkShow(j);
+});
 
 /* ===================== BLOQUE 4 — MICROINTERACCIONES ===================== */
 

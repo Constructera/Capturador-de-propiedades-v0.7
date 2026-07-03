@@ -38,6 +38,11 @@
       <span class="home-label">Capturar propiedad</span>
       <span class="home-desc">Casa, depto, terreno, local, bodega u otro inmueble</span>
     </button>
+    <button type="button" class="home-card hc-quick" id="homeQuickCard" data-view="viewAdvisor">
+      <span class="home-icon">⚡</span>
+      <span class="home-label">Captura Rápida</span>
+      <span class="home-desc">El mismo formulario, en slides veloces estilo Duolingo</span>
+    </button>
     <button type="button" class="home-card hc-contact" data-view="viewContact">
       <span class="home-icon">👤</span>
       <span class="home-label">Capturar cliente / socio</span>
@@ -467,6 +472,18 @@
   </div>
 
   <!-- SALIDA -->
+  <!-- v0.7 B6: barra de navegación del modo Captura Rápida (slides) -->
+  <div class="qk-nav" id="qkNav" hidden>
+    <div class="qk-info"><span class="qk-sec" id="qkSec"></span><span class="qk-count" id="qkCount"></span></div>
+    <div class="qk-msg" id="qkMsg" hidden></div>
+    <div class="qk-btns">
+      <button type="button" class="btn" id="qkPrev">←</button>
+      <button type="button" class="btn btn-ghost" id="qkSkip">Saltar</button>
+      <button type="button" class="btn btn-accent" id="qkNext" style="flex:1">Siguiente →</button>
+    </div>
+    <button type="button" class="btn-back" id="qkExit">✕ Salir del modo rápido (ver formulario completo)</button>
+  </div>
+
   <div id="outputArea">
     <div class="callout ok" id="exitoBox"></div>
     <div class="callout" id="resumenBox"></div>

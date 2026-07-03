@@ -581,6 +581,29 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 [data-theme="dark"] .cat-panel{background:#202020;border-color:var(--line)}
 [data-theme="dark"] .cat-group{background:var(--bg-soft);border-color:transparent}
 
+/* ===== v0.7 B6 — Captura Rápida (formulario completo en slides) ===== */
+.home-card.hc-quick .home-icon{color:#ff9600}
+[data-theme="dark"] .home-card.hc-quick{background:#ff9600;border-color:#ff9600;--_shadow:#b36800;--_shadow:color-mix(in srgb,#ff9600 70%,#000 30%)}
+[data-theme="dark"] .home-card.hc-quick .home-label,[data-theme="dark"] .home-card.hc-quick .home-icon{color:#fff}
+[data-theme="dark"] .home-card.hc-quick .home-desc{color:rgba(255,255,255,.80)}
+.qk-nav{position:fixed;left:0;right:0;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line);padding:10px 14px;z-index:120;display:flex;flex-direction:column;gap:8px;box-shadow:0 -3px 12px rgba(0,0,0,.06)}
+.qk-info{display:flex;justify-content:space-between;align-items:center;font-size:.78rem;font-weight:800}
+.qk-sec{color:var(--accent)}
+.qk-count{color:var(--text-soft)}
+.qk-msg{font-size:.8rem;font-weight:700;color:var(--warn);background:var(--warn-bg);border-radius:8px;padding:8px 10px;animation:tag-in 160ms cubic-bezier(.34,1.56,.64,1)}
+.qk-btns{display:flex;gap:8px}
+.qk-btns .btn{padding:12px 16px;font-size:.95rem}
+#qkExit{align-self:center;font-size:.75rem;padding:2px 0}
+/* en modo rápido: solo el slide activo es visible; títulos van en la barra */
+.qk-hide{display:none!important}
+body.quick-mode #viewCapture>h2{display:none}
+body.quick-mode .danger-zone{display:none}
+body.quick-mode #viewCapture{padding-bottom:200px}
+.qk-slide-in{animation:qk-in 200ms cubic-bezier(.34,1.56,.64,1)}
+@keyframes qk-in{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.qk-slide-in,.qk-msg{animation:none!important}}
+[data-theme="dark"] .qk-nav{background:#1e1e1e;border-top-color:var(--line);box-shadow:none}
+
 /* ===== v0.7 — mascota chroma key (canvas) ===== */
 .chroma-on{position:relative}
 /* Regresión v0.7: chroma-on pisaba el position:fixed del float de contactos

@@ -71,6 +71,14 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **El equipo ya captura en producción:** 5 capturas nuevas del 03-jul (4× "Jacarandas" de Erica — comparten carpeta Drive por ser el mismo nombre de propiedad, probablemente reintentos; + "Ponton" 3⭐ de Carlos). Backfill de `driveUrl` completado para las 11 capturas. GET verificado: 11 filas shape uniforme, ranking cuadra (Daniel 3/3⭐, Carlos 2/6⭐, Gabriel 1/2⭐, Erica 5/4⭐).
 - Pendiente sugerido al dueño: depurar los 3 duplicados de "Jacarandas" con el borrado PIN desde la app, y borrar la pestaña backup cuando la haya revisado.
 
+### Bloque 6 (03-jul-2026) — Modo Captura Rápida (slides Duolingo)
+Lineamientos del dueño (03-jul): mismo formulario completo navegado en slides; esenciales bloqueantes con S/I-N/A explícito; resto saltable libre; convive con el tradicional; timer 5 min como referencia visual, no límite duro.
+- **Tarjeta "⚡ Captura Rápida" en Home** (convive con "Capturar propiedad"; mismo paso de asesor). El modo particiona el MISMO `viewCapture` en ~28 slides (cada bloque de campos = 1 slide, títulos de sección en la barra): **cero duplicación de DOM y listeners intactos** (solo clases `.qk-hide`), así que markdown, historial, GAS y edición son idénticos al flujo tradicional.
+- **Barra fija inferior:** sección + contador "N / M", ← Atrás, **Saltar** y **Siguiente →** (en el último slide: "⚡ Generar Markdown" → dispara el `btnGen` de siempre). Salida manual con "✕ Salir del modo rápido" restaura el formulario completo con todo lo capturado.
+- **Esenciales bloqueantes** (los mismos de `updateProgress`, condicionados por tipo/operación): tipo (duro, sin S/I), zona, dirección/nombre, precio venta/renta, m² terreno (exención Depto/Penthouse), m² construcción, recámaras, baños; terreno: uso de suelo y frente. Siguiente muestra aviso de qué falta; **Saltar en slide esencial pide consentimiento y MARCA S/I** (nunca se salta en silencio). Slides ocultos por tipo/operación (renta, terreno, unidades) se brincan solos.
+- **Timer:** arranca solo en 5 min como meta visual (mascota/estados de siempre); al salir del modo se restaura la preferencia guardada del asesor.
+- **Tests:** `tests/test_quick.js` (32 asserts jsdom: entrada, esencial duro, S/I con consentimiento, opcionales libres, generación por el mismo pipeline, salida limpia, flujo tradicional intacto). Total: **332 asserts verdes en 9 suites**. SW: B6-r1.
+
 ### Easter eggs / logros (02-jul-2026)
 - 6 hitos por asesor derivados del historial local: 🎉 primera captura, 🔥 10, 🏆 25, 💎 5 perfectas (3⭐), ⚡ racha 3 días, 🌟 racha 7 días. Celebración con confetti + sonido + vibración tras la animación de estrellas; cola si se desbloquean varios; persisten en cap_logros (nunca se repiten; editar no re-otorga). Tests: tests/test_logros.js (14 asserts). SW: B3-r2.
 
