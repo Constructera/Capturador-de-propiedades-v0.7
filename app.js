@@ -2819,7 +2819,7 @@ function qkHiddenEl(el){return el.hidden||el.style.display==='none';}
 function qkCollectSlides(){
   qkSlides=[];var titulo='';
   Array.prototype.forEach.call($('viewCapture').children,function(ch){
-    if(ch.id==='outputArea'||ch.id==='qkNav')return;
+    if(ch.id==='outputArea'||ch.id==='qkNav'||ch.id==='qkTitle')return;
     var cl=ch.classList;
     if(cl.contains('view-header')||cl.contains('doc-title')||cl.contains('doc-sub')||cl.contains('progress-wrap')||cl.contains('timer-widget'))return;
     if(ch.tagName==='H2'){titulo=(ch.childNodes[0]&&ch.childNodes[0].textContent||ch.textContent).trim();return;}
@@ -2846,6 +2846,8 @@ function qkShow(i){
   var s=qkSlides[i];
   s.el.classList.remove('qk-slide-in');void s.el.offsetWidth;s.el.classList.add('qk-slide-in');
   $('qkSec').textContent=s.titulo||'Captura rápida';
+  // C2: la pregunta del slide visible también en el contenido (los h2 van ocultos)
+  var qt=$('qkTitle');if(qt){qt.textContent=s.titulo||'';qt.hidden=!s.titulo;}
   $('qkCount').textContent=(i+1)+' / '+qkSlides.length;
   $('qkPrev').disabled=(qkSiguiente(i,-1)===-1);
   $('qkSkip').style.visibility=s.gen?'hidden':'visible';
@@ -2876,10 +2878,21 @@ function qkStop(){
   qkOn=false;
   document.body.classList.remove('quick-mode');
   $('qkNav').hidden=true;
+  var qt=$('qkTitle');if(qt)qt.hidden=true;
   qkSlides.forEach(function(s){s.el.classList.remove('qk-hide','qk-slide-in');});
   timerLimit=load('cfg_timer_limit',600); // restaurar preferencia del asesor
 }
 $('homeQuickCard').addEventListener('click',function(){quickPending=true;});
+// C4: steppers −/+ en numéricos (rec, baños, medios, estacionamientos)
+document.addEventListener('click',function(e){
+  var b=e.target.closest('.stp-btn');if(!b)return;
+  var inp=$(b.dataset.stp);if(!inp)return;
+  var v=parseInt(inp.value,10);if(isNaN(v))v=0;
+  v=Math.max(0,v+parseInt(b.dataset.d,10));
+  inp.value=v;
+  inp.dispatchEvent(new Event('input',{bubbles:true}));
+  inp.dispatchEvent(new Event('change',{bubbles:true}));
+});
 $('qkExit').addEventListener('click',qkStop);
 $('qkPrev').addEventListener('click',function(){
   var j=qkSiguiente(qkIdx,-1);if(j!==-1)qkShow(j);

@@ -52,7 +52,7 @@ function visibleSlides(w) {
   return Array.prototype.filter.call(
     w.document.querySelectorAll('#viewCapture > *'),
     function (el) {
-      if (el.id === 'qkNav' || el.id === 'outputArea' || el.tagName === 'H2') return false;
+      if (el.id === 'qkNav' || el.id === 'outputArea' || el.id === 'qkTitle' || el.tagName === 'H2') return false;
       var cl = el.classList;
       if (cl.contains('view-header') || cl.contains('doc-title') || cl.contains('doc-sub') ||
           cl.contains('progress-wrap') || cl.contains('timer-widget')) return false;

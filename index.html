@@ -151,6 +151,8 @@
   </div>
 
   <!-- 0 ANUNCIO -->
+  <!-- C2: pregunta del slide activo (solo modo rápido) -->
+  <div class="qk-question" id="qkTitle" hidden></div>
   <h2>¿Viene de un anuncio? <span class="h-hint">wiggot, inmuebles24, vivanuncios…</span></h2>
   <div class="field">
     <input type="url" id="f_anuncio" placeholder="Pega aquí el link del anuncio">
@@ -209,6 +211,7 @@
 
   <!-- 2 UBICACIÓN -->
   <h2>Ubicación <span class="h-hint">la dirección es el identificador principal</span></h2>
+  <div class="qk-group"><!-- C8: dirección + maps en un slide -->
   <div class="field">
     <div class="field-top"><label>Dirección <span class="req">*</span></label></div>
     <textarea id="f_direccion" placeholder="Empieza a escribir y toca una sugerencia del mapa, o escribe completo."></textarea>
@@ -219,11 +222,11 @@
     </div>
     <div class="status" id="geoStatus"></div>
   </div>
-
   <div class="field">
     <div class="field-top"><label>Link de referencia (Google Maps)</label></div>
     <input type="text" id="f_maps" placeholder="Se genera solo con 📍 o el mapa; también puedes pegarlo">
     <div class="hint">Si pegas un link de Maps, se intentan leer las coordenadas.</div>
+  </div>
   </div>
 
   <div class="field">
@@ -239,6 +242,7 @@
 
   <!-- 3 IDENTIFICACIÓN -->
   <h2>Identificación</h2>
+  <div class="qk-group"><!-- C1: nombre + fecha + fuente en un slide -->
   <div class="field">
     <div class="field-top"><label>Nombre de la propiedad</label></div>
     <input type="text" id="f_nombre" placeholder="Se genera solo si lo dejas vacío">
@@ -270,6 +274,7 @@
       </div>
     </div>
   </div>
+  </div><!-- /C1 -->
 
   <!-- 4 QUIÉN LA OFRECE -->
   <h2>¿Quién ofrece la propiedad?</h2>
@@ -308,6 +313,7 @@
     </div>
   </div>
 
+  <div class="qk-group"><!-- C3: precio + moneda + negociable (y renta cuando aplique) en un slide -->
   <div class="field" id="rowPrecioVenta">
     <div class="field-top"><label>Precio de venta <span class="req">*</span></label><button type="button" class="si-btn" data-for="f_precio">S/I</button></div>
     <input type="text" inputmode="numeric" id="f_precio" placeholder='Ej. 3600000, "3.6 millones" o "tres millones seiscientos mil"'>
@@ -332,20 +338,23 @@
     <div class="field"><div class="field-top"><label>¿Precio negociable?</label></div>
       <select id="f_negociable"><option selected>S/I</option><option>Sí</option><option>No</option></select></div>
   </div>
+  </div><!-- /C3 -->
 
-  <div data-construccion>
+  <div data-construccion><!-- C4: rec + baños + medios + estacionamientos en un slide, con steppers -->
     <div class="row2">
       <div class="field"><div class="field-top"><label>Recámaras</label><button type="button" class="si-btn" data-for="f_rec">S/I</button></div>
-        <input type="number" inputmode="numeric" id="f_rec" placeholder="0"></div>
+        <div class="stp-row"><button type="button" class="stp-btn" data-stp="f_rec" data-d="-1">−</button><input type="number" inputmode="numeric" id="f_rec" placeholder="0"><button type="button" class="stp-btn" data-stp="f_rec" data-d="1">+</button></div></div>
       <div class="field"><div class="field-top"><label>Baños completos</label><button type="button" class="si-btn" data-for="f_ban">S/I</button></div>
-        <input type="text" inputmode="numeric" id="f_ban" placeholder="Ej. 2"></div>
+        <div class="stp-row"><button type="button" class="stp-btn" data-stp="f_ban" data-d="-1">−</button><input type="text" inputmode="numeric" id="f_ban" placeholder="Ej. 2"><button type="button" class="stp-btn" data-stp="f_ban" data-d="1">+</button></div></div>
     </div>
     <div class="row2">
       <div class="field"><div class="field-top"><label>Medios baños</label><button type="button" class="si-btn" data-for="f_ban_medios">S/I</button></div>
-        <input type="text" inputmode="numeric" id="f_ban_medios" placeholder="Ej. 1"></div>
+        <div class="stp-row"><button type="button" class="stp-btn" data-stp="f_ban_medios" data-d="-1">−</button><input type="text" inputmode="numeric" id="f_ban_medios" placeholder="Ej. 1"><button type="button" class="stp-btn" data-stp="f_ban_medios" data-d="1">+</button></div></div>
       <div class="field"><div class="field-top"><label>Estacionamientos</label><button type="button" class="si-btn" data-for="f_est">S/I</button></div>
-        <input type="number" inputmode="numeric" id="f_est" placeholder="0"></div>
+        <div class="stp-row"><button type="button" class="stp-btn" data-stp="f_est" data-d="-1">−</button><input type="number" inputmode="numeric" id="f_est" placeholder="0"><button type="button" class="stp-btn" data-stp="f_est" data-d="1">+</button></div></div>
     </div>
+  </div>
+  <div data-construccion><!-- C5: estado físico + características en un slide -->
     <div class="field"><div class="field-top"><label>Estado</label></div>
       <select id="f_estado_fis"><option>S/I</option><option>Nueva</option><option>En construcción</option><option>Usada — buen estado</option><option>Usada — para remodelar</option></select></div>
     <div class="field">
@@ -439,17 +448,20 @@
     <div class="field"><div class="field-top"><label>Fecha de seguimiento</label></div>
       <input type="date" id="f_seguimiento"></div>
   </div>
-  <div class="field"><div class="field-top"><label>Próxima acción</label></div>
-    <input type="text" id="f_proxima" placeholder="Ej. Confirmar datos pendientes con el contacto"></div>
-
   <!-- 8 NOTAS Y FOTOS -->
   <h2>Notas y fotos</h2>
+  <div class="qk-group"><!-- C6: próxima acción + puntos fuertes -->
+  <div class="field"><div class="field-top"><label>Próxima acción</label></div>
+    <input type="text" id="f_proxima" placeholder="Ej. Confirmar datos pendientes con el contacto"></div>
   <div class="field"><div class="field-top"><label>Puntos fuertes</label></div>
     <textarea id="f_fuertes" placeholder="Uno por línea. Ej: Buen precio / Buena zona / Es nueva"></textarea></div>
+  </div>
+  <div class="qk-group"><!-- C7: riesgos + notas de campo -->
   <div class="field"><div class="field-top"><label>Riesgos / dudas</label></div>
     <textarea id="f_riesgos" placeholder="Uno por línea."></textarea></div>
   <div class="field"><div class="field-top"><label>Notas de campo</label></div>
     <textarea id="f_notas" placeholder="Entorno, vecinos, urgencia del vendedor, contexto…"></textarea></div>
+  </div>
 
   <!-- 9 CRM -->
   <h2>Personas involucradas / CRM</h2>
