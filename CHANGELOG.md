@@ -79,6 +79,16 @@ Lineamientos del dueño (03-jul): mismo formulario completo navegado en slides; 
 - **Timer:** arranca solo en 5 min como meta visual (mascota/estados de siempre); al salir del modo se restaura la preferencia guardada del asesor.
 - **Tests:** `tests/test_quick.js` (32 asserts jsdom: entrada, esencial duro, S/I con consentimiento, opcionales libres, generación por el mismo pipeline, salida limpia, flujo tradicional intacto). Total: **332 asserts verdes en 9 suites**. SW: B6-r1.
 
+### Bloque 7 (04-jul-2026) — revisión móvil del dueño (A-G)
+- **A1:** editar desde el historial NUNCA hereda el modo rápido (quickPending solo sobrevive Home⚡→Asesor→Captura). **A2:** modal PIN contenido en móvil.
+- **B:** en modo rápido se ocultan navbar, header, fabs y pausa del timer; barra de slides fija abajo (z-300) sin overlaps; botones compactos; "Salir" mínimo y discreto (conserva datos).
+- **C:** slides reagrupados 1-3 campos (dirección+maps; nombre+fecha+fuente; precio+moneda+negociable; rec/baños/medios/est con **steppers −/+** que también dejan teclear; estado+características; próxima+fuertes; riesgos+notas); pregunta del slide visible en contenido (C2).
+- **D (ambos flujos):** chips de características — el pool solo muestra NO seleccionadas (las elegidas viven arriba como tags ✕ con entrada animada), salida con animación suave y relleno del hueco, "Ver más" solo si hay ocultas, "↻ Refrescar" baraja de verdad.
+- **E:** tarjeta final "Faltaron estos datos principales" (esenciales vacíos o en S/I) con "Rellenar los que faltaron" (salta al primero) o "Guardar sin esos datos"; solo si aplica.
+- **F:** tarjetas del catálogo = resumen de la PROPIEDAD (precio grande, tipo·oper·zona, 🛏🛁📐🌱, top-3 características) — sin markdown crudo ni links de texto (Drive es botón); metadatos de captura (pill+fecha+asesor+✏️editor) pequeños al fondo; **foto real de Drive como hero** cuando existe (GAS v3.5: `saveMarkdown` devuelve `fotoUrl` = miniatura de la primera imagen de la carpeta; fallback emoji). **v3.5 pendiente de pegar+Nueva versión (sin re-autorizar).**
+- **G:** botón "📇 Elegir de mis contactos" (Contact Picker API) en CRM de propiedades y en capturadora de contactos; trae nombre+teléfono; sin soporte del navegador queda oculto.
+- **Verificación de paridad:** `tests/test_md_paridad.js` — la MISMA data por flujo rápido y tradicional produce **markdown idéntico byte a byte** (4,322 chars; solo difieren uuid/fecha del META). Total: **344 asserts verdes en 10 suites.** SW: B6-r2.
+
 ### Easter eggs / logros (02-jul-2026)
 - 6 hitos por asesor derivados del historial local: 🎉 primera captura, 🔥 10, 🏆 25, 💎 5 perfectas (3⭐), ⚡ racha 3 días, 🌟 racha 7 días. Celebración con confetti + sonido + vibración tras la animación de estrellas; cola si se desbloquean varios; persisten en cap_logros (nunca se repiten; editar no re-otorga). Tests: tests/test_logros.js (14 asserts). SW: B3-r2.
 
