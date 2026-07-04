@@ -97,6 +97,9 @@ function showView(id){
   // v0.7 B6: entrada/salida del modo Captura Rápida
   if(id==='viewCapture'&&quickPending){quickPending=false;setTimeout(qkStart,0);}
   else if(id!=='viewCapture'&&qkOn)qkStop();
+  // A1: el pase al modo rápido solo sobrevive el trayecto Home⚡→Asesor→Captura;
+  // cualquier otra navegación lo cancela (evita contaminar la edición)
+  if(id!=='viewCapture'&&id!=='viewAdvisor')quickPending=false;
   document.body.classList.toggle('contact-active',id==='viewContact');
   window.scrollTo(0,0);
   if(id==='viewHistory')renderHist();
@@ -3084,6 +3087,7 @@ function abrirEdicion(id){
   var eb=$('editBanner');var ebn=$('editBannerNombre');
   if(eb){eb.style.display='';if(ebn)ebn.textContent=rec.nombre||'(sin nombre)';}
   var bg=$('btnGen');if(bg)bg.textContent='Actualizar captura';
+  quickPending=false;if(qkOn)qkStop(); // A1: editar SIEMPRE abre el formulario tradicional
   showView('viewCapture');
 }
 $('btnCancelEdit').addEventListener('click',function(){doReset();showView('viewHistory');});

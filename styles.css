@@ -570,6 +570,12 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 /* Flash de confirmación (feedback inmediato en acciones) */
 .flash-ok{animation:flash-ok 400ms ease}
 @keyframes flash-ok{30%{background-color:var(--accent);color:#fff;border-color:var(--accent)}}
+/* A2: modal de PIN contenido (no desbordar en móvil) */
+#pinOverlay .modal{width:min(92vw,340px);max-width:340px;box-sizing:border-box}
+#pinOverlay .modal-body{padding:14px 16px;box-sizing:border-box}
+#pinInput{width:100%;box-sizing:border-box;font-size:1.25rem;letter-spacing:.3em}
+#pinOverlay .modal-foot{display:flex;gap:8px;flex-wrap:wrap}
+#pinOverlay .modal-foot .btn{flex:1 1 auto;min-width:0;padding:12px 10px;font-size:.88rem;white-space:nowrap}
 /* Shake del modal de PIN cuando el PIN es incorrecto */
 .pin-shake{animation:pin-shake 320ms ease}
 @keyframes pin-shake{20%{transform:translateX(-8px)}45%{transform:translateX(7px)}70%{transform:translateX(-4px)}90%{transform:translateX(2px)}}
