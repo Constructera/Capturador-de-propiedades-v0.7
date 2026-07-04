@@ -607,6 +607,10 @@ body.quick-mode{padding-bottom:0}
 .qk-msg{font-size:.8rem;font-weight:700;color:var(--warn);background:var(--warn-bg);border-radius:8px;padding:8px 10px;animation:tag-in 160ms cubic-bezier(.34,1.56,.64,1)}
 .qk-btns{display:flex;gap:8px}
 .qk-btns .btn{padding:10px 12px;font-size:.9rem;box-shadow:0 3px 0 var(--_shadow)}
+/* D: chips de características — salida suave y tags con entrada animada */
+.chip.chip-out{max-width:0!important;opacity:0;padding-left:0!important;padding-right:0!important;margin:0!important;border-width:0!important;box-shadow:none!important;overflow:hidden;white-space:nowrap;transition:max-width 170ms ease,opacity 140ms ease,padding 170ms ease,margin 170ms ease}
+.tags .tag{animation:tag-in 180ms cubic-bezier(.34,1.56,.64,1)}
+@media(prefers-reduced-motion:reduce){.chip.chip-out,.tags .tag{transition:none!important;animation:none!important}}
 /* C2: pregunta grande del slide activo */
 .qk-question{font-size:1.2rem;font-weight:800;margin:2px 0 12px;color:var(--text)}
 body:not(.quick-mode) .qk-question{display:none}

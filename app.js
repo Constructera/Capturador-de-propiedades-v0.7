@@ -910,39 +910,43 @@ var CARACT_ALIASES={
 function normalizeCaract(arr){
   return arr.map(function(c){return CARACT_ALIASES[c.toLowerCase()]||c;});
 }
-function buildCaract(){caractExpanded=false;renderCaract();}
+function buildCaract(){caractExpanded=false;caractOrden=null;renderCaract();}
 
+/* D: pool solo con NO seleccionadas (las elegidas viven arriba como tags con ✕).
+   Al elegir: el estado se actualiza al instante, la chip se desvanece con
+   animación y el hueco se rellena con la siguiente oculta al re-render. */
 function _renderCaractPool(poolFn,selArr,chipsEl,btnMasId,expanded,refreshFn){
-  var pool=poolFn();
+  var pool=poolFn().filter(function(c){return selArr.indexOf(c)===-1;});
+  var vis=expanded?pool:pool.slice(0,CARACT_TOP);
   var chips=$(chipsEl);chips.innerHTML='';
-  // Top CARACT_TOP — unselected only
-  pool.slice(0,CARACT_TOP).forEach(function(c){
-    if(selArr.indexOf(c)>=0)return;
+  vis.forEach(function(c){
     var b=document.createElement('button');b.type='button';b.className='chip chip-sm';b.textContent=c;
-    b.addEventListener('click',function(){selArr.push(c);refreshFn();updateProgress();});
-    chips.appendChild(b);
-  });
-  // Hidden zone selected — always visible as .sel chips (clickable to deselect)
-  pool.slice(CARACT_TOP).forEach(function(c){
-    if(selArr.indexOf(c)<0)return;
-    var b=document.createElement('button');b.type='button';b.className='chip chip-sm sel';b.textContent=c;
     b.addEventListener('click',function(){
-      var idx=selArr.indexOf(c);if(idx>=0)selArr.splice(idx,1);
-      refreshFn();updateProgress();
+      selArr.push(c);updateProgress();
+      b.style.maxWidth=b.offsetWidth+'px';void b.offsetWidth;
+      b.classList.add('chip-out');b.disabled=true;
+      setTimeout(refreshFn,170);
     });
     chips.appendChild(b);
   });
-  // Hidden zone unselected — only when expanded
-  if(expanded){
-    pool.slice(CARACT_TOP).forEach(function(c){
-      if(selArr.indexOf(c)>=0)return;
-      var b=document.createElement('button');b.type='button';b.className='chip chip-sm';b.textContent=c;
-      b.addEventListener('click',function(){selArr.push(c);refreshFn();updateProgress();});
-      chips.appendChild(b);
-    });
+  var btn=$(btnMasId);
+  if(btn){
+    btn.style.display=pool.length>CARACT_TOP?'':'none';
+    btn.textContent=expanded?'Ver menos ↑':'Ver más ↓';
   }
-  // Update Ver más button text
-  var btn=$(btnMasId);if(btn)btn.textContent=expanded?'Ver menos ↑':'Ver más ↓';
+}
+function shuffleArr(a){
+  a=a.slice();
+  for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
+  return a;
+}
+var caractOrden=null; // orden barajado de la sesión (↻ Refrescar)
+function poolForShuffled(){
+  var p=poolFor();
+  if(!caractOrden)return p;
+  var out=caractOrden.filter(function(c){return p.indexOf(c)!==-1;});
+  p.forEach(function(c){if(out.indexOf(c)===-1)out.push(c);});
+  return out;
 }
 
 function renderCaract(){
@@ -955,7 +959,7 @@ function renderCaract(){
     x.addEventListener('click',function(){state.caract=state.caract.filter(function(v){return v!==c;});renderCaract();updateProgress();});
     t.appendChild(x);tags.appendChild(t);
   });
-  _renderCaractPool(poolFor,state.caract,'caractChips','btnCaractMas',caractExpanded,renderCaract);
+  _renderCaractPool(poolForShuffled,state.caract,'caractChips','btnCaractMas',caractExpanded,renderCaract);
 }
 function addCaract(c){
   if(!c)return;
@@ -967,7 +971,11 @@ $('btnCaractAdd').addEventListener('click',function(){
   if(v){addCaract(v);inp.value='';renderCaract();updateProgress();}
 });
 $('btnCaractMas').addEventListener('click',function(){caractExpanded=!caractExpanded;renderCaract();});
-$('btnCaractRefresh').addEventListener('click',function(){caractExpanded=false;renderCaract();});
+$('btnCaractRefresh').addEventListener('click',function(){
+  // D: barajar las no seleccionadas para proponer otras
+  caractOrden=shuffleArr(poolFor());
+  caractExpanded=false;renderCaract();
+});
 $('f_caract_buscar').addEventListener('keydown',function(e){
   if(e.key==='Enter'){e.preventDefault();var v=this.value.trim();if(v){addCaract(v);this.value='';updateProgress();}}
 });
