@@ -140,7 +140,19 @@ function avanzarHasta(w, pred, max) {
   var genSlide = avanzarHasta(w, function (el) { return el && el.querySelector && !!el.querySelector('#btnGen'); });
   assert(!!genSlide, 'el último slide es Generar');
   assert($(w, 'qkNext').textContent.indexOf('Generar') !== -1, 'el botón principal cambia a ⚡ Generar Markdown');
+  // E1: como quedaron esenciales en S/I, aparece la tarjeta de faltantes
   $(w, 'qkNext').click();
+  assert(!$(w, 'qkResumen').hidden, 'E1: tarjeta "Faltaron estos datos principales" visible');
+  assert($(w, 'qkResLista').textContent.indexOf('Precio') !== -1, 'E1: lista los esenciales sin dato real');
+  $(w, 'qkResFill').click();
+  assert($(w, 'qkResumen').hidden, 'E1: "Rellenar" cierra la tarjeta');
+  var slideFill = slideActual(w);
+  assert(!!slideFill && !!slideFill.querySelector('#f_direccion, #f_precio, #zonaChips'), 'E1: "Rellenar" salta al primer faltante');
+  // volver a generar y esta vez guardar sin esos datos
+  var genSlide2 = avanzarHasta(w, function (el) { return el && el.querySelector && !!el.querySelector('#btnGen'); });
+  $(w, 'qkNext').click();
+  assert(!$(w, 'qkResumen').hidden, 'E1: reaparece si sigue faltando');
+  $(w, 'qkResSave').click();
   await sleep(60);
   var hist = JSON.parse(w.localStorage.getItem('cap_hist') || '[]');
   assert(hist.length === 1, 'la captura quedó en el MISMO historial');

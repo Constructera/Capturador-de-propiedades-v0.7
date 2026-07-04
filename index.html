@@ -484,6 +484,16 @@
   </div>
 
   <!-- SALIDA -->
+  <!-- E1: resumen final de faltantes principales (solo modo rápido) -->
+  <div class="qk-resumen" id="qkResumen" hidden>
+    <div class="qk-question">⚠️ Faltaron estos datos principales:</div>
+    <ul id="qkResLista"></ul>
+    <div class="btn-row">
+      <button type="button" class="btn btn-accent" id="qkResFill" style="flex:1">✍️ Rellenar los que faltaron</button>
+      <button type="button" class="btn" id="qkResSave">Guardar sin esos datos</button>
+    </div>
+  </div>
+
   <!-- v0.7 B6: barra de navegación del modo Captura Rápida (slides) -->
   <div class="qk-nav" id="qkNav" hidden>
     <div class="qk-info"><span class="qk-sec" id="qkSec"></span><span class="qk-count" id="qkCount"></span></div>

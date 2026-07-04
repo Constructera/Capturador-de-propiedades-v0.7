@@ -2827,7 +2827,7 @@ function qkHiddenEl(el){return el.hidden||el.style.display==='none';}
 function qkCollectSlides(){
   qkSlides=[];var titulo='';
   Array.prototype.forEach.call($('viewCapture').children,function(ch){
-    if(ch.id==='outputArea'||ch.id==='qkNav'||ch.id==='qkTitle')return;
+    if(ch.id==='outputArea'||ch.id==='qkNav'||ch.id==='qkTitle'||ch.id==='qkResumen')return;
     var cl=ch.classList;
     if(cl.contains('view-header')||cl.contains('doc-title')||cl.contains('doc-sub')||cl.contains('progress-wrap')||cl.contains('timer-widget'))return;
     if(ch.tagName==='H2'){titulo=(ch.childNodes[0]&&ch.childNodes[0].textContent||ch.textContent).trim();return;}
@@ -2887,6 +2887,8 @@ function qkStop(){
   document.body.classList.remove('quick-mode');
   $('qkNav').hidden=true;
   var qt=$('qkTitle');if(qt)qt.hidden=true;
+  $('qkResumen').hidden=true;
+  var qb=document.querySelector('#qkNav .qk-btns');if(qb)qb.style.display='';
   qkSlides.forEach(function(s){s.el.classList.remove('qk-hide','qk-slide-in');});
   timerLimit=load('cfg_timer_limit',600); // restaurar preferencia del asesor
 }
@@ -2905,11 +2907,48 @@ $('qkExit').addEventListener('click',qkStop);
 $('qkPrev').addEventListener('click',function(){
   var j=qkSiguiente(qkIdx,-1);if(j!==-1)qkShow(j);
 });
+/* E1: esenciales que quedaron SIN dato real (vacíos o en S/I) al final */
+var QK_LBL={tipoChips:'Tipo de inmueble',zonaChips:'Zona',f_direccion:'Dirección',f_precio:'Precio de venta',f_precio_renta:'Precio de renta',f_m2t:'m² terreno',f_m2c:'m² construcción',f_rec:'Recámaras',f_ban:'Baños',f_uso:'Uso de suelo',f_frente:'Frente del terreno'};
+function qkFaltantesFinales(){
+  return QK_ESSENTIALS.filter(function(q){
+    if(q.when&&!q.when())return false;
+    if(q.sel==='tipoChips')return !state.tipo;
+    if(q.sel==='zonaChips')return !zonasSel.length;
+    if(q.sel==='f_direccion')return !$('f_direccion').value.trim()&&!$('f_nombre').value.trim();
+    var el=$(q.sel);
+    return !!el&&!el.value.trim(); // vacío o S/I marcado = sin dato real
+  });
+}
+function qkOcultarResumen(){
+  $('qkResumen').hidden=true;
+  document.querySelector('#qkNav .qk-btns').style.display='';
+}
+$('qkResFill').addEventListener('click',function(){
+  qkOcultarResumen();
+  var f=qkFaltantesFinales()[0];
+  if(!f)return;
+  var el=$(f.sel);
+  for(var i=0;i<qkSlides.length;i++){
+    if(el&&qkSlides[i].el.contains(el)){qkShow(i);return;}
+  }
+});
+$('qkResSave').addEventListener('click',function(){qkOcultarResumen();$('btnGen').click();});
 $('qkNext').addEventListener('click',function(){
   var s=qkSlides[qkIdx];if(!s)return;
   var pend=qkPendientes(s.el);
   if(pend.length){qkAviso(pend[0].msg);return;}
-  if(s.gen){$('btnGen').click();return;} // mismo pipeline; al llegar a resultado, showView apaga el modo
+  if(s.gen){
+    // E1: última tarjeta si quedaron esenciales sin dato real (solo si aplica)
+    var falt=qkFaltantesFinales();
+    if(falt.length&&$('qkResumen').hidden){
+      $('qkResLista').innerHTML=falt.map(function(q){return '<li>'+esc(QK_LBL[q.sel]||q.sel)+'</li>';}).join('');
+      qkSlides.forEach(function(x){x.el.classList.add('qk-hide');});
+      $('qkResumen').hidden=false;
+      document.querySelector('#qkNav .qk-btns').style.display='none';
+      return;
+    }
+    $('btnGen').click();return; // mismo pipeline; al llegar a resultado, showView apaga el modo
+  }
   var j=qkSiguiente(qkIdx,1);if(j!==-1)qkShow(j);
 });
 $('qkSkip').addEventListener('click',function(){
