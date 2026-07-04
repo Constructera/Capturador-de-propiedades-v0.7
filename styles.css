@@ -567,6 +567,15 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .cat-price .cat-cur{font-size:.75rem;font-weight:700;color:var(--text-soft)}
 .cat-price-si{font-size:.85rem;color:var(--si);font-weight:700}
 .cat-card .hi-name{margin-top:2px}
+/* F: resumen de la propiedad primero; metadatos de captura pequeños al fondo */
+.cat-hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cat-card .cat-hero{min-height:64px}
+.cat-summary{font-size:.85rem;font-weight:700;margin-top:2px}
+.cat-specs{font-size:.82rem;color:var(--text);margin-top:4px}
+.cat-caract{font-size:.75rem;color:var(--text-soft);margin-top:3px}
+.cat-meta{font-size:.68rem;color:var(--text-soft);margin-top:10px;border-top:1px solid var(--line);padding-top:7px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cat-meta .hi-state{font-size:.6rem;padding:2px 6px}
+[data-theme="dark"] .cat-meta{border-top-color:#2c2c2c}
 /* Flash de confirmación (feedback inmediato en acciones) */
 .flash-ok{animation:flash-ok 400ms ease}
 @keyframes flash-ok{30%{background-color:var(--accent);color:#fff;border-color:var(--accent)}}

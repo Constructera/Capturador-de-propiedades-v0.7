@@ -2402,32 +2402,43 @@ function _renderHistList(h){
       item.className='hist-item cat-card';
       var sc=r.enviado?'sent':(r.faltantes&&r.faltantes.length?'miss':'gen');
       var st=r.enviado?'Enviada a Notion':(r.faltantes&&r.faltantes.length?'Con faltantes':'Generada');
+      var fd=r.formData||{},stx=fd._state||{};
       var pr=catPrecioDe(r);
-      var monedaCard=((r.formData||{}).f_moneda||'MXN');
+      var monedaCard=(fd.f_moneda||'MXN');
       var precioHtml=pr.v!=null
         ?'<div class="cat-price">$'+fmt(pr.v)+' <span class="cat-cur">'+esc(monedaCard)+'</span></div>'
         :(pr.r!=null
           ?'<div class="cat-price">$'+fmt(pr.r)+' <span class="cat-cur">'+esc(monedaCard)+'/mes</span></div>'
           :'<div class="cat-price cat-price-si">Precio S/I</div>');
-      item.innerHTML='<div class="cat-hero">'+(CAT_TIPO_EMOJI[r.tipo]||'🏠')+
-        '<span class="hi-state '+sc+'">'+st+'</span>'+
+      // F1: specs de la propiedad primero y en grande; F4: foto de Drive si existe
+      var specs=[];
+      if(fd.f_rec)specs.push('🛏 '+esc(fd.f_rec));
+      if(fd.f_ban)specs.push('🛁 '+esc(fd.f_ban)+(fd.f_ban_medios?('+'+esc(fd.f_ban_medios)):''));
+      if(fd.f_m2c)specs.push('📐 '+esc(fd.f_m2c)+' m²');
+      if(fd.f_m2t)specs.push('🌱 '+esc(fd.f_m2t)+' m² terr');
+      var carTop=(stx.caract||[]).slice(0,3).join(' · ');
+      item.innerHTML='<div class="cat-hero">'+
+        (r.fotoUrl?'<img class="cat-hero-img" src="'+esc(r.fotoUrl)+'" loading="lazy" alt="">':(CAT_TIPO_EMOJI[r.tipo]||'🏠'))+
         (r.driveUrl?'<span class="cat-hero-badge">📷</span>':'')+'</div>'+
         '<div class="cat-body">'+precioHtml+
         '<div class="hi-name">'+esc(r.nombre||'Sin nombre')+'</div>'+
+        '<div class="cat-summary">'+esc(r.tipo||'?')+' · '+esc(r.oper||'?')+' · '+esc(r.zona||'?')+'</div>'+
+        (specs.length?'<div class="cat-specs">'+specs.join('&ensp;')+'</div>':'')+
+        (carTop?'<div class="cat-caract">✨ '+esc(carTop)+'</div>':'')+
         (r.estrellas!=null?'<div class="hi-stars">'+histStars(r.estrellas,r.calidad)+'</div>':'')+
-        '<div class="hi-meta">'+(r.tipo||'?')+' · '+(r.oper||'?')+' · '+(r.zona||'?')+' · '+(r.asesorNombre||r.resp||'S/I')+
-        '<br>'+new Date(r.capturadoEn||r.fecha).toLocaleString('es-MX')+editDate+'</div>'+
         '<div class="hi-actions">'+
-          // B2: con carpeta Drive lista, el botón principal pasa de Copiar MD a Fotos Drive
-          (r.driveUrl
-            ?'<button type="button" class="btn" data-drive="'+r.id+'">📷 Fotos Drive</button>'
-            :'<button type="button" class="btn" data-copy="'+r.id+'">Copiar MD</button>')+
-          '<button type="button" class="btn" data-view2="'+r.id+'">Ver MD</button>'+
+          // F2: la carpeta Drive es un BOTÓN, nunca un link/markdown crudo en la tarjeta
+          (r.driveUrl?'<button type="button" class="btn" data-drive="'+r.id+'">📷 Fotos Drive</button>':'')+
+          '<button type="button" class="btn" data-copy="'+r.id+'">Copiar MD</button>'+
           (r.maps?'<button type="button" class="btn" data-maps="'+r.id+'">Maps</button>':'')+
           '<button type="button" class="btn" data-edit-prop="'+r.id+'">Editar</button>'+
           (r.enviado?'<button type="button" class="btn" data-pend="'+r.id+'">Marcar pendiente</button>':'<button type="button" class="btn" data-sent="'+r.id+'">Marcar enviada</button>')+
           '<button type="button" class="btn btn-danger" data-del2="'+r.id+'">Borrar</button>'+
-        '</div><pre style="display:none" id="md_'+r.id+'">'+esc(r.md||'')+'</pre></div>';
+        '</div>'+
+        // F3: metadatos de la captura pequeños y hasta abajo
+        '<div class="cat-meta"><span class="hi-state '+sc+'">'+st+'</span> '+
+        new Date(r.capturadoEn||r.fecha).toLocaleDateString('es-MX')+' · '+esc(r.asesorNombre||r.resp||'S/I')+
+        (r.editadoPor&&r.editadoPor!==r.asesorNombre?' · ✏️ '+esc(r.editadoPor):'')+editDate+'</div></div>';
     }
     wrap.appendChild(item);
   });
@@ -2776,13 +2787,18 @@ function gasSaveMarkdown(uuid,asesor,fecha,tipo,estatus,nombre,markdownText,dire
   var p={action:'saveMarkdown',uuid:uuid,asesor:asesor,fecha:fecha,tipo:tipo,estatus:estatus,nombre:nombre,direccion:direccion||'',markdown_md:markdownText,editadoPor:editadoPor||''};
   gasPost(p).then(function(r){
     // B2: el GAS crea/reutiliza la carpeta Drive de la propiedad y devuelve su URL
-    if(r&&r.ok&&r.folderUrl&&tipo==='propiedad'){
+    if(r&&r.ok&&tipo==='propiedad'&&(r.folderUrl||r.fotoUrl)){
       var h=getHist();var rec=h.filter(function(x){return x.id===uuid;})[0];
-      if(rec&&rec.driveUrl!==r.folderUrl){
-        rec.driveUrl=r.folderUrl;setHist(h);
-        // re-subir la captura con driveUrl para que la nube (fuente de verdad
-        // del historial) no lo pierda en el siguiente sync; GAS v3 hace upsert
-        gasPost(buildGasPayload(rec)).catch(function(){});
+      if(rec){
+        var ch=false;
+        if(r.folderUrl&&rec.driveUrl!==r.folderUrl){rec.driveUrl=r.folderUrl;ch=true;}
+        if(r.fotoUrl&&rec.fotoUrl!==r.fotoUrl){rec.fotoUrl=r.fotoUrl;ch=true;} // F4 (v3.5)
+        if(ch){
+          setHist(h);
+          // re-subir la captura con driveUrl/fotoUrl para que la nube (fuente
+          // de verdad del historial) no lo pierda en el siguiente sync
+          gasPost(buildGasPayload(rec)).catch(function(){});
+        }
       }
     }
   }).catch(function(){queueForRetry(p);});
@@ -2966,6 +2982,36 @@ $('qkSkip').addEventListener('click',function(){
   }
   var j=qkSiguiente(qkIdx,1);if(j!==-1)qkShow(j);
 });
+
+/* ===================== CONTACT PICKER — v0.7 G =====================
+   Trae nombre y teléfono desde los contactos del celular (Contact Picker
+   API: Chrome/Android sobre HTTPS). Sin soporte → los botones quedan
+   ocultos (degradación con gracia, nada se rompe). */
+function _pickContacts(cb){
+  navigator.contacts.select(['name','tel'],{multiple:false}).then(function(res){
+    if(res&&res.length)cb({
+      nombre:(res[0].name&&res[0].name[0])||'',
+      tel:(res[0].tel&&res[0].tel[0])||''
+    });
+  }).catch(function(){});
+}
+(function(){
+  if(!(navigator.contacts&&navigator.contacts.select))return;
+  var b1=$('btnPickContact'),b2=$('btnPickContactCt');
+  if(b1){b1.style.display='';b1.addEventListener('click',function(){
+    _pickContacts(function(c){
+      if(!c.nombre&&!c.tel)return;
+      state.people.push({id:'pk'+Date.now(),nombre:c.nombre,tipos:['Propietario'],tel:c.tel,auto:false,touched:true});
+      renderCRM();updateProgress();
+    });
+  });}
+  if(b2){b2.style.display='';b2.addEventListener('click',function(){
+    _pickContacts(function(c){
+      if(c.nombre){$('ct_nombre').value=c.nombre;$('ct_nombre').dispatchEvent(new Event('input',{bubbles:true}));}
+      if(c.tel){$('ct_tel').value=c.tel;$('ct_tel').dispatchEvent(new Event('input',{bubbles:true}));}
+    });
+  });}
+})();
 
 /* ===================== BLOQUE 4 — MICROINTERACCIONES ===================== */
 

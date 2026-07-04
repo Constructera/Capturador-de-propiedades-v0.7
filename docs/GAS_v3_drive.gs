@@ -118,7 +118,7 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (API_KEY && String(body.k || '') !== API_KEY) return jsonOut({ok:false, error:'No autorizado'});
-    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.4 online'});
+    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.5 online'});
     if (body.action === 'saveMarkdown') return handleSaveMarkdown_(body);
     if (body.action === 'deleteCapture') return handleDeleteCapture_(body);
     if (body.action === 'migrateMarkdowns') return handleMigrateMarkdowns_(body);
@@ -162,6 +162,9 @@ function handleSaveMarkdown_(p) {
   var sh = getSheet_(MD_SHEET, MD_HEADERS);
   var folderUrl = '';
   if (p.tipo === 'propiedad') folderUrl = ensureDriveFolder_(sh, p);
+  // v3.5 (F4): primera imagen de la carpeta como miniatura para el catálogo
+  var fotoUrl = '';
+  if (folderUrl) { try { fotoUrl = firstImageUrl_(folderUrl); } catch (_e) {} }
   // v3.4: el asesor original NUNCA se pisa. Si llega uno distinto para una
   // fila existente, se conserva el original y el entrante queda en editadoPor.
   var asesor = p.asesor || 'S/I';
@@ -184,7 +187,21 @@ function handleSaveMarkdown_(p) {
     modificadoEn: new Date().toISOString(),
     editadoPor: editadoPor
   });
-  return jsonOut({ok:true, folderUrl: folderUrl});
+  return jsonOut({ok:true, folderUrl: folderUrl, fotoUrl: fotoUrl});
+}
+
+/* v3.5: URL de miniatura de la primera imagen de la carpeta ('' si no hay). */
+function firstImageUrl_(folderUrl) {
+  var m = String(folderUrl).match(/folders\/([A-Za-z0-9_-]+)/);
+  if (!m) return '';
+  var it = DriveApp.getFolderById(m[1]).getFiles();
+  while (it.hasNext()) {
+    var f = it.next();
+    if (String(f.getMimeType()).indexOf('image/') === 0) {
+      return 'https://drive.google.com/thumbnail?id=' + f.getId() + '&sz=w640';
+    }
+  }
+  return '';
 }
 
 /* Devuelve la fila (como objeto header→valor) cuya celda clave coincida. */

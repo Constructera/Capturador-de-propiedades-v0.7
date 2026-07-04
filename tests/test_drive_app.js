@@ -98,7 +98,7 @@ function clickChip(w, gid, val) {
   var driveBtn = item.querySelector('[data-drive="' + uuid + '"]');
   assert(!!driveBtn, 'el botón 📷 Fotos Drive existe en la tarjeta');
   assert(driveBtn.textContent.indexOf('Fotos Drive') !== -1, 'con el texto "📷 Fotos Drive"');
-  assert(item.querySelector('[data-copy="' + uuid + '"]') === null, 'reemplaza al botón Copiar MD');
+  assert(item.querySelector('[data-copy="' + uuid + '"]') !== null, 'Copiar MD convive con Fotos Drive (F2: rediseño catálogo)');
   driveBtn.click();
   assert(w._opened.length === 1 && w._opened[0] === FOLDER_URL, 'el tap abre la carpeta Drive (window.open con folderUrl)');
   assert(!$(w, 'histDetailOverlay').classList.contains('show'), 'el botón no dispara el detalle solo lectura');

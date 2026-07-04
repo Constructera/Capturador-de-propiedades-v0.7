@@ -101,7 +101,9 @@ function filtrosBtn(w) {
   assert(cardA.querySelector('.cat-hero') !== null, 'hero visual arriba');
   assert(cardA.querySelector('.cat-hero').textContent.indexOf('🏡') !== -1, 'emoji según tipo (Casa → 🏡)');
   assert(cardA.querySelector('.cat-price').textContent.indexOf('3,700,000') !== -1, 'precio grande visible');
-  assert(cardA.querySelector('.cat-hero .hi-state') !== null, 'pill de estado dentro del hero');
+  assert(cardA.querySelector('.cat-meta .hi-state') !== null, 'F3: pill de estado en los metadatos de abajo');
+  assert(cardA.querySelector('.cat-summary') !== null && cardA.querySelector('.cat-summary').textContent.indexOf('Casa') !== -1, 'F1: resumen de la propiedad (tipo · oper · zona)');
+  assert(cardA.querySelector('pre') === null, 'F2: sin markdown crudo en la tarjeta');
   assert(cardA.querySelector('.cat-hero-badge') !== null, 'badge 📷 cuando hay carpeta Drive');
   var cardB = w.document.querySelector('.hist-item[data-rid="CAP-B"]');
   assert(cardB.querySelector('.cat-price').textContent.indexOf('/mes') !== -1, 'renta se muestra como $X /mes');
