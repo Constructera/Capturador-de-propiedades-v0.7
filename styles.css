@@ -654,8 +654,34 @@ body:not(.quick-mode) .qk-question{display:none}
 .qk-resumen ul{margin:8px 0 14px 22px;font-size:.92rem;font-weight:700}
 .qk-resumen .btn{font-size:.88rem;padding:12px 12px}
 body:not(.quick-mode) .qk-resumen{display:none}
-/* B5: salir existe pero mínimo y discreto, hasta abajo */
-#qkExit{align-self:center;font-size:.65rem;padding:1px 0;opacity:.6;color:var(--text-soft)}
+/* B5 / 2c: pie de la barra rápida — Menú (guarda borrador) + salir, mínimos */
+.qk-foot{display:flex;justify-content:center;gap:16px;align-items:center}
+#qkExit,#qkMenu{font-size:.66rem;padding:1px 0;opacity:.7;color:var(--text-soft);background:none;border:none;cursor:pointer}
+#qkMenu{font-weight:800;opacity:.85}
+body:not(.quick-mode) .qk-foot{display:none}
+/* 2a (v0.7.1): en modo rápido, mascota GRANDE y timer como barra (sin hueco del header) */
+.qk-timer{display:none}
+body.quick-mode .qk-timer{display:block;position:relative;height:9px;border-radius:999px;background:var(--line);max-width:280px;margin:2px auto 18px}
+.qk-timer-fill{height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .5s linear}
+.timer-widget.state-focused .qk-timer-fill{background:var(--warn)}
+.timer-widget.state-urgent .qk-timer-fill{background:var(--danger)}
+.qk-timer-txt{position:absolute;top:13px;left:50%;transform:translateX(-50%);font-size:.7rem;font-weight:800;color:var(--text-soft);white-space:nowrap}
+body.quick-mode .timer-ring-wrap{display:none!important}
+body.quick-mode .timer-widget,body.quick-mode .timer-widget.running{border:none;background:none;padding:0;margin:0 0 22px}
+body.quick-mode .timer-top{margin-bottom:6px;display:flex;justify-content:center;overflow:hidden}
+/* caja fija y centrada: el canvas chroma es position:absolute inset:0 y sin un
+   wrap con ancho definido se salía hacia la derecha (bug 2a) */
+body.quick-mode .timer-widget .mascot-wrap{width:150px;height:150px;max-width:70vw;margin:0 auto;position:relative;flex:0 0 auto}
+body.quick-mode .timer-widget .mascot,body.quick-mode .timer-widget.running .mascot{width:100%!important;height:100%!important;object-fit:contain}
+body.quick-mode .timer-widget canvas.mascot-canvas{width:100%;height:100%}
+/* garantía: el modo rápido nunca produce scroll horizontal (mascota grande + sin navbar) */
+body.quick-mode{overflow-x:hidden}
+/* 2c: tarjeta "continuar captura" — continuar grande, nueva chica */
+.draft-continue{display:flex!important;flex-direction:column;gap:4px;width:100%;padding:18px 16px;background:var(--accent);color:#fff;border:none;border-radius:14px;--_shadow:color-mix(in srgb,var(--accent) 70%,#000 30%);box-shadow:0 4px 0 var(--_shadow);text-align:center}
+.draft-continue-lbl{font-size:1.15rem;font-weight:800}
+.draft-continue-info{font-size:.85rem;font-weight:600;opacity:.92}
+.draft-when{font-size:.72rem;opacity:.8}
+.draft-new{width:100%;margin-top:12px;font-size:.82rem;padding:9px 12px;opacity:.75;background:none;border:1px solid var(--line-dark);color:var(--text-soft)}
 /* en modo rápido: solo el slide activo es visible; títulos van en la barra */
 .qk-hide{display:none!important}
 body.quick-mode #viewCapture>h2{display:none}

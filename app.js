@@ -89,6 +89,16 @@ document.addEventListener('click',function(e){
   showView(b.dataset.view);
 });
 function showView(id){
+  var _prev=document.querySelector('.view.active');var _prevId=_prev?_prev.id:null;
+  // 2c (v0.7.1): al SALIR de la captura hacia el menú/otra vista, guardar el
+  // borrador (excepto al ir a viewResult tras generar, o si editas, o si el
+  // prompt de continuar sigue abierto sin resolver → no tocar el borrador).
+  if(_prevId==='viewCapture'&&id!=='viewCapture'&&id!=='viewResult'&&!state.editId&&!_draftPromptActive){
+    saveDraft(qkOn);
+  }
+  if(_prevId==='viewCapture'&&id!=='viewCapture'&&_draftPromptActive){
+    $('draftOverlay').classList.remove('show');_draftPromptActive=false;
+  }
   // mascota: reset al salir de viewResult
   if(id!=='viewResult'){var vr=$('viewResult');if(vr&&vr.classList.contains('active')){id==='viewCapture'?updateTimerUI():setMascotState('idle');}}
   document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
@@ -97,7 +107,14 @@ function showView(id){
   // v0.7 B6: entrada/salida del modo Captura Rápida
   // 1a (v0.7.1): CUALQUIER navegación que no entre al modo rápido garantiza
   // limpieza total (qkStop es idempotente) — cubre guardar/salir/editar/navegar
-  if(id==='viewCapture'&&quickPending){quickPending=false;setTimeout(qkStart,0);}
+  if(id==='viewCapture'){
+    var _wantsQuick=quickPending;quickPending=false;
+    // 2c: si hay borrador y no estás editando, ofrecer continuar ANTES de arrancar
+    if(!state.editId&&getDraft()&&!_draftPromptActive){
+      _draftQuickWanted=_wantsQuick;
+      setTimeout(showDraftPrompt,0);
+    }else if(_wantsQuick){setTimeout(qkStart,0);}
+  }
   else qkStop();
   // A1: el pase al modo rápido solo sobrevive el trayecto Home⚡→Asesor→Captura;
   // cualquier otra navegación lo cancela (evita contaminar la edición)
@@ -402,6 +419,10 @@ function setResMascotState(st){_setMascotVideo($('resMascotSvg'),st);}
 function updateTimerUI(){
   var d=$('timerDisplay');if(d)d.textContent=timerFmt(timerRemaining);
   setTimerArc(timerRemaining,timerLimit);
+  // 2a (v0.7.1): barra de progreso del modo rápido (se rellena con lo transcurrido)
+  var qf=$('qkTimerFill');
+  if(qf){var pf=timerLimit>0?timerElapsed/timerLimit:0;qf.style.width=(Math.max(0,Math.min(1,pf))*100)+'%';}
+  var qt=$('qkTimerTxt');if(qt)qt.textContent=timerFmt(timerRemaining);
   var ts;
   if(timerState==='ready'){ts='ready';}
   else if(timerState==='expired'){ts='expired';}
@@ -1884,6 +1905,7 @@ function generar(){
   var recGuardado=getHist().filter(function(x){return x.id===lastCaptureId;})[0]||{};
   gasSaveMarkdown(lastCaptureId,recGuardado.asesorNombre||'S/I',meta.modificado,'propiedad',estrellas.count===3?'completa':'sin terminar',nombre,md,dirVal,recGuardado.editadoPor||'');
   if(asesorActivo)updateAsesorStats(asesorActivo.id,estrellas,re);
+  clearDraft(); // 2c: captura generada → el borrador ya no aplica
   sndSuccess();
   mostrarResultado(estrellas);
   checkLogros();
@@ -2955,6 +2977,64 @@ function qkStop(){
   if(estaba)timerLimit=load('cfg_timer_limit',600); // restaurar preferencia del asesor
 }
 $('homeQuickCard').addEventListener('click',function(){quickPending=true;});
+
+/* ===================== BORRADOR DE CAPTURA (2c v0.7.1) =====================
+   Al volver al menú desde una captura en curso (rápida o normal) se guarda un
+   borrador; al reentrar a CUALQUIER modo de captura se ofrece continuar. No se
+   guarda borrador al editar (editId) ni tras generar (clearDraft explícito). */
+var _draftQuickWanted=false; // intención de modo rápido en espera del prompt
+var _draftPromptActive=false;
+function draftHasData(){
+  if(state.editId)return false;
+  if(state.tipo)return true;
+  if(zonasSel.length)return true;
+  return ['f_direccion','f_nombre','f_precio','f_precio_renta','f_m2t','f_m2c','f_notas'].some(function(id){
+    var e=$(id);return e&&e.value.trim();
+  });
+}
+function saveDraft(fromQuick){
+  if(!draftHasData()){clearDraft();return;}
+  var nombre=($('f_nombre').value.trim()||$('f_direccion').value.trim()||'').slice(0,60);
+  save('draft',{snap:snapshotForm(),quick:!!fromQuick,ts:Date.now(),
+    nombre:nombre,tipo:state.tipo||'',
+    precio:$('f_precio').value.trim()||$('f_precio_renta').value.trim()||''});
+}
+function clearDraft(){try{localStorage.removeItem('cap_draft');}catch(e){}}
+function getDraft(){return load('draft',null);}
+function showDraftPrompt(){
+  var d=getDraft();if(!d){arrancarCaptura();return;}
+  _draftPromptActive=true;
+  var partes=[];
+  if(d.nombre)partes.push(d.nombre);
+  if(d.tipo)partes.push(d.tipo);
+  if(d.precio)partes.push('$'+d.precio);
+  var cuando=d.ts?new Date(d.ts).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+  $('draftInfo').innerHTML=(partes.length?esc(partes.join(' · ')):'(sin datos aún)')+
+    (cuando?'<br><span class="draft-when">'+esc(cuando)+(d.quick?' · modo rápido':'')+'</span>':'');
+  $('draftOverlay').classList.add('show');
+}
+/* arranca el modo que el usuario pidió (rápido si venía de la tarjeta ⚡) */
+function arrancarCaptura(){
+  if(_draftQuickWanted){_draftQuickWanted=false;setTimeout(qkStart,0);}
+}
+$('draftContinue').addEventListener('click',function(){
+  var d=getDraft();
+  $('draftOverlay').classList.remove('show');_draftPromptActive=false;
+  if(d&&d.snap){restoreForm(d.snap);state.editId=null;}
+  clearDraft();
+  // continuar en el modo del borrador si aplica, o en el que se pidió
+  if((d&&d.quick)||_draftQuickWanted){_draftQuickWanted=false;setTimeout(qkStart,0);}
+  updateProgress();
+});
+$('draftNew').addEventListener('click',function(){
+  $('draftOverlay').classList.remove('show');_draftPromptActive=false;
+  clearDraft();doReset();
+  arrancarCaptura();
+});
+$('qkMenu').addEventListener('click',function(){
+  saveDraft(true);          // guarda antes de que qkStop limpie la UI
+  showView('viewHome');
+});
 // C4: steppers −/+ en numéricos (rec, baños, medios, estacionamientos)
 document.addEventListener('click',function(e){
   var b=e.target.closest('.stp-btn');if(!b)return;

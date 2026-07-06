@@ -127,6 +127,8 @@
         <div class="timer-display" id="timerDisplay">10:00</div>
       </div>
     </div>
+    <!-- 2a (v0.7.1): timer como BARRA de progreso (solo modo rápido) -->
+    <div class="qk-timer" id="qkTimer"><div class="qk-timer-fill" id="qkTimerFill"></div><span class="qk-timer-txt" id="qkTimerTxt"></span></div>
     <!-- Controles pre-inicio -->
     <div id="timerReadyCtrl">
       <p class="timer-ready-msg">Selecciona el tiempo e inicia la captura</p>
@@ -231,12 +233,13 @@
 
   <div class="field">
     <div class="field-top"><label>Zona / Colonia <span class="req">*</span></label></div>
-    <div class="chips" id="zonaChips"></div>
-    <button type="button" class="btn btn-ghost chip-sm" id="btnZonaMas" style="margin-top:6px;display:none">Ver más ↓</button>
-    <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
-      <input type="text" id="f_zona_extra" placeholder="Zona nueva (se creará en Notion)" autocomplete="off" style="flex:1;margin:0">
+    <!-- 2b (v0.7.1): ARRIBA el cuadro para escribir/agregar zona; DEBAJO las comunes -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+      <input type="text" id="f_zona_extra" placeholder="Escribe una zona y toca + (se creará en Notion)" autocomplete="off" style="flex:1;margin:0">
       <button type="button" class="btn chip-sm btn-accent" id="btnZonaAdd" style="flex-shrink:0;padding:10px 14px">+</button>
     </div>
+    <div class="chips" id="zonaChips"></div>
+    <button type="button" class="btn btn-ghost chip-sm" id="btnZonaMas" style="margin-top:6px;display:none">Ver más ↓</button>
     <div class="hint" id="zonaHint"></div>
   </div>
 
@@ -505,7 +508,11 @@
       <button type="button" class="btn btn-ghost" id="qkSkip">Saltar</button>
       <button type="button" class="btn btn-accent" id="qkNext" style="flex:1">Siguiente →</button>
     </div>
-    <button type="button" class="btn-back" id="qkExit">✕ Salir del modo rápido (ver formulario completo)</button>
+    <div class="qk-foot">
+      <!-- 2c (v0.7.1): volver al menú guardando borrador -->
+      <button type="button" class="btn-back" id="qkMenu">← Menú (guarda borrador)</button>
+      <button type="button" class="btn-back" id="qkExit">✕ Ver formulario completo</button>
+    </div>
   </div>
 
   <div id="outputArea">
@@ -1097,6 +1104,20 @@
     </div>
     <div class="modal-foot" style="justify-content:center">
       <button type="button" class="btn btn-accent" id="logroCerrar" style="flex:1">¡Seguir! 🚀</button>
+    </div>
+  </div>
+</div>
+
+<!-- 2c (v0.7.1): ¿continuar la captura en borrador? -->
+<div class="overlay" id="draftOverlay">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-head"><h3>📝 Tienes una captura sin terminar</h3></div>
+    <div class="modal-body">
+      <button type="button" class="btn draft-continue" id="draftContinue">
+        <span class="draft-continue-lbl">▶ Continuar captura</span>
+        <span class="draft-continue-info" id="draftInfo"></span>
+      </button>
+      <button type="button" class="btn draft-new" id="draftNew">Empezar una nueva (descarta el borrador)</button>
     </div>
   </div>
 </div>
