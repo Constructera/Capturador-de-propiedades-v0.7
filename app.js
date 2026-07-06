@@ -2341,6 +2341,9 @@ function renderHist(){
     gasGet(function(data){
       if(data&&data.capturas&&data.capturas.length>1){
         var cloudRecs=gasCapturasToLocalHist(parseGasRows(data.capturas));
+        // v0.7.1 F-1: el GET trae fotos:{uuid:fotoUrl} desde el Sheet (v3.6);
+        // manda sobre lo que diga propiedad_json (puede venir de antes de subir fotos)
+        if(data.fotos)cloudRecs.forEach(function(r){if(data.fotos[r.id])r.fotoUrl=data.fotos[r.id];});
         // B4: tombstones — capturas borradas con PIN cuya eliminación del Sheet
         // aún no se confirma NO deben revivir; si la nube ya no las trae, purgar
         var tomb=load('del_pend',[]);
@@ -2356,9 +2359,27 @@ function renderHist(){
         merged.sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
         setHist(merged);
         _renderHistList(merged);
+        maybeRefreshFotos(merged);
       }
     });
   }
+}
+/* v0.7.1 F-1: las carpetas Drive reciben fotos DESPUÉS de la captura; pedirle
+   al GAS que recalcule miniaturas (v3.6) cuando haya registros con carpeta y
+   sin foto. Throttle de 5 min para no golpear Drive en cada visita. */
+function maybeRefreshFotos(hist){
+  if(!CFG.endpoint)return;
+  var falta=hist.some(function(r){return r.driveUrl&&!r.fotoUrl;});
+  if(!falta)return;
+  var last=parseInt(load('fotos_refresh_ts',0),10)||0;
+  if(Date.now()-last<5*60*1000)return;
+  save('fotos_refresh_ts',Date.now());
+  gasPost({action:'refreshFotos'}).then(function(r){
+    if(!r||!r.ok||!r.fotos)return;
+    var h=getHist(),ch=false;
+    h.forEach(function(rec){if(r.fotos[rec.id]&&rec.fotoUrl!==r.fotos[rec.id]){rec.fotoUrl=r.fotos[rec.id];ch=true;}});
+    if(ch){setHist(h);var vh=$('viewHistory');if(vh&&vh.classList.contains('active'))_renderHistList(h);}
+  }).catch(function(){});
 }
 function _renderHistList(h){
   var ctH=load('ct_hist',[]).map(function(r){return Object.assign({},r,{_isCt:true});});

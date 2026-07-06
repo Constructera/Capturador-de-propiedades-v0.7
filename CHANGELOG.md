@@ -4,6 +4,26 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 
 ---
 
+## v0.7.1 (en desarrollo) — correcciones post-testing + coordinación sitio web / bot Notion
+
+### Fase -1 (06-jul-2026) — la foto Drive del catálogo por fin aparece (GAS v3.6)
+**Diagnóstico end-to-end (sin asumir nada):**
+1. Ping real al endpoint: respondía "Hauser GAS v3.5 online" → el despliegue del dueño estaba BIEN.
+2. saveMarkdown real re-enviado para Casa Paridad (carpeta con archivos): `fotoUrl:""` → el bug estaba en el GAS, no en el despliegue ni en el frontend.
+3. Inspección de las carpetas reales: la de Casa Paridad contiene SOLO `Archivo_escaneado_20260705-1351.pdf` (mimeType `application/pdf`, que `firstImageUrl_` descartaba por filtrar solo `image/*`); la de Casa 87 está VACÍA.
+4. Defecto de diseño de v3.5: `fotoUrl` solo se calculaba al generar el markdown (carpeta recién creada = vacía; las fotos se suben DESPUÉS), no se persistía en el Sheet y el GET no lo devolvía → aunque hubiera JPGs, la foto solo aparecía si se editaba y regeneraba la captura después de subir fotos.
+
+**Fix (GAS v3.6 + app.js):**
+- `firstImageUrl_` acepta `application/pdf` como fallback (Drive genera miniatura PNG de los PDF con el mismo endpoint `/thumbnail` — verificado con curl: 200, image/png 640×841). Las imágenes `image/*` siguen teniendo prioridad.
+- Columna nueva `fotoUrl` en Markdowns (autocreada al final; mapear por nombre). saveMarkdown la persiste; recálculo vacío no pisa una miniatura previa buena.
+- GET devuelve `fotos:{uuid:fotoUrl}` leído del Sheet (0 llamadas a Drive).
+- Nueva action `refreshFotos`: recalcula miniaturas de filas con folderUrl (carpetas que recibieron fotos tarde) y actualiza el Sheet. La app la dispara al abrir el historial si hay registros con carpeta y sin foto (throttle 5 min, `cap_fotos_refresh_ts`).
+- app.js: el mapa `fotos` del GET manda sobre el `fotoUrl` viejo de `propiedad_json`.
+- **Tests:** G12 en `test_gas.js` (+11 asserts: persistencia, PDF fallback, prioridad imagen, refresh idempotente, GET, docx ignorado). GAS: 106/106.
+- **⚠️ Acción del dueño:** pegar GAS v3.6 y "Nueva versión" (mismos scopes, NO pide re-autorizar). SW: `v0.7.1-F1-r1`.
+
+---
+
 ## v0.7 (en desarrollo) — Bloque 1: campos Notion nuevos, trazabilidad y historial solo lectura
 
 ### Bloque 1 (02-jul-2026)

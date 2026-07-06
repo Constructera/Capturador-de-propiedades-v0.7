@@ -65,6 +65,27 @@
  *   (ids con formato raro, JSON que no parsea, celdas clave vacías). Para
  *   diagnosticar corrimientos de columnas sin abrir el Sheet.
  *
+ * NUEVO EN v3.6 (v0.7.1 Fase -1 — la foto del catálogo por fin aparece):
+ *   Diagnóstico real: fotoUrl solo se calculaba DENTRO de saveMarkdown, cuando
+ *   la carpeta recién creada está VACÍA (las fotos se suben después), no se
+ *   persistía en el Sheet y el GET nunca lo devolvía → el catálogo jamás veía
+ *   foto. Además firstImageUrl_ solo aceptaba image/* y las fotos reales
+ *   llegan a veces como PDF escaneado (p. ej. "Archivo_escaneado_*.pdf").
+ *   - Columna nueva "fotoUrl" en Markdowns (se autocrea al final; mapear por
+ *     nombre, nunca por posición).
+ *   - firstImageUrl_: prefiere la primera imagen image/*; si no hay, cae a la
+ *     primera application/pdf (Drive genera miniatura PNG de los PDF con el
+ *     mismo endpoint /thumbnail — verificado).
+ *   - saveMarkdown persiste fotoUrl; si el recálculo da vacío se conserva el
+ *     valor previo (no se pierde una miniatura buena por un fallo transitorio).
+ *   - GET devuelve además fotos:{uuid:fotoUrl} leído del Sheet (0 llamadas a
+ *     Drive: rápido).
+ *   - POST {action:'refreshFotos'} → recorre las filas de Markdowns con
+ *     folderUrl, recalcula la miniatura (para carpetas que recibieron fotos
+ *     DESPUÉS de la captura) y actualiza la columna. La app lo dispara al
+ *     abrir el historial (throttled). Sin PIN: solo escribe miniaturas.
+ *   Despliegue v3.6: pegar y "Nueva versión" (mismos scopes, NO re-autorizar).
+ *
  * INSTRUCCIONES DE DESPLIEGUE (v3.2):
  * 1. Abre script.google.com → el proyecto EXISTENTE del endpoint actual.
  * 2. Reemplaza el código por este archivo completo y GUARDA.
@@ -110,7 +131,7 @@ var CAP_HEADERS = ['id','timestamp','tipo','asesor','estrellas','calidad',
 
 var MD_SHEET = 'Markdowns';
 var MD_HEADERS = ['uuid','fecha','asesor','tipo','estatus','nombre','direccion',
-  'markdown_md','folderUrl','modificadoEn','editadoPor'];
+  'markdown_md','folderUrl','modificadoEn','editadoPor','fotoUrl'];
 
 /* ===================== entradas ===================== */
 
@@ -118,8 +139,9 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (API_KEY && String(body.k || '') !== API_KEY) return jsonOut({ok:false, error:'No autorizado'});
-    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.5 online'});
+    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.6 online'});
     if (body.action === 'saveMarkdown') return handleSaveMarkdown_(body);
+    if (body.action === 'refreshFotos') return handleRefreshFotos_();
     if (body.action === 'deleteCapture') return handleDeleteCapture_(body);
     if (body.action === 'migrateMarkdowns') return handleMigrateMarkdowns_(body);
     if (body.action === 'diag') return jsonOut(diag_());
@@ -141,7 +163,8 @@ function doGet(e) {
     var rows = n > 1 ? sh.getRange(2, 1, n - 1, hdr.length).getValues() : [];
     return jsonOut({ok:true,
       capturas: [hdr].concat(rows),
-      asesores: buildAsesores_(hdr, rows)});
+      asesores: buildAsesores_(hdr, rows),
+      fotos: fotosMap_()});
   } catch (err) {
     return jsonOut({ok:false, error:err.toString()});
   }
@@ -162,9 +185,6 @@ function handleSaveMarkdown_(p) {
   var sh = getSheet_(MD_SHEET, MD_HEADERS);
   var folderUrl = '';
   if (p.tipo === 'propiedad') folderUrl = ensureDriveFolder_(sh, p);
-  // v3.5 (F4): primera imagen de la carpeta como miniatura para el catálogo
-  var fotoUrl = '';
-  if (folderUrl) { try { fotoUrl = firstImageUrl_(folderUrl); } catch (_e) {} }
   // v3.4: el asesor original NUNCA se pisa. Si llega uno distinto para una
   // fila existente, se conserva el original y el entrante queda en editadoPor.
   var asesor = p.asesor || 'S/I';
@@ -174,6 +194,10 @@ function handleSaveMarkdown_(p) {
     if (!editadoPor) editadoPor = asesor;
     asesor = String(prev.asesor);
   }
+  // v3.6 (F-1): miniatura persistida; recálculo vacío no pisa una previa buena
+  var fotoUrl = '';
+  if (folderUrl) { try { fotoUrl = firstImageUrl_(folderUrl); } catch (_e) {} }
+  if (!fotoUrl && prev && prev.fotoUrl) fotoUrl = String(prev.fotoUrl);
   upsert_(sh, 'uuid', {
     uuid: p.uuid,
     fecha: p.fecha || new Date().toISOString(),
@@ -185,23 +209,72 @@ function handleSaveMarkdown_(p) {
     markdown_md: p.markdown_md || '',
     folderUrl: folderUrl,
     modificadoEn: new Date().toISOString(),
-    editadoPor: editadoPor
+    editadoPor: editadoPor,
+    fotoUrl: fotoUrl
   });
   return jsonOut({ok:true, folderUrl: folderUrl, fotoUrl: fotoUrl});
 }
 
-/* v3.5: URL de miniatura de la primera imagen de la carpeta ('' si no hay). */
+/* v3.6: URL de miniatura de la carpeta: primera imagen image/*; si no hay,
+ * primer PDF (los escaneos de fotos llegan como application/pdf y Drive les
+ * genera miniatura PNG con el mismo endpoint /thumbnail). '' si no hay nada. */
 function firstImageUrl_(folderUrl) {
   var m = String(folderUrl).match(/folders\/([A-Za-z0-9_-]+)/);
   if (!m) return '';
   var it = DriveApp.getFolderById(m[1]).getFiles();
+  var pdfId = '';
   while (it.hasNext()) {
     var f = it.next();
-    if (String(f.getMimeType()).indexOf('image/') === 0) {
+    var mime = String(f.getMimeType());
+    if (mime.indexOf('image/') === 0) {
       return 'https://drive.google.com/thumbnail?id=' + f.getId() + '&sz=w640';
     }
+    if (!pdfId && mime === 'application/pdf') pdfId = f.getId();
   }
-  return '';
+  return pdfId ? 'https://drive.google.com/thumbnail?id=' + pdfId + '&sz=w640' : '';
+}
+
+/* v3.6: mapa {uuid: fotoUrl} desde el Sheet, sin llamadas a Drive. */
+function fotosMap_() {
+  var out = {};
+  try {
+    var sh = getSheet_(MD_SHEET, MD_HEADERS);
+    var hdr = headers_(sh);
+    var kU = hdr.indexOf('uuid'), kF = hdr.indexOf('fotoUrl');
+    if (kU === -1 || kF === -1) return out;
+    var n = sh.getLastRow();
+    if (n < 2) return out;
+    var data = sh.getRange(2, 1, n - 1, hdr.length).getValues();
+    data.forEach(function (r) {
+      if (r[kU] && r[kF]) out[String(r[kU])] = String(r[kF]);
+    });
+  } catch (_e) {}
+  return out;
+}
+
+/* v3.6: recalcula miniaturas de TODAS las filas con folderUrl (las carpetas
+ * reciben fotos después de la captura). Vacío no pisa valor previo. */
+function handleRefreshFotos_() {
+  var sh = getSheet_(MD_SHEET, MD_HEADERS);
+  var hdr = headers_(sh);
+  var kU = hdr.indexOf('uuid'), kF = hdr.indexOf('folderUrl'), kFo = hdr.indexOf('fotoUrl');
+  var res = {ok:true, fotos:{}, actualizadas:0};
+  if (kU === -1 || kF === -1 || kFo === -1) return jsonOut(res);
+  var n = sh.getLastRow();
+  if (n < 2) return jsonOut(res);
+  var data = sh.getRange(2, 1, n - 1, hdr.length).getValues();
+  for (var i = 0; i < data.length; i++) {
+    var uuid = String(data[i][kU] || ''), folder = String(data[i][kF] || ''), old = String(data[i][kFo] || '');
+    if (!uuid || !folder) continue;
+    var nuevo = old;
+    try { var calc = firstImageUrl_(folder); if (calc) nuevo = calc; } catch (_e) {}
+    if (nuevo !== old) {
+      sh.getRange(i + 2, kFo + 1, 1, 1).setValues([[nuevo]]);
+      res.actualizadas++;
+    }
+    if (nuevo) res.fotos[uuid] = nuevo;
+  }
+  return jsonOut(res);
 }
 
 /* Devuelve la fila (como objeto header→valor) cuya celda clave coincida. */

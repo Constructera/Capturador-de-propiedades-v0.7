@@ -91,6 +91,9 @@ function freshEnv() {
     DriveApp: {
       _folders: driveFolders,
       getFolderById: function (id) {
+        // v3.6: también se piden por id las carpetas de propiedades (getFiles)
+        var own = driveFolders.filter(function (f) { return f.id === id; })[0];
+        if (own) return own.api;
         if (id !== '1PTKX6TZSR94Hailc3qvWBbK_zQkE6Vhn') throw new Error('Folder id inesperado: ' + id);
         return {
           getFoldersByName: function (name) {
@@ -100,11 +103,22 @@ function freshEnv() {
                      next: function () { return found[i++].api; } };
           },
           createFolder: function (name) {
-            var f = {name: name, id: 'FLD' + (driveFolders.length + 1)};
+            var f = {name: name, id: 'FLD' + (driveFolders.length + 1), files: []};
             f.api = {
               getUrl: function () { return 'https://drive.google.com/drive/folders/' + f.id; },
               getId: function () { return f.id; },
-              getName: function () { return f.name; }
+              getName: function () { return f.name; },
+              getFiles: function () {
+                var i = 0;
+                return { hasNext: function () { return i < f.files.length; },
+                         next: function () {
+                           var file = f.files[i++];
+                           return { getId: function () { return file.id; },
+                                    getMimeType: function () { return file.mime; },
+                                    getName: function () { return file.name; } };
+                         } };
+              },
+              _addFile: function (name, mime, id) { f.files.push({name: name, mime: mime, id: id}); }
             };
             driveFolders.push(f);
             return f.api;
@@ -418,7 +432,7 @@ console.log('\n[G10] migrateMarkdowns — escenario real (bloques A-H legado + I
   assert(!!bk && bk._rows.length === 8 && bk._rows[0].length === 18, 'el backup conserva TODAS las filas y columnas originales');
 
   var hdr = md._rows[0].map(String);
-  assert(hdr.length === 11 && hdr[0] === 'uuid' && hdr[10] === 'editadoPor', 'un solo bloque canónico (11 columnas, con editadoPor)');
+  assert(hdr.length === 12 && hdr[0] === 'uuid' && hdr[10] === 'editadoPor' && hdr[11] === 'fotoUrl', 'un solo bloque canónico (12 columnas, con editadoPor y fotoUrl v3.6)');
   // headers únicos sin duplicados por capitalización (pedido explícito del dueño)
   var norm = {}; var unicos = true;
   hdr.forEach(function (h) { var k = h.toLowerCase(); if (norm[k]) unicos = false; norm[k] = 1; });
@@ -492,6 +506,51 @@ console.log('\n[G11] asesor inmutable en saveMarkdown');
   g.post({action:'saveMarkdown', uuid:'CAP-AS', tipo:'propiedad', asesor:'Erica', editadoPor:'Carlos', nombre:'Casa E', direccion:'', markdown_md:'# v3'});
   var row2 = g._sheets['Markdowns']._rows[1];
   assert(row2[hdr.indexOf('asesor')] === 'Erica' && row2[hdr.indexOf('editadoPor')] === 'Carlos', 'editadoPor explícito se respeta');
+})();
+
+/* ============ 12. Foto del catálogo (v3.6 — Fase -1 v0.7.1) ============ */
+console.log('\n[G12] fotoUrl: persistencia, PDF fallback, refreshFotos y GET');
+(function () {
+  var g = freshEnv();
+  // 1) captura nueva: carpeta recién creada VACÍA → fotoUrl '' (el caso real)
+  var r1 = g.post({action:'saveMarkdown', uuid:'CAP-F1', tipo:'propiedad',
+    asesor:'Daniel', nombre:'Casa Foto', direccion:'', markdown_md:'#'});
+  assert(r1.ok && r1.fotoUrl === '', 'carpeta vacía al capturar → fotoUrl vacía (no inventa)');
+  var hdr = g._sheets['Markdowns']._rows[0];
+  assert(hdr.indexOf('fotoUrl') !== -1, 'hoja Markdowns tiene columna fotoUrl');
+  // 2) el asesor sube fotos DESPUÉS (el flujo real del negocio)
+  g._drive[0].api._addFile('escaneo.pdf', 'application/pdf', 'PDF1');
+  g._drive[0].api._addFile('fachada.jpg', 'image/jpeg', 'IMG1');
+  // 3) refreshFotos las descubre sin re-guardar la captura
+  var rf = g.post({action:'refreshFotos'});
+  assert(rf.ok && rf.actualizadas === 1, 'refreshFotos actualizó 1 miniatura');
+  assert(rf.fotos['CAP-F1'] === 'https://drive.google.com/thumbnail?id=IMG1&sz=w640',
+    'imagen image/* gana sobre el PDF aunque el PDF esté primero');
+  var row = g._sheets['Markdowns']._rows[1];
+  assert(row[hdr.indexOf('fotoUrl')] === rf.fotos['CAP-F1'], 'fotoUrl PERSISTIDA en el Sheet');
+  // 4) GET devuelve el mapa fotos desde el Sheet (para el catálogo multi-dispositivo)
+  var got = g.get();
+  assert(got.fotos && got.fotos['CAP-F1'] === rf.fotos['CAP-F1'], 'GET incluye fotos:{uuid:fotoUrl}');
+  // 5) re-guardar (editar) conserva la miniatura y no la pierde
+  var r2 = g.post({action:'saveMarkdown', uuid:'CAP-F1', tipo:'propiedad',
+    asesor:'Daniel', nombre:'Casa Foto', direccion:'', markdown_md:'# v2'});
+  assert(r2.fotoUrl === rf.fotos['CAP-F1'], 'reedición devuelve la fotoUrl vigente');
+  // 6) PDF-only: los escaneos de fotos (application/pdf) sí dan miniatura
+  var r3 = g.post({action:'saveMarkdown', uuid:'CAP-F2', tipo:'propiedad',
+    asesor:'Erica', nombre:'Casa Escaneada', direccion:'', markdown_md:'#'});
+  g._drive[1].api._addFile('Archivo_escaneado_20260705-1351.pdf', 'application/pdf', 'PDF9');
+  var rf2 = g.post({action:'refreshFotos'});
+  assert(rf2.fotos['CAP-F2'] === 'https://drive.google.com/thumbnail?id=PDF9&sz=w640',
+    'carpeta solo-PDF → miniatura del PDF (caso Casa Paridad real)');
+  // 7) idempotencia: segundo refresh sin cambios no escribe nada
+  var rf3 = g.post({action:'refreshFotos'});
+  assert(rf3.actualizadas === 0, 'refresh sin cambios: 0 escrituras');
+  // 8) archivos no-imagen/no-pdf se ignoran
+  var r4 = g.post({action:'saveMarkdown', uuid:'CAP-F3', tipo:'propiedad',
+    asesor:'Carlos', nombre:'Casa Docs', direccion:'', markdown_md:'#'});
+  g._drive[2].api._addFile('notas.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'DOC1');
+  var rf4 = g.post({action:'refreshFotos'});
+  assert(!rf4.fotos['CAP-F3'], 'docx no cuenta como foto');
 })();
 
 /* ============ resumen ============ */
