@@ -362,8 +362,9 @@
       <select id="f_estado_fis"><option>S/I</option><option>Nueva</option><option>En construcción</option><option>Usada — buen estado</option><option>Usada — para remodelar</option></select></div>
     <div class="field">
       <div class="field-top"><label>Características rápidas</label></div>
-      <div class="tags" id="caractTags"></div>
-      <div class="chips" id="caractChips"></div>
+      <!-- Fase 3 (v0.7.1): lista estilo Wiggot — una por fila con checkbox; al
+           marcar desaparece y otra ocupa su lugar (las demás no se recorren) -->
+      <div class="caract-list" id="caractChips"></div>
       <div class="btn-row">
         <button type="button" class="btn chip-sm" id="btnCaractMas">Ver más</button>
         <button type="button" class="btn chip-sm" id="btnCaractRefresh">↻ Refrescar</button>
@@ -375,6 +376,9 @@
         </div>
         <div class="hint">Las características nuevas se guardan para futuras capturas.</div>
       </div>
+      <!-- seleccionadas HASTA ABAJO para que la lista no se mueva al elegir -->
+      <div class="caract-sel-lbl" id="caractSelLbl" style="display:none">Seleccionadas</div>
+      <div class="tags" id="caractTags"></div>
     </div>
   </div>
 
@@ -393,11 +397,12 @@
     </div>
     <div class="field">
       <div class="field-top"><label>Características del terreno</label></div>
-      <div class="tags" id="caractTerrTags"></div>
-      <div class="chips" id="caractTerrChips"></div>
+      <div class="caract-list" id="caractTerrChips"></div>
       <div class="btn-row">
         <button type="button" class="btn chip-sm" id="btnCaractTerrMas">Ver más</button>
       </div>
+      <div class="caract-sel-lbl" id="caractTerrSelLbl" style="display:none">Seleccionadas</div>
+      <div class="tags" id="caractTerrTags"></div>
     </div>
     <div class="row2">
       <div class="field"><div class="field-top"><label>Frente (m)</label><button type="button" class="si-btn" data-for="f_frente">S/I</button></div>

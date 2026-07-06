@@ -22,6 +22,13 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **Tests:** G12 en `test_gas.js` (+11 asserts: persistencia, PDF fallback, prioridad imagen, refresh idempotente, GET, docx ignorado). GAS: 106/106.
 - **⚠️ Acción del dueño:** pegar GAS v3.6 y "Nueva versión" (mismos scopes, NO pide re-autorizar). SW: `v0.7.1-F1-r1`.
 
+### Fase 3 (06-jul-2026) — características estilo Wiggot
+- **Se reemplazó la nube de chips (que "mareaba" al reflowear) por una LISTA:** una característica por fila, botón ancho con **checkbox** al final. Se muestran ~12 (rango 10-15).
+- **Al marcar:** la fila se pone verde con ✓ y **se reemplaza EN SITIO** por la siguiente característica oculta — las demás filas NO se recorren (posición estable, sin salto visual). Si se agota el pool, la fila se retira sin reemplazo.
+- **Debajo de la lista:** "Ver más" (expande a todas), "↻ Refrescar" (baraja las no seleccionadas) y el cuadro de texto con "+" para agregar una nueva (persistente).
+- **Las seleccionadas viven HASTA ABAJO** bajo el rótulo "Seleccionadas" (tags con ✕), para que elegir no mueva la lista. Quitar una la regresa al pool.
+- Mismo tratamiento para las características de terreno (sección aparte). El markdown y la persistencia (`cap_caractCustom`) no cambian. Tests: `tests/test_caract.js` (16 asserts) + selectores actualizados en `test_markdown.js`. Verificado visualmente (`docs/verificacion-v0.7.1/F3-caracteristicas-wiggot.png`). SW: `v0.7.1-r5`.
+
 ### Fase 2 (06-jul-2026) — UX de Captura Rápida
 - **2a — se llenó el hueco del header:** en modo rápido el timer deja de ser anillo y pasa a **barra de progreso** (se rellena con lo transcurrido; verde→ámbar→rojo según urgencia, con el tiempo restante encima), y la **mascota crece a 150px** ocupando el espacio donde estaban casita+timer. El anillo se oculta; composición sin scroll vertical. Fix de layout: la mascota se salía a la derecha (el canvas chroma es `position:absolute; inset:0` y su wrap no tenía ancho) → caja fija 150px/70vw centrada, y `overflow-x:hidden` en `body.quick-mode` como garantía anti-scroll. Verificado en Edge real (`docs/verificacion-v0.7.1/F2-modo-rapido-barra-timer.png`).
 - **2b — slide de zona:** ARRIBA el cuadro de texto con botón **+** para escribir/agregar la zona; DEBAJO las zonas comunes como chips (antes al revés). Aplica a ambos modos (mismo DOM, listeners intactos).

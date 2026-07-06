@@ -636,6 +636,20 @@ body.quick-mode .qk-nav{position:fixed;left:0;right:0;bottom:0;background:var(--
 .qk-msg{font-size:.8rem;font-weight:700;color:var(--warn);background:var(--warn-bg);border-radius:8px;padding:8px 10px;animation:tag-in 160ms cubic-bezier(.34,1.56,.64,1)}
 .qk-btns{display:flex;gap:8px}
 .qk-btns .btn{padding:10px 12px;font-size:.9rem;box-shadow:0 3px 0 var(--_shadow)}
+/* Fase 3 (v0.7.1): lista de características estilo Wiggot */
+.caract-list{display:flex;flex-direction:column;gap:7px;margin-top:4px}
+.caract-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line-dark);border-radius:11px;background:var(--bg);color:var(--text);font-size:.92rem;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,transform .08s}
+.caract-row:active{transform:scale(.99)}
+.caract-lbl{flex:1;min-width:0}
+.caract-box{flex-shrink:0;width:22px;height:22px;border:2px solid var(--line-dark);border-radius:6px;position:relative;transition:background .12s,border-color .12s}
+.caract-row.caract-on{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);font-weight:800}
+.caract-row.caract-on .caract-box{background:var(--accent);border-color:var(--accent)}
+.caract-row.caract-on .caract-box::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;font-weight:900}
+.caract-row.caract-in{animation:caract-in 200ms cubic-bezier(.34,1.56,.64,1)}
+@keyframes caract-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.caract-sel-lbl{font-size:.72rem;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:.04em;margin:12px 0 6px}
+[data-theme="dark"] .caract-row{background:var(--bg-soft);border-color:var(--line-dark)}
+@media(prefers-reduced-motion:reduce){.caract-row.caract-in{animation:none!important}}
 /* D: chips de características — salida suave y tags con entrada animada */
 .chip.chip-out{max-width:0!important;opacity:0;padding-left:0!important;padding-right:0!important;margin:0!important;border-width:0!important;box-shadow:none!important;overflow:hidden;white-space:nowrap;transition:max-width 170ms ease,opacity 140ms ease,padding 170ms ease,margin 170ms ease}
 .tags .tag{animation:tag-in 180ms cubic-bezier(.34,1.56,.64,1)}

@@ -346,17 +346,16 @@ console.log('\n[10] Característica personalizada (+)');
   var md = generar(w);
   assert(md.indexOf('Cava de vinos') !== -1, 'la característica aparece en el markdown');
 
-  // catálogo: existe de fábrica Alberca climatizada y Pádel
+  // catálogo (Fase 3 v0.7.1: lista estilo Wiggot, filas .caract-row): existe de
+  // fábrica Alberca climatizada y Pádel; "Ver más" muestra todas las ocultas
   var w2 = boot({ cap_caractCustom: JSON.stringify(['Cava de vinos']) });
   clickChip(w2, 'tipoChips', 'Casa');
-  var chipTexts = Array.prototype.map.call(w2.document.querySelectorAll('#caractChips .chip'),
+  $(w2, 'btnCaractMas').click(); // expandir para ver todo el catálogo (12 visibles por defecto)
+  var rowTexts = Array.prototype.map.call(w2.document.querySelectorAll('#caractChips .caract-row .caract-lbl'),
     function (c) { return c.textContent; });
-  assert(chipTexts.indexOf('Alberca climatizada') !== -1, '"Alberca climatizada" está en el catálogo visible');
-  $(w2, 'btnCaractMas').click();
-  chipTexts = Array.prototype.map.call(w2.document.querySelectorAll('#caractChips .chip'),
-    function (c) { return c.textContent; });
-  assert(chipTexts.indexOf('Pádel') !== -1, '"Pádel" está en el catálogo (Ver más)');
-  assert(chipTexts.indexOf('Cava de vinos') !== -1, 'una captura futura ofrece la característica personalizada persistida');
+  assert(rowTexts.indexOf('Alberca climatizada') !== -1, '"Alberca climatizada" está en el catálogo visible');
+  assert(rowTexts.indexOf('Pádel') !== -1, '"Pádel" está en el catálogo (Ver más)');
+  assert(rowTexts.indexOf('Cava de vinos') !== -1, 'una captura futura ofrece la característica personalizada persistida');
 })();
 
 /* ============ 11. Historial: tap = solo lectura, Editar = explícito ============ */

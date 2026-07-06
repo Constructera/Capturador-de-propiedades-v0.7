@@ -916,7 +916,6 @@ function poolFor(){
   var extra=caractCustom.filter(function(c){return base.indexOf(c)===-1;});
   return extra.length?base.concat(extra):base;
 }
-var CARACT_TOP=30;
 var caractExpanded=false;
 var caractTerrExpanded=false;
 var CARACT_ALIASES={
@@ -935,29 +934,72 @@ function normalizeCaract(arr){
 }
 function buildCaract(){caractExpanded=false;caractOrden=null;renderCaract();}
 
-/* D: pool solo con NO seleccionadas (las elegidas viven arriba como tags con ✕).
-   Al elegir: el estado se actualiza al instante, la chip se desvanece con
-   animación y el hueco se rellena con la siguiente oculta al re-render. */
-function _renderCaractPool(poolFn,selArr,chipsEl,btnMasId,expanded,refreshFn){
-  var pool=poolFn().filter(function(c){return selArr.indexOf(c)===-1;});
-  var vis=expanded?pool:pool.slice(0,CARACT_TOP);
-  var chips=$(chipsEl);chips.innerHTML='';
-  vis.forEach(function(c){
-    var b=document.createElement('button');b.type='button';b.className='chip chip-sm';b.textContent=c;
-    b.addEventListener('click',function(){
-      selArr.push(c);updateProgress();
-      b.style.maxWidth=b.offsetWidth+'px';void b.offsetWidth;
-      b.classList.add('chip-out');b.disabled=true;
-      setTimeout(refreshFn,170);
-    });
-    chips.appendChild(b);
-  });
-  var btn=$(btnMasId);
-  if(btn){
-    btn.style.display=pool.length>CARACT_TOP?'':'none';
-    btn.textContent=expanded?'Ver menos ↑':'Ver más ↓';
-  }
+/* Fase 3 (v0.7.1): lista estilo Wiggot — UNA característica por fila, botón
+   ancho con checkbox al final. Al marcar: la fila se pone verde/checked, se
+   agrega a las seleccionadas (que viven ABAJO) y se REEMPLAZA EN SITIO por la
+   siguiente oculta; las demás filas NO se recorren (posición estable). */
+var CARACT_SLOTS=12; // 10-15 visibles
+function _caractAvail(cfg){
+  return cfg.pool().filter(function(c){return cfg.sel().indexOf(c)===-1;});
 }
+function _caractRow(cfg,c,i){
+  var row=document.createElement('button');row.type='button';row.className='caract-row';row.dataset.slot=i;
+  var lbl=document.createElement('span');lbl.className='caract-lbl';lbl.textContent=c;
+  var box=document.createElement('span');box.className='caract-box';
+  row.appendChild(lbl);row.appendChild(box);
+  row.addEventListener('click',function(){_caractPick(cfg,row);});
+  return row;
+}
+function _caractRenderList(cfg){
+  var avail=_caractAvail(cfg);
+  var n=cfg.expanded()?avail.length:Math.min(CARACT_SLOTS,avail.length);
+  cfg.slots=avail.slice(0,n);
+  var box=$(cfg.listId);if(!box)return;box.innerHTML='';
+  cfg.slots.forEach(function(c,i){box.appendChild(_caractRow(cfg,c,i));});
+  var btn=$(cfg.masId);
+  if(btn){btn.style.display=avail.length>CARACT_SLOTS?'':'none';btn.textContent=cfg.expanded()?'Ver menos ↑':'Ver más ↓';}
+}
+function _caractPick(cfg,row){
+  var i=+row.dataset.slot;var c=cfg.slots[i];if(!c)return;
+  row.classList.add('caract-on');row.disabled=true;
+  cfg.sel().push(c);if(cfg.persist)persistCaractCustom(c);
+  _caractRenderTags(cfg);updateProgress();
+  setTimeout(function(){
+    // siguiente oculta que no esté ya visible ni seleccionada → misma posición
+    var next=_caractAvail(cfg).filter(function(x){return cfg.slots.indexOf(x)===-1;})[0];
+    if(next){
+      cfg.slots[i]=next;
+      var fresh=_caractRow(cfg,next,i);fresh.classList.add('caract-in');
+      if(row.parentNode)row.replaceWith(fresh);
+    }else{
+      cfg.slots[i]=null; // pool agotado: la fila se va sin reemplazo
+      if(row.parentNode)row.remove();
+    }
+  },200);
+}
+function _caractRenderTags(cfg){
+  var tags=$(cfg.tagsId);if(!tags)return;tags.innerHTML='';
+  var sel=cfg.sel();
+  var lbl=$(cfg.selLblId);if(lbl)lbl.style.display=sel.length?'':'none';
+  sel.forEach(function(c){
+    var t=document.createElement('span');t.className='tag';t.appendChild(document.createTextNode(c));
+    var x=document.createElement('button');x.type='button';x.textContent='✕';
+    x.addEventListener('click',function(){
+      cfg.setSel(sel.filter(function(v){return v!==c;}));
+      _caractRenderTags(cfg);_caractRenderList(cfg);updateProgress();
+    });
+    t.appendChild(x);tags.appendChild(t);
+  });
+}
+function _caractRenderAll(cfg){_caractRenderList(cfg);_caractRenderTags(cfg);}
+var CARACT_MAIN={listId:'caractChips',tagsId:'caractTags',masId:'btnCaractMas',selLblId:'caractSelLbl',
+  persist:true,slots:[],pool:poolForShuffled,
+  sel:function(){return state.caract;},setSel:function(a){state.caract=a;},
+  expanded:function(){return caractExpanded;}};
+var CARACT_TERRENO={listId:'caractTerrChips',tagsId:'caractTerrTags',masId:'btnCaractTerrMas',selLblId:'caractTerrSelLbl',
+  persist:false,slots:[],pool:function(){return CAR_TERR;},
+  sel:function(){return state.caractTerr;},setSel:function(a){state.caractTerr=a;},
+  expanded:function(){return caractTerrExpanded;}};
 function shuffleArr(a){
   a=a.slice();
   for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
@@ -974,15 +1016,7 @@ function poolForShuffled(){
 
 function renderCaract(){
   state.caract=normalizeCaract(state.caract);
-  // Tags seleccionados
-  var tags=$('caractTags');tags.innerHTML='';
-  state.caract.forEach(function(c){
-    var t=document.createElement('span');t.className='tag';t.appendChild(document.createTextNode(c));
-    var x=document.createElement('button');x.type='button';x.textContent='✕';
-    x.addEventListener('click',function(){state.caract=state.caract.filter(function(v){return v!==c;});renderCaract();updateProgress();});
-    t.appendChild(x);tags.appendChild(t);
-  });
-  _renderCaractPool(poolForShuffled,state.caract,'caractChips','btnCaractMas',caractExpanded,renderCaract);
+  _caractRenderAll(CARACT_MAIN);
 }
 function addCaract(c){
   if(!c)return;
@@ -1005,25 +1039,19 @@ $('f_caract_buscar').addEventListener('keydown',function(e){
 $('f_caract_buscar').addEventListener('input',function(){
   var q=this.value.trim().toLowerCase();if(!q){renderCaract();return;}
   var pool=poolFor().filter(function(c){return state.caract.indexOf(c)===-1&&c.toLowerCase().indexOf(q)!==-1;});
-  var chips=$('caractChips');chips.innerHTML='';
-  pool.forEach(function(c){
-    var b=document.createElement('button');b.type='button';b.className='chip chip-sm';b.textContent=c;
-    b.addEventListener('click',function(){addCaract(c);$('f_caract_buscar').value='';updateProgress();});
-    chips.appendChild(b);
+  var box=$('caractChips');box.innerHTML='';
+  pool.slice(0,20).forEach(function(c){
+    var row=document.createElement('button');row.type='button';row.className='caract-row';
+    var lbl=document.createElement('span');lbl.className='caract-lbl';lbl.textContent=c;
+    var bx=document.createElement('span');bx.className='caract-box';
+    row.appendChild(lbl);row.appendChild(bx);
+    row.addEventListener('click',function(){addCaract(c);$('f_caract_buscar').value='';updateProgress();});
+    box.appendChild(row);
   });
 });
 
-/* características de terreno (sección aparte) */
-function renderCaractTerr(){
-  var tags=$('caractTerrTags');tags.innerHTML='';
-  state.caractTerr.forEach(function(c){
-    var t=document.createElement('span');t.className='tag';t.appendChild(document.createTextNode(c));
-    var x=document.createElement('button');x.type='button';x.textContent='✕';
-    x.addEventListener('click',function(){state.caractTerr=state.caractTerr.filter(function(v){return v!==c;});renderCaractTerr();});
-    t.appendChild(x);tags.appendChild(t);
-  });
-  _renderCaractPool(function(){return CAR_TERR;},state.caractTerr,'caractTerrChips','btnCaractTerrMas',caractTerrExpanded,renderCaractTerr);
-}
+/* características de terreno (sección aparte) — misma lista estilo Wiggot */
+function renderCaractTerr(){_caractRenderAll(CARACT_TERRENO);}
 $('btnCaractTerrMas').addEventListener('click',function(){caractTerrExpanded=!caractTerrExpanded;renderCaractTerr();});
 renderCaract();renderCaractTerr();renderCRM();initHomeMascot();
 // sel-wrap: envuelve todos los <select> para la flechita CSS ::after
