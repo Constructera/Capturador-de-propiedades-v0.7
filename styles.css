@@ -585,6 +585,20 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 #pinInput{width:100%;box-sizing:border-box;font-size:1.25rem;letter-spacing:.3em}
 #pinOverlay .modal-foot{display:flex;gap:8px;flex-wrap:wrap}
 #pinOverlay .modal-foot .btn{flex:1 1 auto;min-width:0;padding:12px 10px;font-size:.88rem;white-space:nowrap}
+/* 1d (v0.7.1): toast de feedback (vCard y acciones sin UI propia) */
+.cap-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#222;color:#fff;font-size:.82rem;font-weight:700;padding:10px 16px;border-radius:999px;z-index:500;max-width:88vw;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.35);animation:tag-in 200ms cubic-bezier(.34,1.56,.64,1)}
+.cap-toast.out{opacity:0;transition:opacity 400ms ease}
+[data-theme="dark"] .cap-toast{background:#eee;color:#111}
+/* 1c (v0.7.1): botón de borrado — "Borrar" en negro sobre rojo pleno, sin desbordes */
+#pinOk{background:#e53935;border-color:#c62828;color:#111;font-weight:800;--_shadow:#b71c1c;position:relative;overflow:visible}
+#pinOk:active{background:#d32f2f}
+[data-theme="dark"] #pinOk{color:#111}
+/* explosión al confirmar: burst de escala + partículas */
+.pin-explode{animation:pin-burst 380ms cubic-bezier(.34,1.56,.64,1)}
+@keyframes pin-burst{0%{transform:scale(1)}35%{transform:scale(1.18)}60%{transform:scale(.92)}100%{transform:scale(1)}}
+.pin-part{position:absolute;left:50%;top:50%;width:7px;height:7px;border-radius:50%;background:var(--part,#ff5252);pointer-events:none;animation:pin-part 550ms ease-out forwards}
+@keyframes pin-part{from{transform:translate(-50%,-50%) scale(1);opacity:1}to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.3);opacity:0}}
+@media(prefers-reduced-motion:reduce){.pin-explode,.pin-part{animation:none!important}}
 /* Shake del modal de PIN cuando el PIN es incorrecto */
 .pin-shake{animation:pin-shake 320ms ease}
 @keyframes pin-shake{20%{transform:translateX(-8px)}45%{transform:translateX(7px)}70%{transform:translateX(-4px)}90%{transform:translateX(2px)}}
@@ -609,7 +623,13 @@ body.quick-mode #viewCapture .view-header,body.quick-mode #viewCapture .doc-titl
 body.quick-mode #timerRunningCtrl{display:none!important}
 body.quick-mode .timer-widget{padding:8px 10px;margin-bottom:10px}
 body.quick-mode{padding-bottom:0}
-.qk-nav{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:8px 14px calc(8px + env(safe-area-inset-bottom,0px));z-index:300;display:flex;flex-direction:column;gap:6px;box-shadow:0 -3px 12px rgba(0,0,0,.06)}
+/* 1a (v0.7.1): body.quick-mode es la ÚNICA fuente de verdad — la barra NO
+   existe visualmente fuera del modo rápido, aunque el atributo hidden o el
+   flag JS se corrompan (display:flex pisaba al atributo [hidden] del UA y la
+   barra aparecía en la captura normal y al editar). */
+.qk-nav{display:none}
+body.quick-mode .qk-nav{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:8px 14px calc(8px + env(safe-area-inset-bottom,0px));z-index:300;display:flex;flex-direction:column;gap:6px;box-shadow:0 -3px 12px rgba(0,0,0,.06)}
+.qk-nav[hidden]{display:none!important}
 .qk-info{display:flex;justify-content:space-between;align-items:center;font-size:.78rem;font-weight:800}
 .qk-sec{color:var(--accent)}
 .qk-count{color:var(--text-soft)}

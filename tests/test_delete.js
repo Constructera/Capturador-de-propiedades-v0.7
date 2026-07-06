@@ -104,8 +104,8 @@ function delPosts(w) { return w._gasPosts.filter(function (p) { return p.action 
   clickBorrar(w, 'CAP-DEL');
   $(w, 'pinInput').value = '1512';
   $(w, 'pinOk').click();
-  await sleep(50);
-  assert(!$(w, 'pinOverlay').classList.contains('show'), 'el modal se cierra');
+  await sleep(500); // 1c v0.7.1: el cierre se retrasa ~420ms por la explosión del botón
+  assert(!$(w, 'pinOverlay').classList.contains('show'), 'el modal se cierra (tras la animación de explosión)');
   var h = hist(w);
   assert(h.length === 1 && h[0].id === 'CAP-KEEP', 'la captura se borró del localStorage (solo la pedida)');
   assert(w.document.querySelector('[data-rid="CAP-DEL"]') === null, 'la tarjeta desapareció de la lista');

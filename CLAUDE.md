@@ -13,6 +13,7 @@ Aislado: no mezclar con otros proyectos.
 4. Bump del cache key del Service Worker (`sw.js` → `CACHE`) en CADA push.
 5. Nunca eliminar elementos del DOM con listeners activos sin remover el listener primero — crashea el IIFE completo.
 6. jsdom instalado local en `tests/` (npm install jsdom). Node en `C:\Program Files\nodejs` (agregar al PATH en Git Bash).
+7. **Los tests NUNCA escriben al Sheet/Drive de PRODUCCIÓN.** (Regla v0.7.1, 06-jul-2026, tras encontrar 9 capturas "Casa Paridad" de prueba en el Sheet real.) Los tests de GAS/Drive usan SIEMPRE mocks (`tests/test_gas.js` mockea `SpreadsheetApp`/`DriveApp`/`ContentService`; `tests/test_drive_app.js` intercepta `fetch` en jsdom). Prohibido apuntar `CFG.endpoint` al endpoint real en un test. Si algún día hace falta una prueba de integración contra un backend real, crear un spreadsheet de STAGING aparte y un endpoint distinto — nunca el de producción. Verificaciones manuales del endpoint real (curl de diagnóstico) son aceptables pero NO deben dejar registros de prueba: si se crean, borrarlos con `deleteCapture` (PIN 1512) verificando uuid por uuid antes.
 
 ## Antes de hacer cualquier cosa
 1. Lee docs/PROMPT_MAESTRO_v0.5.md (especificación completa, fuente de verdad).

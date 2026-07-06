@@ -95,8 +95,10 @@ function showView(id){
   document.querySelectorAll('#navbar button').forEach(function(b){b.classList.toggle('active',b.dataset.view===id);});
   document.body.classList.toggle('capture-active',id==='viewCapture');
   // v0.7 B6: entrada/salida del modo Captura Rápida
+  // 1a (v0.7.1): CUALQUIER navegación que no entre al modo rápido garantiza
+  // limpieza total (qkStop es idempotente) — cubre guardar/salir/editar/navegar
   if(id==='viewCapture'&&quickPending){quickPending=false;setTimeout(qkStart,0);}
-  else if(id!=='viewCapture'&&qkOn)qkStop();
+  else qkStop();
   // A1: el pase al modo rápido solo sobrevive el trayecto Home⚡→Asesor→Captura;
   // cualquier otra navegación lo cancela (evita contaminar la edición)
   if(id!=='viewCapture'&&id!=='viewAdvisor')quickPending=false;
@@ -2662,7 +2664,10 @@ function confirmPinDelete(){
     sndError();
     return;
   }
-  var tgt=pinDelTarget;closePinDelete();
+  var tgt=pinDelTarget;pinDelTarget=null;
+  // 1c (v0.7.1): explosión del botón antes de cerrar el modal
+  pinExplode($('pinOk'));
+  setTimeout(function(){$('pinOverlay').classList.remove('show');},420);
   if(tgt.isCt){
     var ch=load('ct_hist',[]);save('ct_hist',ch.filter(function(r){return r.id!==tgt.id;}));
     updateCtBadge();
@@ -2673,6 +2678,24 @@ function confirmPinDelete(){
   }
   _renderHistList(getHist());
   gasDeleteCapture(tgt.id);
+}
+/* 1c (v0.7.1): burst de escala + partículas CSS al confirmar el borrado.
+   Las partículas no tienen listeners: quitarlas del DOM es seguro. */
+function pinExplode(btn){
+  if(!btn)return;
+  btn.classList.remove('pin-explode');void btn.offsetWidth;btn.classList.add('pin-explode');
+  var colores=['#ff5252','#ffab40','#ffd740','#ff8a80'];
+  for(var i=0;i<10;i++){
+    var p=document.createElement('span');p.className='pin-part';
+    var ang=(Math.PI*2*i)/10+Math.random()*.5;
+    var dist=34+Math.random()*26;
+    p.style.setProperty('--dx',Math.round(Math.cos(ang)*dist)+'px');
+    p.style.setProperty('--dy',Math.round(Math.sin(ang)*dist)+'px');
+    p.style.setProperty('--part',colores[i%colores.length]);
+    btn.appendChild(p);
+  }
+  setTimeout(function(){btn.querySelectorAll('.pin-part').forEach(function(p){p.remove();});btn.classList.remove('pin-explode');},650);
+  if(navigator.vibrate)navigator.vibrate([20,30,40]);
 }
 function gasDeleteCapture(uuid){
   if(!CFG.endpoint)return;
@@ -2919,7 +2942,9 @@ function qkStart(){
   qkShow(first===-1?0:first);
 }
 function qkStop(){
-  if(!qkOn)return;
+  // 1a (v0.7.1): limpieza SIEMPRE, sin early-return por flag — si qkOn se
+  // desincroniza del DOM, esta función lo repara igual (idempotente)
+  var estaba=qkOn;
   qkOn=false;
   document.body.classList.remove('quick-mode');
   $('qkNav').hidden=true;
@@ -2927,7 +2952,7 @@ function qkStop(){
   $('qkResumen').hidden=true;
   var qb=document.querySelector('#qkNav .qk-btns');if(qb)qb.style.display='';
   qkSlides.forEach(function(s){s.el.classList.remove('qk-hide','qk-slide-in');});
-  timerLimit=load('cfg_timer_limit',600); // restaurar preferencia del asesor
+  if(estaba)timerLimit=load('cfg_timer_limit',600); // restaurar preferencia del asesor
 }
 $('homeQuickCard').addEventListener('click',function(){quickPending=true;});
 // C4: steppers −/+ en numéricos (rec, baños, medios, estacionamientos)
@@ -3591,22 +3616,39 @@ function buildVCard(rec){
   lines.push('END:VCARD');
   return lines.join('\r\n');
 }
+/* 1d (v0.7.1): toast de feedback — el vCard NUNCA debe "no hacer nada" */
+function capToast(msg){
+  var t=document.createElement('div');t.className='cap-toast';t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.classList.add('out');},2600);
+  setTimeout(function(){t.remove();},3100);
+}
 function shareVCard(rec){
   if(!rec)return;
   var vcf=buildVCard(rec);
   var fname=((rec.nombre||'contacto').replace(/[^\w\-. À-ÿ]/g,'').trim()||'contacto')+'.vcf';
+  function descargar(){
+    var blob=new Blob([vcf],{type:'text/vcard'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download=fname;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},4000);
+    capToast('📇 vCard descargado — ábrelo (barra de descargas) para añadir el contacto');
+  }
+  // 1d: bug Android/Chrome — si navigator.share rechazaba, el catch vacío se
+  // lo tragaba y no pasaba NADA visible. Ahora: share nativo y, si falla por
+  // cualquier razón que no sea que el usuario canceló, descarga con aviso.
   try{
     var file=new File([vcf],fname,{type:'text/vcard'});
-    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
-      navigator.share({files:[file],title:rec.nombre||'Contacto'}).catch(function(){});
+    var shareable=navigator.canShare&&navigator.share&&
+      (navigator.canShare({files:[file]})||navigator.canShare({files:[new File([vcf],fname,{type:'text/x-vcard'})]}));
+    if(shareable){
+      navigator.share({files:[file],title:rec.nombre||'Contacto'})
+        .catch(function(err){if(!err||err.name!=='AbortError')descargar();});
       return;
     }
   }catch(e){}
-  var blob=new Blob([vcf],{type:'text/vcard'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');a.href=url;a.download=fname;
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  setTimeout(function(){URL.revokeObjectURL(url);},4000);
+  descargar();
 }
 function findCtRec(id){return load('ct_hist',[]).filter(function(r){return r.id===id;})[0];}
 
