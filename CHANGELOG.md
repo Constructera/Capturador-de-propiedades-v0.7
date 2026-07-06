@@ -22,6 +22,12 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **Tests:** G12 en `test_gas.js` (+11 asserts: persistencia, PDF fallback, prioridad imagen, refresh idempotente, GET, docx ignorado). GAS: 106/106.
 - **⚠️ Acción del dueño:** pegar GAS v3.6 y "Nueva versión" (mismos scopes, NO pide re-autorizar). SW: `v0.7.1-F1-r1`.
 
+### Fase 0 (06-jul-2026) — herramienta de feedback dev (TEMPORAL)
+- **Long-press de 5 s** (constante `DEVFB_HOLD_MS`) sobre cualquier elemento → cuadro de comentario con contexto automático: vista activa, slide del modo rápido (n/m + título), id del elemento (o tag) y timestamp. Guarda en `cap_devfb` (localStorage).
+- **Fab 📋** (abajo-izquierda, con badge de conteo) → export de TODOS los comentarios como markdown estructurado para Claude Code (bloque por comentario: vista / slide / elemento / timestamp / texto citado), botón copiar (clipboard + fallback execCommand) y borrar todos (con confirmación).
+- Todo detrás de **`DEV_FEEDBACK=true`** (app.js, bloque delimitado "DEV FEEDBACK") + bloque CSS `.devfb-` en styles.css. **QUITAR ambos bloques antes del release final.** DOM creado dinámicamente: cero rastro en index.html.
+- No interfiere con la app: nunca hace `preventDefault`; el hold se cancela al soltar, mover >12 px o hacer scroll. Tests: `tests/test_devfb.js` (21 asserts). SW: `v0.7.1-r2`.
+
 ---
 
 ## v0.7 (en desarrollo) — Bloque 1: campos Notion nuevos, trazabilidad y historial solo lectura
