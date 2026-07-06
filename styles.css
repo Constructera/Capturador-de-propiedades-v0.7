@@ -636,6 +636,11 @@ body.quick-mode .qk-nav{position:fixed;left:0;right:0;bottom:0;background:var(--
 .qk-msg{font-size:.8rem;font-weight:700;color:var(--warn);background:var(--warn-bg);border-radius:8px;padding:8px 10px;animation:tag-in 160ms cubic-bezier(.34,1.56,.64,1)}
 .qk-btns{display:flex;gap:8px}
 .qk-btns .btn{padding:10px 12px;font-size:.9rem;box-shadow:0 3px 0 var(--_shadow)}
+/* 4a (v0.7.1): CTAs del selector de asesor siempre visibles (barra fija abajo) */
+.advisor-cta{position:sticky;bottom:0;z-index:20;margin:16px -20px 0;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -3px 12px rgba(0,0,0,.05)}
+[data-theme="dark"] .advisor-cta{background:#1e1e1e;box-shadow:none}
+/* 4c (v0.7.1): nota de fallback del Contact Picker (iOS) */
+.pick-note{font-size:.82rem;color:var(--text-soft);background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px;line-height:1.4}
 /* Fase 3 (v0.7.1): lista de características estilo Wiggot */
 .caract-list{display:flex;flex-direction:column;gap:7px;margin-top:4px}
 .caract-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line-dark);border-radius:11px;background:var(--bg);color:var(--text);font-size:.92rem;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,transform .08s}

@@ -2,4 +2,6 @@ tests/node_modules/
 tests/package-lock.json
 _shot*.png
 _shot*.html
+__*.html
+__*.png
 _seg*.png

@@ -3149,8 +3149,22 @@ function _pickContacts(cb){
     });
   }).catch(function(){});
 }
+/* 4c (v0.7.1): la Contact Picker API es Chrome/Android sobre HTTPS. Safari
+   iOS/iPadOS NO la tiene (verificado: sigue sin soporte). En iOS mostramos una
+   nota clara en vez de un botón muerto; en el resto sin soporte (desktop) los
+   botones quedan ocultos en silencio (degradación con gracia). */
+function _isIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)||
+    (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1); // iPadOS 13+ se hace pasar por Mac
+}
 (function(){
-  if(!(navigator.contacts&&navigator.contacts.select))return;
+  if(!(navigator.contacts&&navigator.contacts.select)){
+    if(_isIOS()){
+      var msg='📇 En iPhone/iPad no se pueden importar contactos aún (limitación de Safari). Escribe el nombre y teléfono abajo.';
+      [['pickNote'],['pickNoteCt']].forEach(function(p){var n=$(p[0]);if(n){n.textContent=msg;n.style.display='';}});
+    }
+    return;
+  }
   var b1=$('btnPickContact'),b2=$('btnPickContactCt');
   if(b1){b1.style.display='';b1.addEventListener('click',function(){
     _pickContacts(function(c){

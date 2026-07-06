@@ -22,6 +22,11 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **Tests:** G12 en `test_gas.js` (+11 asserts: persistencia, PDF fallback, prioridad imagen, refresh idempotente, GET, docx ignorado). GAS: 106/106.
 - **⚠️ Acción del dueño:** pegar GAS v3.6 y "Nueva versión" (mismos scopes, NO pide re-autorizar). SW: `v0.7.1-F1-r1`.
 
+### Fase 4 (06-jul-2026) — home y contactos
+- **4a — CTAs siempre visibles:** en el selector de asesor, "+ Agregar asesor" y "Empezar captura →" viven ahora en una barra `sticky bottom` (`.advisor-cta`), visibles sin scroll aunque la lista de asesores crezca.
+- **4b — aire al picker:** "📇 Elegir de mis contactos" pasó de `margin-bottom:8px` a `margin:14px 0 8px` (ya no se encima con lo de arriba), en CRM y en captura de contacto.
+- **4c — fallback iOS del Contact Picker:** verificado que la Contact Picker API sigue **sin soporte en Safari iOS/iPadOS** (solo Chrome/Android sobre HTTPS). Detección de plataforma (`_isIOS`, contempla iPadOS 13+ que se hace pasar por Mac): en iOS se muestra una **nota clara** ("En iPhone/iPad no se pueden importar contactos… escribe el nombre y teléfono abajo") en vez de un botón muerto; en desktop sin soporte los botones siguen ocultos en silencio; con soporte aparecen normal. Tests: `tests/test_home.js` (12 asserts). SW: `v0.7.1-r6`.
+
 ### Fase 3 (06-jul-2026) — características estilo Wiggot
 - **Se reemplazó la nube de chips (que "mareaba" al reflowear) por una LISTA:** una característica por fila, botón ancho con **checkbox** al final. Se muestran ~12 (rango 10-15).
 - **Al marcar:** la fila se pone verde con ✓ y **se reemplaza EN SITIO** por la siguiente característica oculta — las demás filas NO se recorren (posición estable, sin salto visual). Si se agota el pool, la fila se retira sin reemplazo.
