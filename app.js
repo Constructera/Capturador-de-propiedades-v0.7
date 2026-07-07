@@ -2524,6 +2524,8 @@ function _renderHistList(h){
         '<div class="hi-actions">'+
           // F2: la carpeta Drive es un BOTÓN, nunca un link/markdown crudo en la tarjeta
           (r.driveUrl?'<button type="button" class="btn" data-drive="'+r.id+'">📷 Fotos Drive</button>':'')+
+          // 6b (v0.7.1): ficha técnica como imagen para compartir
+          '<button type="button" class="btn btn-accent" data-ficha="'+r.id+'">🖼 Compartir ficha</button>'+
           '<button type="button" class="btn" data-copy="'+r.id+'">Copiar MD</button>'+
           (r.maps?'<button type="button" class="btn" data-maps="'+r.id+'">Maps</button>':'')+
           '<button type="button" class="btn" data-edit-prop="'+r.id+'">Editar</button>'+
@@ -2689,6 +2691,7 @@ $('histList').addEventListener('click',function(e){
   if(t.dataset.maps){var r2=find(t.dataset.maps);if(r2&&r2.maps)window.open(r2.maps,'_blank');}
   if(t.dataset.drive){var rDrv=find(t.dataset.drive);if(rDrv&&rDrv.driveUrl)window.open(rDrv.driveUrl,'_blank');}
   if(t.dataset.editProp){abrirEdicion(t.dataset.editProp);}
+  if(t.dataset.ficha){shareFicha(find(t.dataset.ficha),t);}
   if(t.dataset.sent){find(t.dataset.sent).enviado=true;setHist(h);_renderHistList(h);flashHistState(t.dataset.sent);}
   if(t.dataset.pend){find(t.dataset.pend).enviado=false;setHist(h);_renderHistList(h);flashHistState(t.dataset.pend);}
   if(t.dataset.del2){openPinDelete(t.dataset.del2,false);}
@@ -3795,6 +3798,132 @@ function shareVCard(rec){
   descargar();
 }
 function findCtRec(id){return load('ct_hist',[]).filter(function(r){return r.id===id;})[0];}
+
+/* ===================== FICHA TÉCNICA (imagen) — 6b v0.7.1 =====================
+   Renderiza una ficha de la propiedad en canvas (1080×1350) y la comparte con
+   Web Share API (archivo PNG → share sheet nativo: WhatsApp, etc.) o descarga.
+   La foto de Drive es cross-origin: se intenta con crossOrigin='anonymous' y,
+   si el servidor no manda CORS (Drive no lo hace hoy), onerror → hero con
+   gradiente + emoji (el canvas NO queda tainted, así toBlob funciona). */
+function fichaField(rec,k){var fd=rec.formData||{};return fd[k]||'';}
+function buildFichaCanvas(rec,cb){
+  var W=1080,H=1350;
+  var cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  var ctx=cv.getContext&&cv.getContext('2d');
+  if(!ctx){cb(cv,null);return;} // entorno sin canvas (jsdom): devolver sin pintar
+  var fd=rec.formData||{},stx=fd._state||{};
+  var accent='#2e9e5b',dark='#1f2937',soft='#6b7280';
+  function paint(img){
+    // fondo
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+    // hero
+    var heroH=560;
+    if(img){
+      // cubrir el área (object-fit: cover)
+      var ar=img.width/img.height,arH=W/heroH;
+      var sw,sh,sx,sy;
+      if(ar>arH){sh=img.height;sw=sh*arH;sx=(img.width-sw)/2;sy=0;}
+      else{sw=img.width;sh=sw/arH;sx=0;sy=(img.height-sh)/2;}
+      ctx.drawImage(img,sx,sy,sw,sh,0,0,W,heroH);
+      ctx.fillStyle='rgba(0,0,0,.28)';ctx.fillRect(0,heroH-160,W,160);
+    }else{
+      var g=ctx.createLinearGradient(0,0,W,heroH);g.addColorStop(0,'#eafaf0');g.addColorStop(1,'#d3ede0');
+      ctx.fillStyle=g;ctx.fillRect(0,0,W,heroH);
+      ctx.font='220px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(CAT_TIPO_EMOJI[rec.tipo]||'🏠',W/2,heroH/2);
+    }
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    // precio (sobre el hero si hay foto, o bajo el hero)
+    var pr=catPrecioDe(rec);var moneda=fd.f_moneda||'MXN';
+    var precioTxt=pr.v!=null?('$'+fmt(pr.v)+' '+moneda):(pr.r!=null?('$'+fmt(pr.r)+' '+moneda+'/mes'):'Precio S/I');
+    ctx.fillStyle=img?'#ffffff':accent;ctx.font='800 76px sans-serif';
+    ctx.fillText(precioTxt,48,img?heroH-56:heroH+96);
+    var y=img?heroH+90:heroH+170;
+    // nombre
+    ctx.fillStyle=dark;ctx.font='800 60px sans-serif';
+    wrapText(ctx,rec.nombre||'Propiedad',48,y,W-96,66,2);y+=fichaLines(ctx,rec.nombre||'Propiedad',W-96,'800 60px sans-serif')*66+8;
+    // tipo · oper · zona
+    ctx.fillStyle=soft;ctx.font='500 40px sans-serif';
+    ctx.fillText([rec.tipo,rec.oper,rec.zona].filter(function(x){return x&&x!=='S/I';}).join('  ·  '),48,y);y+=64;
+    // specs
+    var specs=[];
+    if(fd.f_rec)specs.push('🛏 '+fd.f_rec+' rec');
+    if(fd.f_ban)specs.push('🛁 '+fd.f_ban+(fd.f_ban_medios?('+'+fd.f_ban_medios):'')+' baños');
+    if(fd.f_m2c)specs.push('📐 '+fd.f_m2c+' m²');
+    if(fd.f_m2t)specs.push('🌱 '+fd.f_m2t+' m² terr');
+    if(specs.length){ctx.fillStyle=dark;ctx.font='600 42px sans-serif';ctx.fillText(specs.join('   '),48,y);y+=72;}
+    // características top
+    var car=(stx.caract||[]).slice(0,4).join('  ·  ');
+    if(car){ctx.fillStyle=accent;ctx.font='600 36px sans-serif';wrapText(ctx,'✨ '+car,48,y,W-96,44,2);y+=96;}
+    // footer: asesor
+    ctx.fillStyle='#f3f4f6';ctx.fillRect(0,H-150,W,150);
+    ctx.fillStyle=dark;ctx.font='700 42px sans-serif';
+    ctx.fillText('Asesor: '+(rec.asesorNombre||rec.resp||'Hauser'),48,H-88);
+    ctx.fillStyle=soft;ctx.font='500 32px sans-serif';
+    ctx.fillText('Hauser · Inmobitera · Cuernavaca',48,H-44);
+    cb(cv,cv);
+  }
+  if(rec.fotoUrl){
+    var im=new Image();im.crossOrigin='anonymous';
+    var settled=false;
+    im.onload=function(){if(settled)return;settled=true;paint(im);};
+    im.onerror=function(){if(settled)return;settled=true;paint(null);};
+    setTimeout(function(){if(settled)return;settled=true;paint(null);},4000);
+    im.src=rec.fotoUrl;
+  }else paint(null);
+}
+/* cuántas líneas ocupará el texto (para avanzar la Y) */
+function fichaLines(ctx,text,maxW,font){
+  ctx.font=font;var words=String(text).split(' '),line='',n=1;
+  for(var i=0;i<words.length;i++){var t=line?line+' '+words[i]:words[i];if(ctx.measureText(t).width>maxW&&line){n++;line=words[i];}else line=t;}
+  return n;
+}
+function wrapText(ctx,text,x,y,maxW,lh,maxLines){
+  var words=String(text).split(' '),line='',ln=0;
+  for(var i=0;i<words.length;i++){
+    var t=line?line+' '+words[i]:words[i];
+    if(ctx.measureText(t).width>maxW&&line){
+      ctx.fillText(line,x,y);line=words[i];y+=lh;ln++;
+      if(maxLines&&ln>=maxLines-1){ // última línea permitida: recortar el resto
+        var rest=words.slice(i).join(' ');
+        while(ctx.measureText(rest+'…').width>maxW&&rest.length)rest=rest.slice(0,-1);
+        ctx.fillText(rest+(i<words.length?'…':''),x,y);return;
+      }
+    }else line=t;
+  }
+  ctx.fillText(line,x,y);
+}
+function descargarFicha(blob,fname){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=fname;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},4000);
+  capToast('🖼 Ficha descargada — compártela desde tus imágenes');
+}
+function shareFicha(rec,btn){
+  if(!rec)return;
+  if(btn){btn.disabled=true;btn.textContent='Generando…';}
+  buildFichaCanvas(rec,function(cv,painted){
+    function restore(){if(btn){btn.disabled=false;btn.textContent='🖼 Compartir ficha';}}
+    if(!painted||!cv.toBlob){restore();capToast('Tu navegador no puede generar la imagen.');return;}
+    cv.toBlob(function(blob){
+      restore();
+      if(!blob){capToast('No se pudo generar la ficha.');return;}
+      var fname=((rec.nombre||'ficha').replace(/[^\w\-. À-ÿ]/g,'').trim()||'ficha')+'.png';
+      var pr=catPrecioDe(rec);var precioTxt=pr.v!=null?('$'+fmt(pr.v)):(pr.r!=null?('$'+fmt(pr.r)+'/mes'):'');
+      var texto=(rec.nombre||'Propiedad')+(precioTxt?' — '+precioTxt:'')+' · '+(rec.zona||'');
+      try{
+        var file=new File([blob],fname,{type:'image/png'});
+        if(navigator.canShare&&navigator.share&&navigator.canShare({files:[file]})){
+          navigator.share({files:[file],title:rec.nombre||'Ficha',text:texto})
+            .catch(function(err){if(!err||err.name!=='AbortError')descargarFicha(blob,fname);});
+          return;
+        }
+      }catch(e){}
+      descargarFicha(blob,fname);
+    },'image/png');
+  });
+}
 
 function saveContactHist(rec){
   if(!rec.id)rec.id='CT-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).substr(2,8).toUpperCase();

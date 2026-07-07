@@ -22,6 +22,10 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **Tests:** G12 en `test_gas.js` (+11 asserts: persistencia, PDF fallback, prioridad imagen, refresh idempotente, GET, docx ignorado). GAS: 106/106.
 - **⚠️ Acción del dueño:** pegar GAS v3.6 y "Nueva versión" (mismos scopes, NO pide re-autorizar). SW: `v0.7.1-F1-r1`.
 
+### Fase 6 (06-jul-2026) — catálogo y ficha compartible
+- **6a — legibilidad de las tarjetas:** nombre de la propiedad más grande y con más peso (1.08rem/800), resumen tipo·operación·zona en color suave, specs 🛏🛁📐🌱 más grandes (0.92rem/600). (Iteración fina pendiente del feedback del dueño vía la herramienta de la Fase 0.)
+- **6b — ficha técnica como imagen compartible:** nuevo botón **"🖼 Compartir ficha"** en cada tarjeta de propiedad. Renderiza en `canvas` (1080×1350) una ficha con foto (o ícono del tipo), precio grande, nombre, tipo·operación·zona, recámaras/baños/m², top-4 características y el asesor, y la comparte con **Web Share API adjuntando el PNG** (share sheet nativo → WhatsApp, etc.); sin soporte cae a descarga del PNG con toast. La foto de Drive se intenta con `crossOrigin='anonymous'` (si Drive no manda CORS, `onerror` → hero con gradiente+emoji, el canvas no queda *tainted* y `toBlob` funciona). Tests: `tests/test_ficha.js` (11 asserts, canvas/share stubeados) + verificación visual real (`docs/verificacion-v0.7.1/F6-ficha-tecnica.png`). SW: `v0.7.1-r8`.
+
 ### Fase 5 (06-jul-2026) — markdown v0.7.1 (coordinación sitio web + bot Notion)
 - **5a — relación "Asesor" (CRÍTICO):** el markdown ahora emite `| Asesor | Relación → 👥 Contactos | <asesor> |` con el captador (Erica/Carlos/Daniel/Gabriel ya existen). En ediciones usa el asesor **original** (`asesorNombre`), nunca `editadoPor`. **El sitio web enruta leads con esta relación.**
 - **5b — lista NEVER-WRITE ampliada:** el markdown emite una nota ⛔ al agente con los 8 campos que NO debe escribir (los calcula Notion/el sitio/el bot): Precio/m², Precio/m² (terreno), Código, Lugar, Etiqueta comercial, Fecha cambio estatus, Publicado en web, Fotos (URLs). Documentado también en CLAUDE.md.

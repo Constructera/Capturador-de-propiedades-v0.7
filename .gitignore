@@ -4,4 +4,5 @@ _shot*.png
 _shot*.html
 __*.html
 __*.png
+tests/_*.js
 _seg*.png
