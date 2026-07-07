@@ -6,6 +6,12 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 
 ## v0.7.1 (en desarrollo) — correcciones post-testing + coordinación sitio web / bot Notion
 
+### Bloques A–D (07-jul-2026) — push, diagnóstico fotos, tema claro
+- **A — push de v0.7.1:** las 8 fases estaban commiteadas pero SIN pushear (por eso el dueño no las veía en el celular). Pusheadas a `origin/main`. SW final del empuje: `v0.7.1-r9`.
+- **B — fotos de Drive: causa raíz REAL.** GAS v3.6 funciona correctamente (verificado con GET/POST reales): `firstImageUrl_` detecta el JPG de "Burgos amigo de Paco", persiste `fotoUrl` y el GET devuelve `fotos:{uuid:thumbnail}`; la miniatura es pública (curl anónimo → 200 image/jpeg). La foto NO aparecía porque **la app en Pages era la versión vieja (B7): no lee `data.fotos` ni dispara `refreshFotos`**. Además `refreshFotos` nunca había corrido, así que la columna estaba vacía (se pobló al dispararlo). **Fix = desplegar v0.7.1 (Bloque A).** El frontend (Fase -1) ya fusiona `data.fotos` y dispara `refreshFotos` (throttle 5 min) al abrir historial. `gasPost` usa `fetch` POST (el navegador sigue el redirect de Apps Script bien; el problema de "POST pierde el body" era solo de curl con `-L`). Test de regresión: `tests/test_fotos.js` (6 asserts: render de `<img>` desde `data.fotos`, disparo de refreshFotos con carpeta sin foto, throttle). **Drive:** el archivo de Burgos ya es accesible sin login; si una foto NO carga, verificar en Drive que el archivo tenga permiso "Cualquiera con el enlace (Lector)".
+- **C — botón "Captura Rápida" invisible en light mode:** el selector `.home-card[class*="hc-"] .home-label/.home-icon{color:#fff}` pintaba el texto de blanco para todas las tarjetas hc-*, pero `hc-quick` solo tenía fondo naranja en dark → en light quedaba texto blanco sobre fondo claro (invisible). Fix: fondo naranja en AMBOS temas (como hc-property/hc-contact). Revisados los demás componentes con `#fff`: todos tienen override dark correcto; hc-quick era el único roto. Verificado visualmente en Edge (light).
+- **D — recordatorio:** TODO de eliminar DEV_FEEDBACK antes del release documentado al inicio de CLAUDE.md (sigue activo por pedido del dueño).
+
 ### Fase -1 (06-jul-2026) — la foto Drive del catálogo por fin aparece (GAS v3.6)
 **Diagnóstico end-to-end (sin asumir nada):**
 1. Ping real al endpoint: respondía "Hauser GAS v3.5 online" → el despliegue del dueño estaba BIEN.

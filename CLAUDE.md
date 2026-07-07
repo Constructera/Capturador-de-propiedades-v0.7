@@ -1,5 +1,8 @@
 ﻿# Proyecto: Capturadora Hauser v0.7
 
+## ⚠️ TODO ANTES DEL RELEASE FINAL v0.7.1
+- **QUITAR la herramienta DEV_FEEDBACK por completo.** Está detrás del flag `DEV_FEEDBACK=true` (app.js, bloque delimitado "DEV FEEDBACK") + bloque CSS `.devfb-` en styles.css. Es TEMPORAL, solo para que el dueño dé feedback fino de las tarjetas por long-press. Borrar ambos bloques (app.js + styles.css) antes de publicar la versión final. (Sigue ACTIVO por pedido del dueño hasta que termine de dar feedback.)
+
 ## Qué es esto
 Continuación de la app capturadora de propiedades Hauser/Inmobitera, versión v0.7.
 Repo COPIA de v0.6 (carpeta Capturadora-Hauser-v0.5 = repo Capturador-de-propiedades-v0.6).

@@ -612,9 +612,11 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 [data-theme="dark"] .cat-group{background:var(--bg-soft);border-color:transparent}
 
 /* ===== v0.7 B6 — Captura Rápida (formulario completo en slides) ===== */
-.home-card.hc-quick .home-icon{color:#ff9600}
-[data-theme="dark"] .home-card.hc-quick{background:#ff9600;border-color:#ff9600;--_shadow:#b36800;--_shadow:color-mix(in srgb,#ff9600 70%,#000 30%)}
-[data-theme="dark"] .home-card.hc-quick .home-label,[data-theme="dark"] .home-card.hc-quick .home-icon{color:#fff}
+/* C1 (v0.7.1): hc-quick con fondo naranja en AMBOS temas. Antes el fondo solo
+   se ponía en dark; en light el texto blanco de [class*="hc-"] quedaba sobre el
+   fondo claro por defecto → botón invisible. El texto blanco (label/icon/desc)
+   ya lo aportan las reglas genéricas .home-card[class*="hc-"]. */
+.home-card.hc-quick{background:#ff9600;border-color:#ff9600;--_shadow:#b36800;--_shadow:color-mix(in srgb,#ff9600 70%,#000 30%)}
 [data-theme="dark"] .home-card.hc-quick .home-desc{color:rgba(255,255,255,.80)}
 /* B1-B3: en modo rápido se ocultan navbar, header, fabs y pausa del timer;
    la barra de slides queda pegada al fondo sin nada encima */
