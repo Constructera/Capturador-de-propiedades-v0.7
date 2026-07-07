@@ -22,6 +22,14 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 - **Tests:** G12 en `test_gas.js` (+11 asserts: persistencia, PDF fallback, prioridad imagen, refresh idempotente, GET, docx ignorado). GAS: 106/106.
 - **⚠️ Acción del dueño:** pegar GAS v3.6 y "Nueva versión" (mismos scopes, NO pide re-autorizar). SW: `v0.7.1-F1-r1`.
 
+### Fase 5 (06-jul-2026) — markdown v0.7.1 (coordinación sitio web + bot Notion)
+- **5a — relación "Asesor" (CRÍTICO):** el markdown ahora emite `| Asesor | Relación → 👥 Contactos | <asesor> |` con el captador (Erica/Carlos/Daniel/Gabriel ya existen). En ediciones usa el asesor **original** (`asesorNombre`), nunca `editadoPor`. **El sitio web enruta leads con esta relación.**
+- **5b — lista NEVER-WRITE ampliada:** el markdown emite una nota ⛔ al agente con los 8 campos que NO debe escribir (los calcula Notion/el sitio/el bot): Precio/m², Precio/m² (terreno), Código, Lugar, Etiqueta comercial, Fecha cambio estatus, Publicado en web, Fotos (URLs). Documentado también en CLAUDE.md.
+- **5c — "Publicable" es Checkbox:** el markdown lo emite como `Checkbox` con "Sí"=marcar / "No"=desmarcar (antes se trataba como select).
+- **5d — Fuente "Amigo":** al no existir en el select de Notion, la nota instruye normalizar a "Referido" (el bot ya lo maneja así) conservando el original; otras fuentes nuevas mantienen la mecánica "OPCIÓN NUEVA".
+- **5e — etapas de Operaciones:** el markdown usa el vocabulario real de los 7 estados (Captación, Preparación, Ofertando, Publicada, Descartada, Comprada, Visita=default): Ofertando si hay comprador, Captación/Visita si recién se captó.
+- Tests: +8 asserts en `test_markdown.js` (fila Asesor, checkbox Publicable, Amigo→Referido, 8 never-write, 7 etapas, asesor original en edición). Paridad byte a byte preservada. SW: `v0.7.1-r7`.
+
 ### Fase 4 (06-jul-2026) — home y contactos
 - **4a — CTAs siempre visibles:** en el selector de asesor, "+ Agregar asesor" y "Empezar captura →" viven ahora en una barra `sticky bottom` (`.advisor-cta`), visibles sin scroll aunque la lista de asesores crezca.
 - **4b — aire al picker:** "📇 Elegir de mis contactos" pasó de `margin-bottom:8px` a `margin:14px 0 8px` (ya no se encima con lo de arriba), en CRM y en captura de contacto.

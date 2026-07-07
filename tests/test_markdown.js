@@ -385,6 +385,50 @@ console.log('\n[11] Historial solo lectura');
   assert(!ov.classList.contains('show'), 'los botones de la tarjeta no disparan el detalle');
 })();
 
+/* ============ 12. Markdown v0.7.1 (coordinación sitio web + bot Notion) ============ */
+console.log('\n[12] Markdown v0.7.1 (Fase 5)');
+(function () {
+  var w = boot();
+  clickChip(w, 'tipoChips', 'Casa');
+  setVal(w, 'f_nombre', 'Casa Coord');
+  setVal(w, 'f_pub', 'No');
+  // fuente informal "Amigo" vía "Otra"
+  setVal(w, 'f_fuente', '__otra');
+  setVal(w, 'f_fuente_otra', 'Amigo');
+  var md = generar(w);
+
+  // 5a — relación Asesor con el captador original
+  var rAsesor = rowOf(md, 'Asesor');
+  assert(rAsesor && /Relación/.test(rAsesor.tipo) && rAsesor.valor === 'Daniel', '5a: fila "Asesor" → Contactos con el captador (Daniel)');
+  assert(rAsesor && /sitio web/.test(rAsesor.nota) && /ORIGINAL/.test(rAsesor.nota), '5a: nota aclara asesor original + enrutado del sitio web');
+
+  // 5c — Publicable como checkbox Sí/No
+  var rPub = rowOf(md, 'Publicable');
+  assert(rPub && rPub.tipo === 'Checkbox' && rPub.valor === 'No', '5c: "Publicable" es Checkbox con valor Sí/No (No)');
+
+  // 5d — Fuente "Amigo" marcada para normalizar a Referido
+  var rFuente = rowOf(md, 'Fuente');
+  assert(rFuente && rFuente.valor === 'Amigo' && /Referido/.test(rFuente.nota), '5d: Fuente "Amigo" → normalizar a Referido en la nota');
+
+  // 5b — lista NEVER-WRITE ampliada como nota al agente
+  var nw = ['Precio/m²', 'Precio/m² (terreno)', 'Código', 'Lugar', 'Etiqueta comercial', 'Fecha cambio estatus', 'Publicado en web', 'Fotos (URLs)'];
+  assert(/NUNCA escribir/.test(md), '5b: hay bloque NUNCA escribir');
+  assert(nw.every(function (c) { return md.indexOf(c) !== -1; }), '5b: la lista NEVER-WRITE incluye los 8 campos');
+
+  // 5e — etapas de Operaciones (7 estados)
+  var etapas = ['Captación', 'Preparación', 'Ofertando', 'Publicada', 'Descartada', 'Comprada', 'Visita'];
+  assert(etapas.every(function (e) { return md.indexOf(e) !== -1; }), '5e: las 7 etapas de Operaciones aparecen en el markdown');
+
+  // 5a bis — en edición se conserva el asesor original (no el editor)
+  w.localStorage.setItem('cap_asesor_activo', JSON.stringify({ id: 'as_erica', nombre: 'Erica' }));
+  w.document.querySelector('#navbar button[data-view="viewHistory"]').click();
+  var editBtn = w.document.querySelector('[data-edit-prop]');
+  editBtn.click();
+  var md2 = generar(w);
+  var rAsesor2 = rowOf(md2, 'Asesor');
+  assert(rAsesor2 && rAsesor2.valor === 'Daniel', '5a: al editar como Erica, el markdown mantiene al asesor ORIGINAL (Daniel)');
+})();
+
 /* ============ resumen ============ */
 console.log('\n========================================');
 console.log('Pruebas: ' + (passed + failed) + ' · ✅ ' + passed + ' · ❌ ' + failed);

@@ -1687,6 +1687,10 @@ function generar(){
   }else{
     meta={uuid:genUUID(),creado:nowIso,modificado:nowIso,ediciones:0};
   }
+  // 5a (v0.7.1): asesor ORIGINAL para la relación "Asesor" del markdown. En
+  // ediciones se conserva el captador original (no quien edita = editadoPor).
+  var asesorOriginal=(state.editId&&_orig&&_orig.asesorNombre)?_orig.asesorNombre
+    :(asesorActivo?asesorActivo.nombre:($('f_resp').value||'S/I'));
 
   function valNum(o){return o.na?'':(o.pend?'':(o.val!=null?String(o.val):''));}
   function notaNum(o){return o.na?'N/A':(o.pend?'S/I':'');}
@@ -1779,7 +1783,18 @@ function generar(){
   if(nU>1)md+=row('Cantidad disponible','Number',{v:String(nU),nota:'Unidades en el conjunto'})+'\n';
   md+=row('Estatus de captura','Status',{v:estatusCaptura,nota:'3⭐→Listo, 2⭐→En progreso, <2⭐→Sin empezar'})+'\n';
   md+=row('Estatus de propiedad','Status',{v:estatusProp,nota:''})+'\n';
-  md+=row('Fuente','Select',cell(fuente.nombre,fuente.nueva?'OPCIÓN NUEVA: agregar al select de Fuente en Notion':''))+'\n';
+  // 5c (v0.7.1): "Publicable" es CHECKBOX en Notion, no select → Sí=marcar / No=desmarcar
+  md+=row('Publicable','Checkbox',{v:$('f_pub').value==='Sí'?'Sí':'No',nota:'Checkbox: "Sí" = marcar la casilla, "No" = dejarla desmarcada. NO es un select.'})+'\n';
+  // 5d (v0.7.1): "Amigo" NO existe como opción de Fuente en Notion; el bot la
+  // normaliza a "Referido". Mantener la mecánica OPCIÓN NUEVA para otras fuentes.
+  var fuenteNota=fuente.nueva
+    ? (/^amig/i.test(fuente.nombre)
+        ? 'FUENTE INFORMAL "'+fuente.nombre+'": NO existe en el select de Notion. Normalizar a "Referido" (el bot ya lo maneja así) y anotar el original en el contenido de la página.'
+        : 'OPCIÓN NUEVA: agregar al select de Fuente en Notion')
+    : '';
+  md+=row('Fuente','Select',cell(fuente.nombre,fuenteNota))+'\n';
+  // 5a (v0.7.1): relación "Asesor" → 👥 Contactos (la usa el sitio web para enrutar leads)
+  md+=row('Asesor','Relación → 👥 Contactos',{v:asesorOriginal,nota:'Contacto del asesor que CAPTURÓ (Erica/Carlos/Daniel/Gabriel ya existen en 👥 Contactos). Relacionar por nombre, sin crear duplicado. En ediciones se conserva el asesor ORIGINAL, nunca quien editó. El sitio web enruta los leads con esta relación.'})+'\n';
   md+=row('Propietario','Relación → 👥 Contactos',cell(propietarioNombre(),propietarioNota()))+'\n';
   md+=row('Contacto operativo','Relación → 👥 Contactos',cell(contactoOperativoNombre(),contactoOperativoNota()))+'\n';
   md+=row('Notas','Texto',{v:notasValorNotion,nota:notaNotionRow})+'\n';
@@ -1789,6 +1804,10 @@ function generar(){
   md+=row('Observaciones captura','Text',{v:meta.ediciones>0?('Editada '+meta.ediciones+(meta.ediciones===1?' vez':' veces')+' · última modificación: '+meta.modificado):'',nota:meta.ediciones>0?'':'Captura original sin ediciones'})+'\n';
   md+=row('Carpeta Drive','URL',{v:origDriveUrl,nota:origDriveUrl?'Carpeta de fotos de la propiedad en Drive':'Pendiente — la crea el GAS al guardar y queda visible en el historial (📷)'})+'\n';
   md+='\n';
+
+  // 5b (v0.7.1): lista NEVER-WRITE ampliada — campos calculados por Notion / el
+  // sitio web / el bot. Escribirlos rompe la integración con el sitio y el CRM.
+  md+='> ⛔ **NUNCA escribir estos campos** (los calcula Notion, el sitio web o el bot; si los escribes rompes la integración): **Precio/m²**, **Precio/m² (terreno)**, **Código**, **Lugar**, **Etiqueta comercial**, **Fecha cambio estatus**, **Publicado en web**, **Fotos (URLs)**. Déjalos que los gestione el sistema.\n\n';
 
   md+='## 3. Reglas de relaciones\n';
   md+='- **Zona**: relación multi-valor a 📍 Zonas. Para cada zona: busca y relaciona si existe; si no, crea el registro (Municipio: Cuernavaca por defecto) y luego relaciona. No dejar como texto suelto.\n';
@@ -1839,16 +1858,19 @@ function generar(){
   }
 
   // 5. Operaciones
+  // 5e (v0.7.1): etapas reales de 🤝 Operaciones (7 estados):
+  // Captación · Preparación · Ofertando · Publicada · Descartada · Comprada · Visita (default)
   var comprador=people.filter(personEsComprador)[0];
   md+='## 5. Operaciones\n';
+  md+='> Etapas válidas de 🤝 Operaciones (usar SOLO estas): **Captación, Preparación, Ofertando, Publicada, Descartada, Comprada, Visita** (Visita es el default).\n';
   if(comprador){
-    md+='Hay comprador interesado ('+(comprador.nombre||'S/I')+'). Crear una **Operación** en 🤝 Operaciones, relacionarla con esta propiedad y con el contacto comprador.\n';
+    md+='Hay comprador interesado ('+(comprador.nombre||'S/I')+'). Crear una **Operación** en 🤝 Operaciones (etapa sugerida: **Ofertando**), relacionarla con esta propiedad y con el contacto comprador.\n';
     var comArr=[];
     if(conVenta)comArr.push('Venta: '+comisionVal());
     if(conRenta)comArr.push('Renta: '+($('f_comision_renta').value||'S/I')+' (1er mes)');
     md+='- Comisión esperada: '+(comArr.join(' · ')||'S/I')+(comprador.presupuesto?(' · presupuesto comprador: '+comprador.presupuesto):'')+'.\n\n';
   }else{
-    md+='Sin comprador aún. No crear Operación todavía.\n\n';
+    md+='Sin comprador aún: la propiedad recién se captó. Si se crea Operación, etapa **Captación** (o **Visita** por defecto); NO crear Operación de venta todavía.\n\n';
   }
 
   // 6. Tareas de seguimiento

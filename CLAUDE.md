@@ -98,7 +98,14 @@ Base ID: be60a02b-18ff-838b-97ea-813e803d1c45. El markdown ya los mapea con esto
 - "Medios baños" (number) — "Baños" existente = baños completos
 - "Comisión de venta" (text libre, ej. "3%" o "1.75%")
 - "Carpeta Drive" (url), "UUID Captura" (text), "Fecha captura" (date), "Revisión duplicado" (select: Sin revisar/Revisado/Posible duplicado/Fusionado), "Observaciones captura" (text)
-Reglas vigentes: título = "Propiedad"; "Estatus de captura" y "Estatus de propiedad" son tipo Status; nunca escribir Precio/m², Precio/m² (terreno) ni Código; Operación es multi-select; nunca escribir "S/I" en campos numéricos (numérico vacío + nota).
+Reglas vigentes: título = "Propiedad"; "Estatus de captura" y "Estatus de propiedad" son tipo Status; Operación es multi-select; nunca escribir "S/I" en campos numéricos (numérico vacío + nota).
+
+## Coordinación sitio web + bot de Notion (v0.7.1, 06-jul-2026)
+- **Lista NEVER-WRITE (ampliada) — el markdown NO debe escribir, y el agente Notion tampoco:** `Precio/m²`, `Precio/m² (terreno)`, `Código`, `Lugar`, `Etiqueta comercial`, `Fecha cambio estatus`, `Publicado en web`, `Fotos (URLs)`. Los calcula/gestiona Notion, el sitio web o el bot; escribirlos rompe la integración. (El markdown emite esta lista como nota explícita al agente.)
+- **Relación "Asesor"** (→ 👥 Contactos): el markdown la llena con el captador ORIGINAL (Erica/Carlos/Daniel/Gabriel ya existen). En ediciones se usa `asesorNombre` original, NUNCA `editadoPor`. **El sitio web enruta leads con esta relación**, por eso es crítica.
+- **"Publicable" es CHECKBOX** en Notion (no select): el markdown indica "Sí" = marcar / "No" = desmarcar.
+- **"Amigo" NO es opción de Fuente** en 🏠 Propiedades: el markdown la marca como fuente informal → normalizar a "Referido" con nota del original (el bot ya lo maneja así). Otras fuentes nuevas conservan la mecánica "OPCIÓN NUEVA: agregar al select".
+- **Etapas de 🤝 Operaciones (7, vocabulario real):** `Captación`, `Preparación`, `Ofertando`, `Publicada`, `Descartada`, `Comprada`, `Visita` (default). El markdown sugiere la etapa con este vocabulario (Ofertando si hay comprador; Captación/Visita si recién se captó).
 
 ## Pendientes v0.7
 Los siguientes puntos surgieron durante el desarrollo de v0.6 y quedan diferidos:
