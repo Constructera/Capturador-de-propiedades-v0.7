@@ -6,6 +6,11 @@
 'use strict';
 var $=function(id){return document.getElementById(id);};
 
+/* Versión del build — fuente única para todos los .ver-badge del header.
+   Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
+var APP_VER='v0.7.1-r10';
+(function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
+
 /* ---------- config local ---------- */
 var GAS_DEFAULT='https://script.google.com/macros/s/AKfycbwz6hm5MtyZdkaGXNpxi-AVJlCZvLntyMHGe055bsyrBubI862il09AR_CQmejfYu9p/exec';
 var CFG=load('cfg',{resp:'Daniel',endpoint:GAS_DEFAULT});
@@ -99,6 +104,8 @@ function showView(id){
   if(_prevId==='viewCapture'&&id!=='viewCapture'&&_draftPromptActive){
     $('draftOverlay').classList.remove('show');_draftPromptActive=false;
   }
+  // A1 (v0.7.1): salir de la captura pausa el timer (no corre ni suena fuera)
+  if(_prevId==='viewCapture'&&id!=='viewCapture')timerAutoPause();
   // mascota: reset al salir de viewResult
   if(id!=='viewResult'){var vr=$('viewResult');if(vr&&vr.classList.contains('active')){id==='viewCapture'?updateTimerUI():setMascotState('idle');}}
   document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
@@ -109,11 +116,14 @@ function showView(id){
   // limpieza total (qkStop es idempotente) — cubre guardar/salir/editar/navegar
   if(id==='viewCapture'){
     var _wantsQuick=quickPending;quickPending=false;
+    // A3 (v0.7.1): en modo edición el widget del timer no se muestra (no aplica)
+    var _tw=$('timerWidget');if(_tw)_tw.style.display=state.editId?'none':'';
     // 2c: si hay borrador y no estás editando, ofrecer continuar ANTES de arrancar
     if(!state.editId&&getDraft()&&!_draftPromptActive){
       _draftQuickWanted=_wantsQuick;
       setTimeout(showDraftPrompt,0);
     }else if(_wantsQuick){setTimeout(qkStart,0);}
+    else{timerAutoResume();} // A1: re-entrada a una captura en curso → reanuda el timer
   }
   else qkStop();
   // A1: el pase al modo rápido solo sobrevive el trayecto Home⚡→Asesor→Captura;
@@ -451,10 +461,14 @@ function updateTimerUI(){
   var MAS={ready:'idle',happy:'dancing',focused:'focused',urgent:'angry',expired:'sad'};
   setMascotState(MAS[ts]||'idle');
 }
-function startTimer(){
+function startTimer(fromRemaining){
+  if(state.editId)return; // A3 (v0.7.1): al EDITAR una captura el timer no corre
   if(timerState==='running')return;
-  timerState='running';timerRemaining=timerLimit;timerElapsed=0;
-  timerStartedAt=Date.now();timerWasPaused=false;timerPauseCount=0;
+  timerState='running';
+  // A2 (v0.7.1): si se reanuda un borrador, arrancar desde el tiempo restante
+  if(fromRemaining!=null&&fromRemaining>0){timerRemaining=Math.min(fromRemaining,timerLimit);timerElapsed=timerLimit-timerRemaining;}
+  else{timerRemaining=timerLimit;timerElapsed=0;}
+  timerStartedAt=Date.now();timerWasPaused=false;timerPauseCount=0;_timerAutoPaused=false;
   _timerAudioTs='happy';sndStep();
   var rw=$('timerRingWrap');if(rw)rw.style.display='flex';
   var rc=$('timerRunningCtrl');if(rc)rc.style.display='';
@@ -487,10 +501,25 @@ function resumeTimer(){
   var pb=$('btnPausarTimer');if(pb)pb.textContent='⏸ Pausar';
   updateTimerUI();
 }
+/* A1 (v0.7.1): al salir de la vista de captura el timer se pausa solo (no corre
+   ni suena en otras vistas); al volver a la MISMA captura se reanuda. Es una
+   pausa "de sistema": no cuenta como pausa del usuario (no toca pauseCount). */
+var _timerAutoPaused=false;
+function timerAutoPause(){
+  if(timerState!=='running')return;
+  clearInterval(timerInterval);timerInterval=null;
+  timerState='paused';_timerAutoPaused=true;
+  var pb=$('btnPausarTimer');if(pb)pb.textContent='▶ Reanudar';
+  updateTimerUI();
+}
+function timerAutoResume(){
+  if(_timerAutoPaused&&timerState==='paused'){_timerAutoPaused=false;resumeTimer();}
+  else _timerAutoPaused=false;
+}
 function resetTimerToReady(){
   clearInterval(timerInterval);timerInterval=null;
   timerState='ready';timerRemaining=timerLimit;timerElapsed=0;
-  timerWasPaused=false;timerPauseCount=0;
+  timerWasPaused=false;timerPauseCount=0;_timerAutoPaused=false;
   var rw=$('timerRingWrap');if(rw)rw.style.display='none';
   var rc=$('timerRunningCtrl');if(rc)rc.style.display='none';
   var rd=$('timerReadyCtrl');if(rd)rd.style.display='';
@@ -517,7 +546,8 @@ $('timeChips').addEventListener('click',function(e){
   save('cfg_timer_limit',timerLimit);
   if(timerState==='ready'){var d=$('timerDisplay');if(d)d.textContent=timerFmt(timerLimit);}
 });
-$('btnIniciarCaptura').addEventListener('click',function(){
+$('btnIniciarCaptura').addEventListener('click',function(e){
+  e.stopPropagation(); // A (v0.7.1): sin esto el click sube al #timerWidget y lo pausa al instante (running+paused)
   startTimer();
   window.scrollTo({top:0,behavior:'smooth'});
 });
@@ -534,6 +564,7 @@ $('timerWidget').addEventListener('click',function(e){
 });
 // 5.2 — Auto-start en primer input; 5.3b — auto-resume si estaba pausado al tocar un campo
 function autoStartTimer(){
+  if(state.editId)return; // A3 (v0.7.1): editando no se arranca ni reanuda el timer
   if(timerState==='ready')startTimer();
   else if(timerState==='paused')resumeTimer();
 }
@@ -713,7 +744,11 @@ function openPerson(id){
   var tiposArr=(p.tipos&&p.tipos.length?p.tipos:(p.rol?[p.rol]:[])).slice();
   var zonaIntArr=(Array.isArray(p.zonaInt)?p.zonaInt:(p.zonaInt?[p.zonaInt]:[])).slice();
   var zonaOpArr=(Array.isArray(p.zonaOp)?p.zonaOp:(p.zonaOp?[p.zonaOp]:[])).slice();
-  state.editId=p.id;state._editIsNew=isNew;
+  // A3/G (v0.7.1): NO tocar state.editId aquí. state.editId es EXCLUSIVO de la
+  // edición de PROPIEDAD; el editor de personas usa _editTmp/_editIsNew. Antes se
+  // sobrescribía con el id de la persona y closePerson lo ponía en null, borrando
+  // el modo edición de la propiedad → generar() creaba UUID nuevo (duplicado).
+  state._editIsNew=isNew;
   state._editTmp=Object.assign({},p,{tipos:tiposArr,zonaIntArr:zonaIntArr,zonaOpArr:zonaOpArr});
   $('personTitle').textContent=p.nombre?('Datos de '+p.nombre):'Completar datos';
 
@@ -828,7 +863,7 @@ function openPerson(id){
 function esc(s){return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 $('personClose').addEventListener('click',closePerson);
 $('personCancel').addEventListener('click',closePerson);
-function closePerson(){$('personOverlay').classList.remove('show');state.editId=null;}
+function closePerson(){$('personOverlay').classList.remove('show');state._editTmp=null;state._editIsNew=false;}
 $('personSave').addEventListener('click',function(){
   var p=state._editTmp;
   p.nombre=($('pf_nombre').value||'').trim();
@@ -1593,8 +1628,17 @@ function calcularEstrellas(){
   function okNum(id){return siOn(id)||naOn(id)||numVal(id)!=null;}
 
   // ⭐ 1: velocidad ≤ 5 min (tiempo real, no el countdown pausable)
-  var re=realElapsed();
-  var s1=re>0&&re<=300;
+  // A3 (v0.7.1): editando NO se corre el timer; la ⭐ de tiempo no se puede ganar
+  // ni perder por editar — se preserva la del registro original (según su elapsed).
+  var s1;
+  if(state.editId){
+    var _o=getHist().filter(function(x){return x.id===state.editId;})[0];
+    var _oe=(_o&&_o.elapsed)||0;
+    s1=_oe>0&&_oe<=300;
+  }else{
+    var re=realElapsed();
+    s1=re>0&&re<=300;
+  }
 
   // ⭐ 2: datos esenciales
   var falt2=[];
@@ -1640,7 +1684,11 @@ function calcularEstrellas(){
 
 /* ===================== GENERAR MARKDOWN ===================== */
 var mdActual='';var lastCaptureId=null;
-$('btnGen').addEventListener('click',function(){
+$('btnGen').addEventListener('click',function(e){
+  // A (v0.7.1): sin stopPropagation el click sube a #viewCapture → autoStartTimer,
+  // que tras el reset de generar() ve el timer en 'ready' y arranca uno nuevo (queda
+  // corriendo en la vista de resultado, con intervalo huérfano).
+  e.stopPropagation();
   try{generar();}catch(err){alert('Error generando markdown: '+err.message);console.error(err);}
 });
 
@@ -1954,8 +2002,11 @@ function generar(){
   // B4: al GAS va el asesor ORIGINAL del registro (no quien edita) + editadoPor
   var recGuardado=getHist().filter(function(x){return x.id===lastCaptureId;})[0]||{};
   gasSaveMarkdown(lastCaptureId,recGuardado.asesorNombre||'S/I',meta.modificado,'propiedad',estrellas.count===3?'completa':'sin terminar',nombre,md,dirVal,recGuardado.editadoPor||'');
-  if(asesorActivo)updateAsesorStats(asesorActivo.id,estrellas,re);
+  // A3 (v0.7.1): editar NO suma una captura nueva ni estrellas al asesor (el
+  // ranking real se deriva de las Capturas en el GAS; localmente no inflamos).
+  if(asesorActivo&&!state.editId)updateAsesorStats(asesorActivo.id,estrellas,re);
   clearDraft(); // 2c: captura generada → el borrador ya no aplica
+  resetTimerToReady(); // A1: captura terminada → timer limpio para la próxima (evita reanudar uno viejo)
   sndSuccess();
   mostrarResultado(estrellas);
   checkLogros();
@@ -3048,9 +3099,13 @@ function draftHasData(){
 function saveDraft(fromQuick){
   if(!draftHasData()){clearDraft();return;}
   var nombre=($('f_nombre').value.trim()||$('f_direccion').value.trim()||'').slice(0,60);
+  // A2 (v0.7.1): conservar el tiempo restante del timer (running o pausado) para
+  // reanudarlo al continuar; timerRemaining se preserva a través de la pausa.
+  var timer=(timerState==='running'||timerState==='paused')?{limit:timerLimit,remaining:timerRemaining}:null;
   save('draft',{snap:snapshotForm(),quick:!!fromQuick,ts:Date.now(),
     nombre:nombre,tipo:state.tipo||'',
-    precio:$('f_precio').value.trim()||$('f_precio_renta').value.trim()||''});
+    precio:$('f_precio').value.trim()||$('f_precio_renta').value.trim()||'',
+    timer:timer});
 }
 function clearDraft(){try{localStorage.removeItem('cap_draft');}catch(e){}}
 function getDraft(){return load('draft',null);}
@@ -3075,6 +3130,13 @@ $('draftContinue').addEventListener('click',function(){
   $('draftOverlay').classList.remove('show');_draftPromptActive=false;
   if(d&&d.snap){restoreForm(d.snap);state.editId=null;}
   clearDraft();
+  // A2 (v0.7.1): restaurar el timer con el tiempo restante guardado. Se arranca
+  // ANTES de qkStart (que respeta timerState==='running' y no lo reinicia).
+  if(d&&d.timer&&d.timer.remaining>0){
+    resetTimerToReady();
+    timerLimit=d.timer.limit||timerLimit;
+    startTimer(d.timer.remaining);
+  }
   // continuar en el modo del borrador si aplica, o en el que se pidió
   if((d&&d.quick)||_draftQuickWanted){_draftQuickWanted=false;setTimeout(qkStart,0);}
   updateProgress();
