@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r14';
+var APP_VER='v0.7.1-r15';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -3035,6 +3035,15 @@ function openHistDetail(id,isCt){
   if(!isCt)drow('Operación',rec.oper);
   if(!isCt)drow('Zona',rec.zona);
   if(isCt){drow('Teléfono',rec.tel);drow('Email',rec.email);}
+  if(!isCt){
+    var fdd=rec.formData||{};
+    var specsD=[];
+    if(fdd.f_rec)specsD.push('🛏 '+fdd.f_rec+' rec');
+    if(fdd.f_ban)specsD.push('🛁 '+fdd.f_ban+(fdd.f_ban_medios?('+'+fdd.f_ban_medios):'')+' baños');
+    if(fdd.f_m2c)specsD.push('📐 '+fdd.f_m2c+' m²');
+    if(fdd.f_m2t)specsD.push('🌱 '+fdd.f_m2t+' m² terr');
+    if(specsD.length)drow('Detalles',specsD.join('   '));
+  }
   drow('Estrellas',(rec.estrellas!=null?rec.estrellas+' ⭐':'')+(rec.calidad?' · '+rec.calidad:''));
   drow('Asesor',rec.asesorNombre||rec.asesor||rec.resp);
   if(!isCt)drow('Estatus',rec.estatus);
@@ -3042,24 +3051,45 @@ function openHistDetail(id,isCt){
   if(rec.modificadoEn)drow('Última edición',new Date(rec.modificadoEn).toLocaleString('es-MX'));
   if(rec.ediciones)drow('Ediciones',rec.ediciones);
   drow('Enviada',rec.enviado?'Sí':'No');
-  if(!isCt&&rec.driveUrl)drow('Carpeta Drive',rec.driveUrl);
   if(!isCt&&rec.faltantes&&rec.faltantes.length)drow('Faltantes',rec.faltantes.join(', '));
-  var fotoBtns=isCt?'':(
-    '<div class="hi-actions" style="margin-bottom:10px">'+
-    '<button type="button" class="btn btn-accent" data-fotoup="'+rec.id+'">📷 Subir fotos</button>'+
-    (rec.driveUrl?'<button type="button" class="btn" data-drive="'+rec.id+'">🗂 Abrir Drive</button>':'')+
-    '</div>');
-  $('histDetailBody').innerHTML=
-    '<div class="hint" style="margin-bottom:8px">👁️ Vista de solo lectura. Para modificar, usa el botón ✏️ Editar.</div>'+
-    fotoBtns+
-    rows+
-    '<pre class="hd-md">'+esc(rec.md||'(sin markdown)')+'</pre>';
+  // D (v0.7.1): detalle rediseñado tipo FICHA (sin markdown crudo). Portada, precio,
+  // dirección con link a Maps, y botones de acción. El markdown queda tras "Copiar".
+  var body;
+  if(isCt){
+    body='<div class="hint" style="margin-bottom:8px">👁️ Vista de solo lectura. Para modificar, usa el botón ✏️ Editar.</div>'+
+      rows+'<pre class="hd-md">'+esc(rec.md||'(sin markdown)')+'</pre>';
+  }else{
+    var prD=catPrecioDe(rec);var monD=(rec.formData&&rec.formData.f_moneda)||'MXN';
+    var precioTxt=prD.v!=null?('$'+fmt(prD.v)+' '+monD):(prD.r!=null?('$'+fmt(prD.r)+' '+monD+'/mes'):'Precio S/I');
+    var hero=rec.fotoUrl
+      ?'<div class="hd-hero"><img src="'+esc(rec.fotoUrl)+'" alt="" loading="lazy"></div>'
+      :'<div class="hd-hero hd-hero-emoji">'+(CAT_TIPO_EMOJI[rec.tipo]||'🏠')+'</div>';
+    var dirBlock=(rec.direccion||rec.maps)
+      ?'<div class="hd-dir">📍 '+esc(rec.direccion||'(sin dirección escrita)')+
+        (rec.maps?' <a href="'+esc(rec.maps)+'" target="_blank" rel="noopener" class="hd-maps-link">Ver en Maps ↗</a>':'')+'</div>'
+      :'';
+    body='<div class="hint" style="margin-bottom:8px">👁️ Vista de solo lectura. Para modificar, usa el botón ✏️ Editar.</div>'+
+      hero+
+      '<div class="hd-price">'+esc(precioTxt)+'</div>'+
+      dirBlock+
+      '<div class="hi-actions" style="margin:10px 0 12px">'+
+        '<button type="button" class="btn btn-accent" data-fotoup="'+rec.id+'">📷 Subir fotos</button>'+
+        (rec.driveUrl?'<button type="button" class="btn" data-drive="'+rec.id+'">🗂 Abrir Drive</button>':'')+
+        '<button type="button" class="btn" data-ficha="'+rec.id+'">🖼 Compartir ficha</button>'+
+        '<button type="button" class="btn" data-copymd="'+rec.id+'">Copiar markdown</button>'+
+      '</div>'+
+      rows;
+  }
+  $('histDetailBody').innerHTML=body;
   $('histDetailOverlay').classList.add('show');
 }
 $('histDetailBody').addEventListener('click',function(e){
-  var t=e.target;
-  if(t.dataset.fotoup){fotoPick(getHist().filter(function(r){return r.id===t.dataset.fotoup;})[0]);}
-  if(t.dataset.drive){var rD=getHist().filter(function(r){return r.id===t.dataset.drive;})[0];if(rD&&rD.driveUrl)window.open(rD.driveUrl,'_blank');}
+  var t=e.target.closest('button,a');if(!t)return;
+  function rc(id){return getHist().filter(function(r){return r.id===id;})[0];}
+  if(t.dataset.fotoup){fotoPick(rc(t.dataset.fotoup));}
+  if(t.dataset.drive){var rD=rc(t.dataset.drive);if(rD&&rD.driveUrl)window.open(rD.driveUrl,'_blank');}
+  if(t.dataset.ficha){shareFicha(rc(t.dataset.ficha),t);}
+  if(t.dataset.copymd){var rM=rc(t.dataset.copymd);if(rM){copyText(rM.md||'');t.textContent='Copiado ✓';setTimeout(function(){t.textContent='Copiar markdown';},1600);}}
 });
 function closeHistDetail(){$('histDetailOverlay').classList.remove('show');histDetailCur=null;}
 $('histDetailClose').addEventListener('click',closeHistDetail);

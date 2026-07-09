@@ -536,6 +536,15 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .hd-label{color:var(--text-soft);font-weight:700;flex-shrink:0}
 .hd-val{text-align:right;word-break:break-word}
 .hd-md{margin-top:12px;background:var(--bg-soft);border-radius:10px;padding:10px;font-size:.72rem;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow-y:auto}
+/* D (v0.7.1): detalle tipo ficha — portada, precio y dirección */
+.hd-hero{border-radius:14px;overflow:hidden;height:210px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#eafaf0,#d3ede0);margin-bottom:12px}
+.hd-hero img{width:100%;height:100%;object-fit:cover;display:block}
+.hd-hero-emoji{font-size:96px}
+[data-theme="dark"] .hd-hero{background:linear-gradient(135deg,#22352b,#1c2a23)}
+.hd-price{font-size:1.6rem;font-weight:800;color:var(--accent);margin:2px 0 4px}
+.hd-dir{font-size:.9rem;color:var(--text);margin-bottom:4px;word-break:break-word}
+.hd-maps-link{color:var(--accent);font-weight:700;white-space:nowrap;text-decoration:none}
+.hd-maps-link:hover{text-decoration:underline}
 
 /* ===== v0.7 B3 — catálogo filtrable ===== */
 /* Panel de filtros: contenedores por grupo (la agrupación visual comunica relación) */
