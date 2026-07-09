@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r15';
+var APP_VER='v0.7.1-r16';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -2981,6 +2981,7 @@ function confirmPinDelete(){
   // 1c (v0.7.1): explosión del botón antes de cerrar el modal
   pinExplode($('pinOk'));
   setTimeout(function(){$('pinOverlay').classList.remove('show');},420);
+  nukeExplosion(); // F (v0.7.1): animación exagerada de borrado (~3.5 s)
   if(tgt.isCt){
     var ch=load('ct_hist',[]);save('ct_hist',ch.filter(function(r){return r.id!==tgt.id;}));
     updateCtBadge();
@@ -2992,6 +2993,30 @@ function confirmPinDelete(){
   }
   _renderHistList(getHist());
   gasDeleteCapture(tgt.id);
+}
+/* F (v0.7.1): animación exagerada tipo "bomba nuclear" al borrar (~3.5 s). Overlay
+   full-screen: destello → ondas de choque → hongo ☢️ que sube → escombros → texto.
+   Ninguna partícula tiene listeners; quitar el overlay del DOM es seguro. */
+function nukeExplosion(){
+  var ov=document.createElement('div');ov.className='nuke-ov';
+  ov.innerHTML=
+    '<div class="nuke-flash"></div>'+
+    '<div class="nuke-ring"></div><div class="nuke-ring nuke-ring2"></div><div class="nuke-ring nuke-ring3"></div>'+
+    '<div class="nuke-fire">💥</div>'+
+    '<div class="nuke-mush">☢️</div>'+
+    '<div class="nuke-txt">¡ELIMINADA!</div>';
+  document.body.appendChild(ov);
+  for(var i=0;i<26;i++){
+    var p=document.createElement('span');p.className='nuke-deb';
+    var ang=(Math.PI*2*i)/26+Math.random()*.4;var dist=150+Math.random()*240;
+    p.style.setProperty('--nx',Math.round(Math.cos(ang)*dist)+'px');
+    p.style.setProperty('--ny',Math.round(Math.sin(ang)*dist)+'px');
+    p.style.animationDelay=(Math.random()*.35+.15)+'s';
+    ov.appendChild(p);
+  }
+  if(navigator.vibrate)navigator.vibrate([40,50,30,60,90]);
+  if(typeof sndError==='function')try{sndError();}catch(e){}
+  setTimeout(function(){if(ov.parentNode)ov.parentNode.removeChild(ov);},3600);
 }
 /* 1c (v0.7.1): burst de escala + partículas CSS al confirmar el borrado.
    Las partículas no tienen listeners: quitarlas del DOM es seguro. */

@@ -104,6 +104,9 @@ function delPosts(w) { return w._gasPosts.filter(function (p) { return p.action 
   clickBorrar(w, 'CAP-DEL');
   $(w, 'pinInput').value = '1512';
   $(w, 'pinOk').click();
+  // F (v0.7.1): la animación "bomba nuclear" aparece al confirmar el borrado
+  assert(w.document.querySelector('.nuke-ov') !== null, 'F: overlay de explosión nuclear al borrar');
+  assert(w.document.querySelector('.nuke-ov .nuke-mush') !== null, 'F: el hongo ☢️ está en la animación');
   await sleep(500); // 1c v0.7.1: el cierre se retrasa ~420ms por la explosión del botón
   assert(!$(w, 'pinOverlay').classList.contains('show'), 'el modal se cierra (tras la animación de explosión)');
   var h = hist(w);

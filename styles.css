@@ -609,6 +609,24 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .pin-part{position:absolute;left:50%;top:50%;width:7px;height:7px;border-radius:50%;background:var(--part,#ff5252);pointer-events:none;animation:pin-part 550ms ease-out forwards}
 @keyframes pin-part{from{transform:translate(-50%,-50%) scale(1);opacity:1}to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.3);opacity:0}}
 @media(prefers-reduced-motion:reduce){.pin-explode,.pin-part{animation:none!important}}
+
+/* F (v0.7.1): animación "bomba nuclear" al borrar (~3.5 s) */
+.nuke-ov{position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.nuke-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,#fff 0%,#ffe9b0 25%,#ff8a3d 45%,rgba(0,0,0,0) 70%);opacity:0;animation:nuke-flash 3.3s ease-out forwards}
+@keyframes nuke-flash{0%{opacity:0;transform:scale(.2)}6%{opacity:1}14%{opacity:.95;transform:scale(1)}45%{opacity:.5}100%{opacity:0;transform:scale(1.15)}}
+.nuke-ring{position:absolute;left:50%;top:55%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:6px solid rgba(255,170,60,.85);opacity:0;animation:nuke-ring 3.2s cubic-bezier(.15,.7,.3,1) forwards}
+.nuke-ring2{border-color:rgba(255,90,60,.7);animation-delay:.25s}
+.nuke-ring3{border-color:rgba(255,220,120,.6);animation-delay:.5s}
+@keyframes nuke-ring{0%{opacity:.9;transform:scale(.1)}70%{opacity:.4}100%{opacity:0;transform:scale(26)}}
+.nuke-fire{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%) scale(.2);font-size:120px;opacity:0;animation:nuke-fire 3.2s ease-out forwards}
+@keyframes nuke-fire{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}10%{opacity:1;transform:translate(-50%,-50%) scale(1.6)}30%{opacity:1;transform:translate(-50%,-50%) scale(2.1)}55%{opacity:.7;transform:translate(-50%,-58%) scale(2.3)}100%{opacity:0;transform:translate(-50%,-70%) scale(2.6)}}
+.nuke-mush{position:absolute;left:50%;top:60%;transform:translate(-50%,0) scale(.3);font-size:150px;opacity:0;filter:drop-shadow(0 0 24px rgba(255,140,40,.8));animation:nuke-mush 3.4s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes nuke-mush{0%{opacity:0;transform:translate(-50%,10%) scale(.2)}18%{opacity:1;transform:translate(-50%,0) scale(1)}45%{opacity:1;transform:translate(-50%,-30%) scale(1.5) rotate(-4deg)}75%{opacity:.9;transform:translate(-50%,-70%) scale(1.7) rotate(3deg)}100%{opacity:0;transform:translate(-50%,-120%) scale(1.9)}}
+.nuke-txt{position:absolute;left:0;right:0;top:24%;text-align:center;font-family:'Nunito',sans-serif;font-weight:800;font-size:2.4rem;color:#fff;letter-spacing:.06em;text-shadow:0 0 18px #ff6a2b,0 3px 10px rgba(0,0,0,.5);opacity:0;transform:scale(.4);animation:nuke-txt 3.3s cubic-bezier(.34,1.56,.64,1) forwards;animation-delay:.15s}
+@keyframes nuke-txt{0%{opacity:0;transform:scale(.4)}12%{opacity:1;transform:scale(1.15)}20%{transform:scale(1)}70%{opacity:1}100%{opacity:0;transform:scale(1.05) translateY(-14px)}}
+.nuke-deb{position:absolute;left:50%;top:55%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:3px;background:linear-gradient(135deg,#ff7a3d,#c4302b);box-shadow:0 0 10px rgba(255,120,50,.7);opacity:0;animation:nuke-deb 2.4s ease-out forwards}
+@keyframes nuke-deb{0%{opacity:0;transform:translate(0,0) scale(1.2) rotate(0)}10%{opacity:1}100%{opacity:0;transform:translate(var(--nx),var(--ny)) scale(.2) rotate(320deg)}}
+@media(prefers-reduced-motion:reduce){.nuke-ov{display:none!important}}
 /* Shake del modal de PIN cuando el PIN es incorrecto */
 .pin-shake{animation:pin-shake 320ms ease}
 @keyframes pin-shake{20%{transform:translateX(-8px)}45%{transform:translateX(7px)}70%{transform:translateX(-4px)}90%{transform:translateX(2px)}}
