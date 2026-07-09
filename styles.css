@@ -214,7 +214,9 @@ body.contact-active .ct-mascot-float{display:flex;}
 
 /* mascot */
 .mascot-wrap{flex-shrink:0;}
-.mascot{height:90px;width:auto;display:block;mix-blend-mode:multiply;transition:filter .3s;}
+/* B (v0.7.1): sin callout/menú nativo del video al mantener presionado (iOS) y
+   sin selección; pointer-events:none deja pasar el tap al widget (pausar). */
+.mascot{height:90px;width:auto;display:block;mix-blend-mode:multiply;transition:filter .3s;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;pointer-events:none;}
 .mascot[data-state="idle"]        {filter:brightness(1.0);}
 .mascot[data-state="walking"]     {filter:brightness(1.0);}
 .mascot[data-state="jogging"]     {filter:brightness(1.2);}
@@ -712,14 +714,18 @@ body:not(.quick-mode) .qk-resumen{display:none}
 body:not(.quick-mode) .qk-foot{display:none}
 /* 2a (v0.7.1): en modo rápido, mascota GRANDE y timer como barra (sin hueco del header) */
 .qk-timer{display:none}
-body.quick-mode .qk-timer{display:block;position:relative;height:9px;border-radius:999px;background:var(--line);max-width:280px;margin:2px auto 18px}
-.qk-timer-fill{height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .5s linear}
+/* B (v0.7.1): la barra del timer usa EXACTAMENTE la misma geometría que la barra
+   de campos (.progress-bar): mismo alto, radio, borde, fondo y ancho completo. */
+body.quick-mode .qk-timer{display:block;position:relative;height:8px;border:1px solid var(--line);border-radius:4px;background:var(--bg-soft);overflow:visible;width:100%;max-width:none;margin:2px 0 22px}
+.qk-timer-fill{height:100%;width:0;background:var(--accent);border-radius:4px;transition:width .5s linear}
 .timer-widget.state-focused .qk-timer-fill{background:var(--warn)}
 .timer-widget.state-urgent .qk-timer-fill{background:var(--danger)}
 .qk-timer-txt{position:absolute;top:13px;left:50%;transform:translateX(-50%);font-size:.7rem;font-weight:800;color:var(--text-soft);white-space:nowrap}
 body.quick-mode .timer-ring-wrap{display:none!important}
 body.quick-mode .timer-widget,body.quick-mode .timer-widget.running{border:none;background:none;padding:0;margin:0 0 22px}
-body.quick-mode .timer-top{margin-bottom:6px;display:flex;justify-content:center;overflow:hidden}
+/* B (v0.7.1): centrada y SIN cortar — overflow:hidden recortaba patas/cabeza en
+   algunos estados; se centra en ambos ejes y se deja que object-fit:contain la muestre entera */
+body.quick-mode .timer-top{margin-bottom:6px;display:flex;justify-content:center;align-items:center;overflow:visible}
 /* caja fija y centrada: el canvas chroma es position:absolute inset:0 y sin un
    wrap con ancho definido se salía hacia la derecha (bug 2a) */
 body.quick-mode .timer-widget .mascot-wrap{width:150px;height:150px;max-width:70vw;margin:0 auto;position:relative;flex:0 0 auto}
