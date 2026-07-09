@@ -86,6 +86,26 @@
  *     abrir el historial (throttled). Sin PIN: solo escribe miniaturas.
  *   Despliegue v3.6: pegar y "Nueva versión" (mismos scopes, NO re-autorizar).
  *
+ * NUEVO EN v3.7 (v0.7.1 Bloque M — subir fotos desde la app / iPhone):
+ *   Safari/iOS NO muestra el botón de subir archivos en la vista web de Drive,
+ *   así que los asesores con iPhone no podían subir fotos (en Android sí). Ahora
+ *   la app sube directamente:
+ *   - POST {action:'uploadFoto', uuid, dataBase64, mime, nombreArchivo,
+ *     nombre, direccion} → guarda la imagen en la carpeta Drive de la propiedad
+ *     (se crea/reutiliza por uuid con ensureDriveFolder_, mismo criterio que
+ *     saveMarkdown). La app comprime a ≤1920px JPEG antes de enviar (rápido en
+ *     datos móviles y dentro del límite ~50MB de Apps Script).
+ *   - Devuelve {ok, folderUrl, fotoUrl}: la miniatura recalculada se persiste en
+ *     la columna fotoUrl del Sheet para que el catálogo la vea de inmediato.
+ *   - Sin PIN (solo agrega archivos a la carpeta de la propiedad).
+ *   - Futuro R2: handleUploadFoto_ podría además subir a R2 para alimentar
+ *     "Fotos (URLs)" del sitio web; el contrato con la app no cambia.
+ *   Despliegue v3.7: pegar el archivo completo y "Implementar → Gestionar
+ *   implementaciones → (lápiz) → Versión: Nueva versión" → Implementar. NO se
+ *   necesitan scopes nuevos (Drive + Sheets ya estaban); NO re-autorizar. El
+ *   endpoint /exec NO cambia. Verificación: POST {"action":"ping"} debe
+ *   responder "Hauser GAS v3.7 online".
+ *
  * INSTRUCCIONES DE DESPLIEGUE (v3.2):
  * 1. Abre script.google.com → el proyecto EXISTENTE del endpoint actual.
  * 2. Reemplaza el código por este archivo completo y GUARDA.
@@ -139,8 +159,9 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (API_KEY && String(body.k || '') !== API_KEY) return jsonOut({ok:false, error:'No autorizado'});
-    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.6 online'});
+    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.7 online'});
     if (body.action === 'saveMarkdown') return handleSaveMarkdown_(body);
+    if (body.action === 'uploadFoto') return handleUploadFoto_(body);
     if (body.action === 'refreshFotos') return handleRefreshFotos_();
     if (body.action === 'deleteCapture') return handleDeleteCapture_(body);
     if (body.action === 'migrateMarkdowns') return handleMigrateMarkdowns_(body);
@@ -212,6 +233,47 @@ function handleSaveMarkdown_(p) {
     editadoPor: editadoPor,
     fotoUrl: fotoUrl
   });
+  return jsonOut({ok:true, folderUrl: folderUrl, fotoUrl: fotoUrl});
+}
+
+/* v3.7 (Bloque M): sube UNA foto (base64) a la carpeta Drive de la propiedad.
+ * El asesor con iPhone no puede subir desde la UI web de Drive; la app envía la
+ * imagen ya comprimida (≤1920px JPEG) y aquí se guarda en la carpeta por uuid
+ * (se crea/reutiliza igual que saveMarkdown). Devuelve la miniatura recalculada
+ * para que la app muestre la portada de inmediato.
+ * Payload: {action:'uploadFoto', uuid, dataBase64, mime, nombreArchivo, nombre, direccion}
+ * Nota futura R2: aquí podría además subirse a R2 para alimentar "Fotos (URLs)"
+ * del sitio web; el contrato de la app no cambia. */
+function handleUploadFoto_(p) {
+  if (!p.uuid) return jsonOut({ok:false, error:'uploadFoto sin uuid'});
+  if (!p.dataBase64) return jsonOut({ok:false, error:'uploadFoto sin datos'});
+  var sh = getSheet_(MD_SHEET, MD_HEADERS);
+  // carpeta de la propiedad (crea/reutiliza por uuid; mismo criterio que saveMarkdown)
+  var folderUrl = ensureDriveFolder_(sh, {uuid: p.uuid, nombre: p.nombre, direccion: p.direccion, tipo: 'propiedad'});
+  var m = String(folderUrl).match(/folders\/([A-Za-z0-9_-]+)/);
+  if (!m) return jsonOut({ok:false, error:'no se pudo resolver la carpeta Drive'});
+  var mime = p.mime || 'image/jpeg';
+  var ext = mime.indexOf('png') >= 0 ? '.png' : (mime.indexOf('webp') >= 0 ? '.webp' : '.jpg');
+  var name = p.nombreArchivo || ('foto-' + Date.now() + ext);
+  try {
+    var bytes = Utilities.base64Decode(p.dataBase64);
+    var blob = Utilities.newBlob(bytes, mime, name);
+    DriveApp.getFolderById(m[1]).createFile(blob);
+  } catch (err) {
+    return jsonOut({ok:false, error:'Drive createFile: ' + err.toString()});
+  }
+  // recalcular miniatura y persistirla en el Sheet (fila del markdown)
+  var fotoUrl = '';
+  try { fotoUrl = firstImageUrl_(folderUrl); } catch (_e) {}
+  if (fotoUrl) {
+    var prev = findByKey_(sh, 'uuid', p.uuid);
+    if (prev && prev._row) {
+      var hdr = headers_(sh);
+      var kFo = hdr.indexOf('fotoUrl'), kFolder = hdr.indexOf('folderUrl');
+      if (kFo > -1) sh.getRange(prev._row, kFo + 1, 1, 1).setValues([[fotoUrl]]);
+      if (kFolder > -1 && !prev.folderUrl) sh.getRange(prev._row, kFolder + 1, 1, 1).setValues([[folderUrl]]);
+    }
+  }
   return jsonOut({ok:true, folderUrl: folderUrl, fotoUrl: fotoUrl});
 }
 

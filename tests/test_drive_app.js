@@ -96,9 +96,11 @@ function clickChip(w, gid, val) {
   var uuid = hist[0].id;
   var item = w.document.querySelector('.hist-item[data-rid="' + uuid + '"]');
   var driveBtn = item.querySelector('[data-drive="' + uuid + '"]');
-  assert(!!driveBtn, 'el botón 📷 Fotos Drive existe en la tarjeta');
-  assert(driveBtn.textContent.indexOf('Fotos Drive') !== -1, 'con el texto "📷 Fotos Drive"');
-  assert(item.querySelector('[data-copy="' + uuid + '"]') !== null, 'Copiar MD convive con Fotos Drive (F2: rediseño catálogo)');
+  assert(!!driveBtn, 'el botón para abrir Drive existe en la tarjeta');
+  // M (v0.7.1): Drive pasó a ser secundario ("🗂 Abrir Drive"); el primario es "📷 Subir fotos"
+  assert(driveBtn.textContent.indexOf('Abrir Drive') !== -1, 'con el texto "🗂 Abrir Drive" (secundario)');
+  assert(item.querySelector('[data-fotoup="' + uuid + '"]') !== null, 'la tarjeta tiene el botón 📷 Subir fotos (Bloque M)');
+  assert(item.querySelector('[data-copy="' + uuid + '"]') !== null, 'Copiar MD convive con los botones de fotos');
   driveBtn.click();
   assert(w._opened.length === 1 && w._opened[0] === FOLDER_URL, 'el tap abre la carpeta Drive (window.open con folderUrl)');
   assert(!$(w, 'histDetailOverlay').classList.contains('show'), 'el botón no dispara el detalle solo lectura');

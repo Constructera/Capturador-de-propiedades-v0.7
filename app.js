@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r12';
+var APP_VER='v0.7.1-r13';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -2552,6 +2552,120 @@ function maybeRefreshFotos(hist){
     if(ch){setHist(h);var vh=$('viewHistory');if(vh&&vh.classList.contains('active'))_renderHistList(h);}
   }).catch(function(){});
 }
+
+/* ===================== SUBIR FOTOS DESDE LA APP — Bloque M (v0.7.1) =====================
+   Safari/iOS no muestra el botón de subir en la vista web de Drive, así que los
+   asesores con iPhone no podían subir fotos. Solución: subir desde la propia app
+   (input file → comprimir en canvas ≤1920px → base64 al GAS action 'uploadFoto',
+   que guarda en la carpeta Drive de la propiedad — folder por uuid). Requiere
+   GAS v3.7. El botón "Abrir Drive" queda como opción secundaria.
+   NOTA: compatible con agregar R2 después (el GAS podría subir a ambos destinos). */
+var _fotoUpUuid=null,_fotoUpMeta=null,_fotoBusy=false;
+function fotoPick(rec){
+  if(!rec)return;
+  if(!CFG.endpoint){alert('Configura el endpoint del GAS (Ajustes) para subir fotos.');return;}
+  if(_fotoBusy){alert('Espera a que termine la subida en curso.');return;}
+  _fotoUpUuid=rec.id;_fotoUpMeta={nombre:rec.nombre||'',direccion:rec.direccion||''};
+  var inp=$('fotoUploadInput');if(inp){inp.value='';inp.click();}
+}
+/* comprime a JPEG ≤1920px vía canvas; si no hay canvas (jsdom/navegador viejo),
+   envía el archivo original tal cual. Resuelve {dataBase64, mime}. */
+function fotoComprimir(file){
+  return new Promise(function(resolve){
+    var reader=new FileReader();
+    reader.onload=function(){
+      var dataUrl=String(reader.result||'');
+      var raw=dataUrl.indexOf(',')>=0?dataUrl.split(',')[1]:dataUrl;
+      var cv,ctx=null;
+      try{cv=document.createElement('canvas');ctx=cv.getContext&&cv.getContext('2d');}catch(_e){ctx=null;}
+      if(!ctx){resolve({dataBase64:raw,mime:file.type||'image/jpeg'});return;}
+      var img=new Image();
+      img.onload=function(){
+        try{
+          var max=1920,w=img.width||0,h=img.height||0;
+          if(!w||!h){resolve({dataBase64:raw,mime:file.type||'image/jpeg'});return;}
+          if(w>max||h>max){var s=Math.min(max/w,max/h);w=Math.round(w*s);h=Math.round(h*s);}
+          cv.width=w;cv.height=h;ctx.drawImage(img,0,0,w,h);
+          var out=cv.toDataURL('image/jpeg',0.85);
+          resolve({dataBase64:out.split(',')[1],mime:'image/jpeg'});
+        }catch(_e){resolve({dataBase64:raw,mime:file.type||'image/jpeg'});}
+      };
+      img.onerror=function(){resolve({dataBase64:raw,mime:file.type||'image/jpeg'});};
+      img.src=dataUrl;
+    };
+    reader.onerror=function(){resolve(null);};
+    reader.readAsDataURL(file);
+  });
+}
+/* toast simple de estado (sin id, no ensucia check_ids) */
+var _fotoToast=null;
+function fotoStatus(msg){
+  if(!msg){if(_fotoToast){_fotoToast.remove();_fotoToast=null;}return;}
+  if(!_fotoToast){
+    _fotoToast=document.createElement('div');
+    _fotoToast.style.cssText='position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:9999;background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:22px;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+    document.body.appendChild(_fotoToast);
+  }
+  _fotoToast.textContent=msg;
+}
+/* sube las fotos una a una al GAS; al terminar refresca la miniatura */
+function fotoSubir(uuid,meta,files){
+  if(!uuid||!files||!files.length)return Promise.resolve();
+  _fotoBusy=true;
+  var total=files.length,done=0,ok=0;
+  fotoStatus('Subiendo 0/'+total+'…');
+  function paso(i){
+    if(i>=files.length){
+      _fotoBusy=false;
+      fotoStatus(ok?('✓ '+ok+' foto'+(ok>1?'s':'')+' subida'+(ok>1?'s':'')):'No se pudo subir');
+      setTimeout(function(){fotoStatus('');},2200);
+      if(ok>0)fotosRefreshNow(uuid);
+      return Promise.resolve();
+    }
+    return fotoComprimir(files[i]).then(function(res){
+      if(!res){done++;return paso(i+1);}
+      return gasPost({action:'uploadFoto',uuid:uuid,dataBase64:res.dataBase64,mime:res.mime,
+        nombreArchivo:'foto-'+Date.now()+'-'+(i+1)+'.jpg',
+        nombre:(meta&&meta.nombre)||'',direccion:(meta&&meta.direccion)||''}).then(function(r){
+        done++;
+        if(r&&r.ok){
+          ok++;
+          var h=getHist(),rec=h.filter(function(x){return x.id===uuid;})[0];
+          if(rec){var ch=false;
+            if(r.fotoUrl&&rec.fotoUrl!==r.fotoUrl){rec.fotoUrl=r.fotoUrl;ch=true;}
+            if(r.folderUrl&&rec.driveUrl!==r.folderUrl){rec.driveUrl=r.folderUrl;ch=true;}
+            if(ch)setHist(h);
+          }
+        }
+        fotoStatus('Subiendo '+done+'/'+total+'…');
+        return paso(i+1);
+      }).catch(function(){done++;fotoStatus('Subiendo '+done+'/'+total+'…');return paso(i+1);});
+    });
+  }
+  return paso(0);
+}
+(function(){
+  var inp=$('fotoUploadInput');if(!inp)return;
+  inp.addEventListener('change',function(){
+    var files=Array.prototype.slice.call(this.files||[]);
+    var uuid=_fotoUpUuid,meta=_fotoUpMeta;
+    this.value='';
+    if(files.length&&uuid)fotoSubir(uuid,meta,files);
+  });
+})();
+/* fuerza refreshFotos y re-renderiza para que la miniatura aparezca de inmediato */
+function fotosRefreshNow(uuid){
+  save('fotos_refresh_ts',Date.now());
+  gasPost({action:'refreshFotos'}).then(function(r){
+    var h=getHist(),ch=false;
+    if(r&&r.ok&&r.fotos){h.forEach(function(rec){if(r.fotos[rec.id]&&rec.fotoUrl!==r.fotos[rec.id]){rec.fotoUrl=r.fotos[rec.id];ch=true;}});}
+    if(ch)setHist(h);
+    var vh=$('viewHistory');if(vh&&vh.classList.contains('active'))_renderHistList(getHist());
+    if(histDetailCur)openHistDetail(histDetailCur.id,histDetailCur.isCt);
+  }).catch(function(){
+    var vh=$('viewHistory');if(vh&&vh.classList.contains('active'))_renderHistList(getHist());
+  });
+}
 function _renderHistList(h){
   var ctH=load('ct_hist',[]).map(function(r){return Object.assign({},r,{_isCt:true});});
   var all=h.concat(ctH).sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
@@ -2619,8 +2733,11 @@ function _renderHistList(h){
         (carTop?'<div class="cat-caract">✨ '+esc(carTop)+'</div>':'')+
         (r.estrellas!=null?'<div class="hi-stars">'+histStars(r.estrellas,r.calidad)+'</div>':'')+
         '<div class="hi-actions">'+
-          // F2: la carpeta Drive es un BOTÓN, nunca un link/markdown crudo en la tarjeta
-          (r.driveUrl?'<button type="button" class="btn" data-drive="'+r.id+'">📷 Fotos Drive</button>':'')+
+          // M (v0.7.1): subir fotos DESDE la app (iPhone no muestra el botón de
+          // subir en la UI web de Drive). Crea/reutiliza la carpeta de la propiedad.
+          '<button type="button" class="btn btn-accent" data-fotoup="'+r.id+'">📷 Subir fotos</button>'+
+          // F2: la carpeta Drive es un BOTÓN secundario (gestionar/borrar en Drive)
+          (r.driveUrl?'<button type="button" class="btn" data-drive="'+r.id+'">🗂 Abrir Drive</button>':'')+
           // 6b (v0.7.1): ficha técnica como imagen para compartir
           '<button type="button" class="btn btn-accent" data-ficha="'+r.id+'">🖼 Compartir ficha</button>'+
           '<button type="button" class="btn" data-copy="'+r.id+'">Copiar MD</button>'+
@@ -2787,6 +2904,7 @@ $('histList').addEventListener('click',function(e){
   if(t.dataset.view2){var pre=$('md_'+t.dataset.view2);if(pre)pre.style.display=pre.style.display==='none'?'block':'none';}
   if(t.dataset.maps){var r2=find(t.dataset.maps);if(r2&&r2.maps)window.open(r2.maps,'_blank');}
   if(t.dataset.drive){var rDrv=find(t.dataset.drive);if(rDrv&&rDrv.driveUrl)window.open(rDrv.driveUrl,'_blank');}
+  if(t.dataset.fotoup){fotoPick(find(t.dataset.fotoup));}
   if(t.dataset.editProp){abrirEdicion(t.dataset.editProp);}
   if(t.dataset.ficha){shareFicha(find(t.dataset.ficha),t);}
   if(t.dataset.sent){find(t.dataset.sent).enviado=true;setHist(h);_renderHistList(h);flashHistState(t.dataset.sent);}
@@ -2902,12 +3020,23 @@ function openHistDetail(id,isCt){
   drow('Enviada',rec.enviado?'Sí':'No');
   if(!isCt&&rec.driveUrl)drow('Carpeta Drive',rec.driveUrl);
   if(!isCt&&rec.faltantes&&rec.faltantes.length)drow('Faltantes',rec.faltantes.join(', '));
+  var fotoBtns=isCt?'':(
+    '<div class="hi-actions" style="margin-bottom:10px">'+
+    '<button type="button" class="btn btn-accent" data-fotoup="'+rec.id+'">📷 Subir fotos</button>'+
+    (rec.driveUrl?'<button type="button" class="btn" data-drive="'+rec.id+'">🗂 Abrir Drive</button>':'')+
+    '</div>');
   $('histDetailBody').innerHTML=
     '<div class="hint" style="margin-bottom:8px">👁️ Vista de solo lectura. Para modificar, usa el botón ✏️ Editar.</div>'+
+    fotoBtns+
     rows+
     '<pre class="hd-md">'+esc(rec.md||'(sin markdown)')+'</pre>';
   $('histDetailOverlay').classList.add('show');
 }
+$('histDetailBody').addEventListener('click',function(e){
+  var t=e.target;
+  if(t.dataset.fotoup){fotoPick(getHist().filter(function(r){return r.id===t.dataset.fotoup;})[0]);}
+  if(t.dataset.drive){var rD=getHist().filter(function(r){return r.id===t.dataset.drive;})[0];if(rD&&rD.driveUrl)window.open(rD.driveUrl,'_blank');}
+});
 function closeHistDetail(){$('histDetailOverlay').classList.remove('show');histDetailCur=null;}
 $('histDetailClose').addEventListener('click',closeHistDetail);
 $('histDetailCerrar').addEventListener('click',closeHistDetail);

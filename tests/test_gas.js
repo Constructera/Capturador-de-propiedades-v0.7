@@ -118,7 +118,14 @@ function freshEnv() {
                                     getName: function () { return file.name; } };
                          } };
               },
-              _addFile: function (name, mime, id) { f.files.push({name: name, mime: mime, id: id}); }
+              _addFile: function (name, mime, id) { f.files.push({name: name, mime: mime, id: id}); },
+              // v3.7 (Bloque M): subir foto → crear archivo en la carpeta
+              createFile: function (blob) {
+                var id = 'FILE' + Math.random().toString(36).slice(2, 8);
+                f.files.push({name: blob._name, mime: blob._mime, id: id, bytes: blob._bytes});
+                return { getId: function () { return id; }, getName: function () { return blob._name; },
+                         getUrl: function () { return 'https://drive.google.com/file/d/' + id; } };
+              }
             };
             driveFolders.push(f);
             return f.api;
@@ -131,6 +138,10 @@ function freshEnv() {
       createTextOutput: function (s) {
         return { _content: s, setMimeType: function () { return this; }, getContent: function () { return this._content; } };
       }
+    },
+    Utilities: {
+      base64Decode: function (s) { return { _b64: String(s), length: String(s).length }; },
+      newBlob: function (bytes, mime, name) { return { _bytes: bytes, _mime: mime, _name: name }; }
     }
   };
   vm.createContext(ctx);
@@ -551,6 +562,33 @@ console.log('\n[G12] fotoUrl: persistencia, PDF fallback, refreshFotos y GET');
   g._drive[2].api._addFile('notas.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'DOC1');
   var rf4 = g.post({action:'refreshFotos'});
   assert(!rf4.fotos['CAP-F3'], 'docx no cuenta como foto');
+})();
+
+/* ============ 13. uploadFoto (v3.7 — Bloque M: subir fotos desde la app) ============ */
+console.log('\n[G13] uploadFoto guarda en la carpeta de la propiedad y devuelve miniatura');
+(function () {
+  var g = freshEnv();
+  assert(g.post({action:'ping'}).msg === 'Hauser GAS v3.7 online', 'ping responde v3.7');
+  g.post({action:'saveMarkdown', uuid:'CAP-UP1', tipo:'propiedad',
+    asesor:'Daniel', nombre:'Casa Subida', direccion:'', markdown_md:'#'});
+  assert(g._drive.length === 1, 'saveMarkdown creó la carpeta');
+  var up = g.post({action:'uploadFoto', uuid:'CAP-UP1', dataBase64:'AAECAwQF',
+    mime:'image/jpeg', nombreArchivo:'foto-1.jpg', nombre:'Casa Subida', direccion:''});
+  assert(up.ok === true, 'uploadFoto responde ok');
+  assert(g._drive.length === 1, 'NO se duplicó la carpeta (reutiliza la del uuid)');
+  assert(g._drive[0].files.length === 1 && g._drive[0].files[0].name === 'foto-1.jpg', 'el archivo se creó en la carpeta de la propiedad');
+  assert(up.fotoUrl === 'https://drive.google.com/thumbnail?id=' + g._drive[0].files[0].id + '&sz=w640', 'devuelve la miniatura de la foto recién subida');
+  var hdr = g._sheets['Markdowns']._rows[0];
+  var rowUp = g._sheets['Markdowns']._rows.filter(function (r) { return r[hdr.indexOf('uuid')] === 'CAP-UP1'; })[0];
+  assert(rowUp[hdr.indexOf('fotoUrl')] === up.fotoUrl, 'fotoUrl persistida en la fila de Markdowns');
+  g.post({action:'uploadFoto', uuid:'CAP-UP1', dataBase64:'BgcICQ==', mime:'image/png', nombreArchivo:'foto-2.png'});
+  assert(g._drive.length === 1 && g._drive[0].files.length === 2, 'segunda foto → misma carpeta, 2 archivos');
+  var up3 = g.post({action:'uploadFoto', uuid:'CAP-UP2', dataBase64:'AAEC', mime:'image/jpeg',
+    nombre:'Casa Sin Captura', direccion:'Calle 1'});
+  assert(up3.ok === true && g._drive.length === 2, 'uploadFoto standalone crea la carpeta de la propiedad');
+  assert(up3.fotoUrl.indexOf('thumbnail?id=') > -1, 'standalone también devuelve miniatura');
+  assert(g.post({action:'uploadFoto', dataBase64:'AA'}).ok === false, 'uploadFoto sin uuid → error');
+  assert(g.post({action:'uploadFoto', uuid:'X'}).ok === false, 'uploadFoto sin datos → error');
 })();
 
 /* ============ resumen ============ */
