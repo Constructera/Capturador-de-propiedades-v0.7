@@ -291,11 +291,26 @@
       <button type="button" class="chip" data-v="Referido">Referido</button>
       <button type="button" class="chip" data-v="S/I">No sé aún</button>
     </div>
-    <div class="hint">Los datos completos de cada persona se llenan más abajo, en CRM.</div>
+    <div class="hint">Los datos completos de cada persona se llenan aquí abajo, en CRM.</div>
   </div>
 
+  <!-- 9 CRM — C (v0.7.1): agrupado junto a "¿Quién ofrece?" (datos de contacto) -->
+  <h2>Personas involucradas / CRM</h2>
+  <div class="field">
+    <div class="field-top"><label>¿Hay cliente comprador interesado?</label></div>
+    <div class="chips" id="crmChips">
+      <button type="button" class="chip sel" data-v="No">No por ahora</button>
+      <button type="button" class="chip" data-v="Sí">Sí, hay interesado</button>
+    </div>
+  </div>
+  <!-- G: Contact Picker (solo si el navegador lo soporta) -->
+  <!-- 4b (v0.7.1): margen arriba para que no se encime con lo de arriba -->
+  <button type="button" class="btn" id="btnPickContact" style="display:none;margin:14px 0 8px">📇 Elegir de mis contactos</button>
+  <div class="pick-note" id="pickNote" style="display:none"></div>
+  <div id="crmCards"></div>
+
   <!-- 5 DIMENSIONES Y PRECIO -->
-  <h2>Dimensiones y precio</h2>
+  <h2>Dimensiones, precio y características</h2>
   <div class="row2">
     <div class="field">
       <div class="field-top"><label>m² terreno</label><button type="button" class="si-btn" data-for="f_m2t">S/I</button></div>
@@ -471,22 +486,6 @@
   <div class="field"><div class="field-top"><label>Notas de campo</label></div>
     <textarea id="f_notas" placeholder="Entorno, vecinos, urgencia del vendedor, contexto…"></textarea></div>
   </div>
-
-  <!-- 9 CRM -->
-  <h2>Personas involucradas / CRM</h2>
-  <div class="field">
-    <div class="field-top"><label>¿Hay cliente comprador interesado?</label></div>
-    <div class="chips" id="crmChips">
-      <button type="button" class="chip sel" data-v="No">No por ahora</button>
-      <button type="button" class="chip" data-v="Sí">Sí, hay interesado</button>
-    </div>
-  </div>
-  <!-- G: Contact Picker (solo si el navegador lo soporta) -->
-  <!-- 4b (v0.7.1): margen arriba para que no se encime con lo de arriba -->
-  <button type="button" class="btn" id="btnPickContact" style="display:none;margin:14px 0 8px">📇 Elegir de mis contactos</button>
-  <div class="pick-note" id="pickNote" style="display:none"></div>
-  <div id="crmCards"></div>
-
 
   <!-- ACCIONES -->
   <div class="actions">

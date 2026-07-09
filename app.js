@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r16';
+var APP_VER='v0.7.1-r17';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
