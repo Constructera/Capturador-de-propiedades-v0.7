@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r10';
+var APP_VER='v0.7.1-r11';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -386,7 +386,13 @@ function renderAsesorGrid(){
   });
   $('btnEmpezarCaptura').disabled=!asesorActivo;
 }
-$('btnEmpezarCaptura').addEventListener('click',function(){resetTimerToReady();showView('viewCapture');});
+$('btnEmpezarCaptura').addEventListener('click',function(){
+  // G (v0.7.1): empezar captura desde el asesor SIEMPRE es una captura nueva; limpiar
+  // editId evita que un id filtrado (de una edición/completar previa) haga que la
+  // próxima "Generar" sobrescriba aquella captura (pérdida de datos) o duplique.
+  state.editId=null;
+  resetTimerToReady();showView('viewCapture');
+});
 $('btnAgregarAsesor').addEventListener('click',function(){
   var nombre=prompt('Nombre del nuevo asesor:');
   if(!nombre||!nombre.trim())return;
@@ -2190,11 +2196,18 @@ $('resBtnCopy').addEventListener('click',function(){
   setTimeout(function(){b.textContent='Copiar markdown';},1800);
 });
 $('resBtnVerMd').addEventListener('click',function(){
+  // G (v0.7.1): volver a la MISMA captura recién generada → editar, no duplicar.
+  if(lastCaptureId)state.editId=lastCaptureId;
   showView('viewCapture');
   if($('outputArea').scrollIntoView)$('outputArea').scrollIntoView({behavior:'smooth'});
 });
 $('resBtnOtra').addEventListener('click',function(){doReset();showView('viewCapture');});
-$('resBtnCompletar').addEventListener('click',function(){showView('viewCapture');window.scrollTo({top:0,behavior:'smooth'});});
+$('resBtnCompletar').addEventListener('click',function(){
+  // G (v0.7.1): completar faltantes ACTUALIZA la misma captura (mismo UUID). Antes
+  // editId seguía null y generar() usaba genUUID() → COPIA + markdown duplicado.
+  if(lastCaptureId)state.editId=lastCaptureId;
+  showView('viewCapture');window.scrollTo({top:0,behavior:'smooth'});
+});
 
 /* ===================== RANKING — FASE 6 ===================== */
 function repStar(n){return (n||0)+' ⭐';}
