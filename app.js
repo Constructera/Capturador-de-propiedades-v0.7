@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r11';
+var APP_VER='v0.7.1-r12';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -701,7 +701,12 @@ function onOfrece(v){
   };
   state.people=state.people.filter(function(p){return !(p.auto&&!p.touched);});
   if(roleMap[v]){
-    state.people.unshift({id:'p'+Date.now(),nombre:'',tipos:[roleMap[v]],tel:'',auto:true,touched:false});
+    // I (v0.7.1): NO crear ficha nueva si ya existe una persona con ese rol. Al
+    // editar, restoreForm redispara onOfrece con la persona ya restaurada; sin este
+    // guard se apilaba un propietario fantasma vacío en cada edición.
+    var role=roleMap[v];
+    var yaExiste=state.people.some(function(p){return personTipos(p).indexOf(role)>=0;});
+    if(!yaExiste)state.people.unshift({id:'p'+Date.now(),nombre:'',tipos:[role],tel:'',auto:true,touched:false});
   }
   renderCRM();
 }
@@ -713,6 +718,25 @@ var FUENTES_CT=['Portal','Redes sociales','Recorrido/Scouteo','Referido','Lona/C
 var TEMPS_CT=['🔥 Caliente','🌤️ Tibio','❄️ Frío'];
 function personTipos(p){return p.tipos&&p.tipos.length?p.tipos:(p.rol?[p.rol]:[]);}
 function personEsComprador(p){var t=personTipos(p);return t.some(function(x){return /Comprador|Inversionista/.test(x);});}
+function personEsPropietario(p){return personTipos(p).some(function(t){return /Propietario|Cliente B/.test(t);});}
+function personVacia(p){return !(p.nombre||p.tel||p.wa||p.email);}
+/* I (v0.7.1): limpia fichas fantasma de propietario ya persistidas en capturas
+   viejas — propietarios vacíos duplicados. Deja el que tenga datos; si todos
+   están vacíos, conserva solo uno. Idempotente. */
+function dedupePropietariosFantasma(){
+  var props=state.people.filter(personEsPropietario);
+  if(props.length<=1)return;
+  var conDatos=props.filter(function(p){return !personVacia(p);});
+  var quitar;
+  if(conDatos.length>=1){
+    // hay al menos uno real → quitar TODOS los propietarios vacíos
+    quitar=props.filter(personVacia);
+  }else{
+    // todos vacíos → conservar solo el primero
+    quitar=props.slice(1);
+  }
+  state.people=state.people.filter(function(p){return quitar.indexOf(p)<0;});
+}
 function renderCRM(){
   var wrap=$('crmCards');wrap.innerHTML='';
   if(state.crm==='Sí'&&!state.people.some(personEsComprador)){
@@ -890,7 +914,16 @@ $('personSave').addEventListener('click',function(){
   p.notas=($('pf_notas').value||'').trim();
   p.fechaSeg=($('pf_fechaSeg').value||'').trim();
   p.touched=true;p.auto=false;
-  if(state._editIsNew)state.people.push(p);
+  if(state._editIsNew){
+    // I (v0.7.1): solo hay UN propietario por propiedad. Si se agrega OTRO a mano
+    // y ya existe uno (con datos), pedir confirmación antes de duplicarlo.
+    if(personEsPropietario(p)&&state.people.some(function(x){return personEsPropietario(x)&&!personVacia(x);})){
+      if(!confirm('Ya hay un propietario en esta propiedad. ¿Seguro que quieres duplicar el propietario?')){
+        closePerson();renderCRM();return;
+      }
+    }
+    state.people.push(p);
+  }
   else state.people=state.people.map(function(x){return x.id===p.id?p:x;});
   closePerson();renderCRM();
 });
@@ -3439,6 +3472,7 @@ function restoreForm(snap){
     if(snap['_na_'+b.dataset.forNa])setNaState(b.dataset.forNa,true);
   });
   if(snap._zonasSel){zonasSel=snap._zonasSel.slice();renderZonaChips();updateHintZona();}
+  dedupePropietariosFantasma(); // I (v0.7.1): barre fantasmas de capturas viejas
   buildCaract();renderCaractTerr();renderCRM();
   // v0.7: sincronizar visibilidad de secciones dependientes de valores restaurados
   syncIndivBox();
