@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r13';
+var APP_VER='v0.7.1-r14';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -1706,7 +1706,11 @@ function calcularEstrellas(){
 
   // ⭐ 3: completa — extras sobre estrella 2
   var falt3=[];
-  if(!state.lat&&!($('f_maps')&&$('f_maps').value.trim()))falt3.push('Coordenadas o link de Maps');
+  // H (v0.7.1): la DIRECCIÓN escrita a mano basta como ubicación. El link de Maps
+  // lo llena solo "usar mi ubicación" y es un EXTRA, no un requisito: su ausencia
+  // NO quita ⭐ ni marca incompleta la captura si ya hay dirección (manual o auto).
+  var _dirManual=$('f_direccion')&&$('f_direccion').value.trim();
+  if(!_dirManual&&!state.lat&&!($('f_maps')&&$('f_maps').value.trim()))falt3.push('Ubicación (dirección o Maps)');
   if(esTerreno){
     if(!ok('f_frente'))falt3.push('Frente del terreno');
     if(!ok('f_fondo'))falt3.push('Fondo del terreno');
@@ -2148,6 +2152,25 @@ function updateAsesorStats(id,strs,elapsed){
   if(strs.s3)a.capturasCompletas=(a.capturasCompletas||0)+1;
   if(elapsed>0&&(!a.mejorTiempo||elapsed<a.mejorTiempo))a.mejorTiempo=elapsed;
   a.ultimaCaptura=new Date().toISOString();
+  saveAsesores(lista);
+}
+/* K (v0.7.1): recalcula las estrellas locales de cada asesor a partir de las
+   capturas que quedan en el historial. updateAsesorStats solo SUMA; al borrar una
+   captura sus estrellas seguían contando en el ranking local. Se llama tras cada
+   borrado para que el ranking refleje la resta (el ranking en la nube ya se deriva
+   de las Capturas del GAS en cada GET, así que se corrige solo al re-consultar). */
+function recomputeAsesorStatsFromHist(){
+  var lista=getAsesores();
+  var caps=getHist();
+  lista.forEach(function(a){
+    var mias=caps.filter(function(r){return (r.asesorId&&r.asesorId===a.id)||(r.asesorNombre&&a.nombre&&r.asesorNombre===a.nombre);});
+    a.totalCapturas=mias.length;
+    a.totalEstrellas=mias.reduce(function(s,r){return s+(parseInt(r.estrellas,10)||0);},0);
+    a.capturasEsenciales=mias.filter(function(r){return r.calidad&&r.calidad!=='Incompleta';}).length;
+    a.capturasCompletas=mias.filter(function(r){return r.calidad==='Completa';}).length;
+    var tiempos=mias.map(function(r){return r.elapsed||0;}).filter(function(t){return t>0;});
+    a.mejorTiempo=tiempos.length?Math.min.apply(null,tiempos):null;
+  });
   saveAsesores(lista);
 }
 
@@ -2965,6 +2988,7 @@ function confirmPinDelete(){
     setHist(getHist().filter(function(r){return r.id!==tgt.id;}));
     var tomb=load('del_pend',[]);
     if(tomb.indexOf(tgt.id)===-1){tomb.push(tgt.id);save('del_pend',tomb);}
+    recomputeAsesorStatsFromHist(); // K (v0.7.1): restar sus estrellas del ranking local
   }
   _renderHistList(getHist());
   gasDeleteCapture(tgt.id);

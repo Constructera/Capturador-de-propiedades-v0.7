@@ -640,7 +640,9 @@ body.quick-mode .qk-nav{position:fixed;left:0;right:0;bottom:0;background:var(--
 .qk-btns{display:flex;gap:8px}
 .qk-btns .btn{padding:10px 12px;font-size:.9rem;box-shadow:0 3px 0 var(--_shadow)}
 /* 4a (v0.7.1): CTAs del selector de asesor siempre visibles (barra fija abajo) */
-.advisor-cta{position:sticky;bottom:0;z-index:20;margin:16px -20px 0;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -3px 12px rgba(0,0,0,.05)}
+/* E (v0.7.1): la barra fija se pega ARRIBA de la navbar (antes bottom:0 la dejaba
+   detrás de la navbar fija de 56px y tapaba el botón verde "Empezar captura"). */
+.advisor-cta{position:sticky;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:51;margin:16px -20px 0;padding:12px 20px;background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -3px 12px rgba(0,0,0,.05)}
 [data-theme="dark"] .advisor-cta{background:#1e1e1e;box-shadow:none}
 /* 4c (v0.7.1): nota de fallback del Contact Picker (iOS) */
 .pick-note{font-size:.82rem;color:var(--text-soft);background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px;line-height:1.4}
