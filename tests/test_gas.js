@@ -113,9 +113,13 @@ function freshEnv() {
                 return { hasNext: function () { return i < f.files.length; },
                          next: function () {
                            var file = f.files[i++];
+                           function blob(mime) { return { getContentType: function () { return mime; }, getBytes: function () { return file.bytes || [0, 1, 2, 3]; } }; }
                            return { getId: function () { return file.id; },
                                     getMimeType: function () { return file.mime; },
-                                    getName: function () { return file.name; } };
+                                    getName: function () { return file.name; },
+                                    // v3.7.1 (Bloque O): getFoto → base64 desde miniatura/blob
+                                    getThumbnail: function () { return blob('image/png'); },
+                                    getBlob: function () { return blob(file.mime); } };
                          } };
               },
               _addFile: function (name, mime, id) { f.files.push({name: name, mime: mime, id: id}); },
@@ -141,7 +145,8 @@ function freshEnv() {
     },
     Utilities: {
       base64Decode: function (s) { return { _b64: String(s), length: String(s).length }; },
-      newBlob: function (bytes, mime, name) { return { _bytes: bytes, _mime: mime, _name: name }; }
+      newBlob: function (bytes, mime, name) { return { _bytes: bytes, _mime: mime, _name: name }; },
+      base64Encode: function (bytes) { return 'B64(' + (bytes && bytes.length ? bytes.length : 0) + ')'; }
     }
   };
   vm.createContext(ctx);
@@ -568,7 +573,7 @@ console.log('\n[G12] fotoUrl: persistencia, PDF fallback, refreshFotos y GET');
 console.log('\n[G13] uploadFoto guarda en la carpeta de la propiedad y devuelve miniatura');
 (function () {
   var g = freshEnv();
-  assert(g.post({action:'ping'}).msg === 'Hauser GAS v3.7 online', 'ping responde v3.7');
+  assert(g.post({action:'ping'}).msg === 'Hauser GAS v3.7.1 online', 'ping responde v3.7.1');
   g.post({action:'saveMarkdown', uuid:'CAP-UP1', tipo:'propiedad',
     asesor:'Daniel', nombre:'Casa Subida', direccion:'', markdown_md:'#'});
   assert(g._drive.length === 1, 'saveMarkdown creó la carpeta');
@@ -589,6 +594,47 @@ console.log('\n[G13] uploadFoto guarda en la carpeta de la propiedad y devuelve 
   assert(up3.fotoUrl.indexOf('thumbnail?id=') > -1, 'standalone también devuelve miniatura');
   assert(g.post({action:'uploadFoto', dataBase64:'AA'}).ok === false, 'uploadFoto sin uuid → error');
   assert(g.post({action:'uploadFoto', uuid:'X'}).ok === false, 'uploadFoto sin datos → error');
+})();
+
+/* ============ 14. refreshFotos limpia fotoUrl al vaciarse la carpeta (Bloque N) ============ */
+console.log('\n[G14] refreshFotos LIMPIA fotoUrl cuando la carpeta queda sin fotos');
+(function () {
+  var g = freshEnv();
+  g.post({action:'saveMarkdown', uuid:'CAP-N1', tipo:'propiedad', asesor:'Daniel', nombre:'Casa N', direccion:'', markdown_md:'#'});
+  g._drive[0].api._addFile('foto.jpg', 'image/jpeg', 'IMGN');
+  var rf = g.post({action:'refreshFotos'});
+  assert(rf.fotos['CAP-N1'] === 'https://drive.google.com/thumbnail?id=IMGN&sz=w640', 'primero: la foto aparece en el mapa');
+  var hdr = g._sheets['Markdowns']._rows[0];
+  function rowN() { return g._sheets['Markdowns']._rows.filter(function (r) { return r[hdr.indexOf('uuid')] === 'CAP-N1'; })[0]; }
+  assert(rowN()[hdr.indexOf('fotoUrl')] === rf.fotos['CAP-N1'], 'fotoUrl persistida');
+  // el dueño borra la foto directamente en Drive
+  g._drive[0].files.length = 0;
+  var rf2 = g.post({action:'refreshFotos'});
+  assert(!rf2.fotos['CAP-N1'], 'tras borrar la foto, el GET ya no la trae (fotos sin ese uuid)');
+  assert(rowN()[hdr.indexOf('fotoUrl')] === '', 'fotoUrl quedó VACÍO en el Sheet (no URL muerta)');
+  assert(rf2.actualizadas === 1, 'la limpieza cuenta como actualización');
+  // el GET expone fotos:{} para ese uuid
+  var got = g.get();
+  assert(!got.fotos['CAP-N1'], 'GET.fotos ya no incluye el uuid sin foto');
+  // idempotente: segundo refresh no reescribe
+  assert(g.post({action:'refreshFotos'}).actualizadas === 0, 'refresh sin cambios: 0 escrituras');
+})();
+
+/* ============ 15. getFoto: foto de portada como base64 (Bloque O) ============ */
+console.log('\n[G15] getFoto devuelve la portada como data URL base64');
+(function () {
+  var g = freshEnv();
+  assert(g.post({action:'ping'}).msg === 'Hauser GAS v3.7.1 online', 'ping responde v3.7.1');
+  g.post({action:'saveMarkdown', uuid:'CAP-O1', tipo:'propiedad', asesor:'Daniel', nombre:'Casa O', direccion:'', markdown_md:'#'});
+  // sin fotos aún
+  assert(g.post({action:'getFoto', uuid:'CAP-O1'}).dataUrl === '', 'carpeta vacía → dataUrl vacío');
+  g._drive[0].api._addFile('portada.jpg', 'image/jpeg', 'IMGO');
+  var r = g.post({action:'getFoto', uuid:'CAP-O1'});
+  assert(r.ok === true, 'getFoto responde ok');
+  assert(/^data:image\/png;base64,B64\(/.test(r.dataUrl), 'devuelve un data URL base64 (miniatura del archivo)');
+  // uuid inexistente → sin foto, sin romper
+  assert(g.post({action:'getFoto', uuid:'NOPE'}).dataUrl === '', 'uuid sin carpeta → dataUrl vacío');
+  assert(g.post({action:'getFoto'}).ok === false, 'getFoto sin uuid → error');
 })();
 
 /* ============ resumen ============ */

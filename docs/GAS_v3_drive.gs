@@ -106,6 +106,18 @@
  *   endpoint /exec NO cambia. Verificación: POST {"action":"ping"} debe
  *   responder "Hauser GAS v3.7 online".
  *
+ * NUEVO EN v3.7.1 (v0.7.1 Bloques N y O):
+ *   - refreshFotos ahora LIMPIA fotoUrl cuando la carpeta queda sin fotos válidas
+ *     (antes conservaba la URL muerta). Distingue carpeta vacía (firstImageUrl_
+ *     devuelve '') de error transitorio (throw → conserva el valor previo).
+ *   - Nueva action {action:'getFoto', uuid} → devuelve la foto de portada como
+ *     data URL base64 ({ok, dataUrl}). La ficha compartible la usa para pintar la
+ *     imagen sin CORS/canvas tainted (el thumbnail de Drive no era legible por el
+ *     canvas del cliente). Prefiere la miniatura del archivo; si no, el archivo.
+ *   Despliegue v3.7.1: pegar el archivo completo y "Implementar → Gestionar
+ *   implementaciones → ✏️ → Nueva versión → Implementar". Sin scopes nuevos, el
+ *   /exec NO cambia. ping → "Hauser GAS v3.7.1 online".
+ *
  * INSTRUCCIONES DE DESPLIEGUE (v3.2):
  * 1. Abre script.google.com → el proyecto EXISTENTE del endpoint actual.
  * 2. Reemplaza el código por este archivo completo y GUARDA.
@@ -159,9 +171,10 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (API_KEY && String(body.k || '') !== API_KEY) return jsonOut({ok:false, error:'No autorizado'});
-    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.7 online'});
+    if (body.action === 'ping') return jsonOut({ok:true, msg:'Hauser GAS v3.7.1 online'});
     if (body.action === 'saveMarkdown') return handleSaveMarkdown_(body);
     if (body.action === 'uploadFoto') return handleUploadFoto_(body);
+    if (body.action === 'getFoto') return handleGetFoto_(body);
     if (body.action === 'refreshFotos') return handleRefreshFotos_();
     if (body.action === 'deleteCapture') return handleDeleteCapture_(body);
     if (body.action === 'migrateMarkdowns') return handleMigrateMarkdowns_(body);
@@ -277,6 +290,44 @@ function handleUploadFoto_(p) {
   return jsonOut({ok:true, folderUrl: folderUrl, fotoUrl: fotoUrl});
 }
 
+/* v3.7.1 (Bloque O): devuelve la foto de portada de una propiedad como data URL
+ * base64. La ficha compartible del cliente no puede leer el thumbnail de Drive por
+ * CORS (canvas tainted / onerror → cae al fallback sin foto). Pidiéndola al GAS y
+ * pintándola desde un data: URL, el canvas NO se contamina y toBlob funciona.
+ * Payload: {action:'getFoto', uuid}. Respuesta: {ok, dataUrl} ('' si no hay foto). */
+function handleGetFoto_(p) {
+  if (!p.uuid) return jsonOut({ok:false, error:'getFoto sin uuid'});
+  var sh = getSheet_(MD_SHEET, MD_HEADERS);
+  var prev = findByKey_(sh, 'uuid', p.uuid);
+  var folderUrl = prev && prev.folderUrl ? String(prev.folderUrl) : '';
+  if (!folderUrl) return jsonOut({ok:true, dataUrl:''});
+  var m = folderUrl.match(/folders\/([A-Za-z0-9_-]+)/);
+  if (!m) return jsonOut({ok:true, dataUrl:''});
+  try {
+    var it = DriveApp.getFolderById(m[1]).getFiles();
+    var pdf = null;
+    while (it.hasNext()) {
+      var f = it.next();
+      var mime = String(f.getMimeType());
+      if (mime.indexOf('image/') === 0) return jsonOut({ok:true, dataUrl: fileToDataUrl_(f)});
+      if (!pdf && mime === 'application/pdf') pdf = f;
+    }
+    if (pdf) return jsonOut({ok:true, dataUrl: fileToDataUrl_(pdf)});
+  } catch (err) {
+    return jsonOut({ok:false, error:'getFoto: ' + err.toString()});
+  }
+  return jsonOut({ok:true, dataUrl:''});
+}
+/* Archivo Drive → data URL base64. Prefiere la miniatura (más liviana para la red
+ * móvil); si no hay, el archivo completo. */
+function fileToDataUrl_(f) {
+  var blob = null;
+  try { blob = f.getThumbnail(); } catch (_e) { blob = null; }
+  if (!blob) blob = f.getBlob();
+  var mime = blob.getContentType() || 'image/jpeg';
+  return 'data:' + mime + ';base64,' + Utilities.base64Encode(blob.getBytes());
+}
+
 /* v3.6: URL de miniatura de la carpeta: primera imagen image/*; si no hay,
  * primer PDF (los escaneos de fotos llegan como application/pdf y Drive les
  * genera miniatura PNG con el mismo endpoint /thumbnail). '' si no hay nada. */
@@ -315,7 +366,11 @@ function fotosMap_() {
 }
 
 /* v3.6: recalcula miniaturas de TODAS las filas con folderUrl (las carpetas
- * reciben fotos después de la captura). Vacío no pisa valor previo. */
+ * reciben fotos después de la captura).
+ * v3.7.1 (Bloque N): si la carpeta queda SIN fotos válidas, LIMPIA fotoUrl (deja
+ * vacío) en vez de conservar la URL muerta. Se distingue "carpeta vacía"
+ * (firstImageUrl_ devuelve '') de "error transitorio de Drive" (lanza excepción →
+ * el catch conserva el valor previo para no perder una miniatura buena). */
 function handleRefreshFotos_() {
   var sh = getSheet_(MD_SHEET, MD_HEADERS);
   var hdr = headers_(sh);
@@ -329,7 +384,9 @@ function handleRefreshFotos_() {
     var uuid = String(data[i][kU] || ''), folder = String(data[i][kF] || ''), old = String(data[i][kFo] || '');
     if (!uuid || !folder) continue;
     var nuevo = old;
-    try { var calc = firstImageUrl_(folder); if (calc) nuevo = calc; } catch (_e) {}
+    // éxito (aunque sea '') → refleja el estado REAL de la carpeta; solo el error
+    // transitorio (throw) conserva el valor previo.
+    try { nuevo = firstImageUrl_(folder); } catch (_e) { nuevo = old; }
     if (nuevo !== old) {
       sh.getRange(i + 2, kFo + 1, 1, 1).setValues([[nuevo]]);
       res.actualizadas++;

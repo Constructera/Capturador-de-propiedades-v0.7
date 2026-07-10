@@ -616,6 +616,12 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .nuke-ov{position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .nuke-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,#fff 0%,#ffe9b0 25%,#ff8a3d 45%,rgba(0,0,0,0) 70%);opacity:0;animation:nuke-flash 3.3s ease-out forwards}
 @keyframes nuke-flash{0%{opacity:0;transform:scale(.2)}6%{opacity:1}14%{opacity:.95;transform:scale(1)}45%{opacity:.5}100%{opacity:0;transform:scale(1.15)}}
+/* F2: segundo destello BLANCO puro, brevísimo y cegador, para más impacto inicial */
+.nuke-flash2{position:absolute;inset:0;background:#fff;opacity:0;animation:nuke-flash2 700ms ease-out forwards}
+@keyframes nuke-flash2{0%{opacity:0}3%{opacity:.98}12%{opacity:.7}100%{opacity:0}}
+/* F2: sacudida de pantalla al detonar */
+.nuke-shake{animation:nuke-shake .6s cubic-bezier(.36,.07,.19,.97)}
+@keyframes nuke-shake{10%{transform:translate(-9px,4px) rotate(-.6deg)}20%{transform:translate(8px,-6px) rotate(.6deg)}30%{transform:translate(-11px,3px) rotate(-.5deg)}40%{transform:translate(9px,5px) rotate(.4deg)}55%{transform:translate(-6px,-4px)}70%{transform:translate(5px,3px)}85%{transform:translate(-3px,2px)}100%{transform:translate(0,0)}}
 .nuke-ring{position:absolute;left:50%;top:55%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:6px solid rgba(255,170,60,.85);opacity:0;animation:nuke-ring 3.2s cubic-bezier(.15,.7,.3,1) forwards}
 .nuke-ring2{border-color:rgba(255,90,60,.7);animation-delay:.25s}
 .nuke-ring3{border-color:rgba(255,220,120,.6);animation-delay:.5s}
@@ -626,9 +632,10 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 @keyframes nuke-mush{0%{opacity:0;transform:translate(-50%,10%) scale(.2)}18%{opacity:1;transform:translate(-50%,0) scale(1)}45%{opacity:1;transform:translate(-50%,-30%) scale(1.5) rotate(-4deg)}75%{opacity:.9;transform:translate(-50%,-70%) scale(1.7) rotate(3deg)}100%{opacity:0;transform:translate(-50%,-120%) scale(1.9)}}
 .nuke-txt{position:absolute;left:0;right:0;top:24%;text-align:center;font-family:'Nunito',sans-serif;font-weight:800;font-size:2.4rem;color:#fff;letter-spacing:.06em;text-shadow:0 0 18px #ff6a2b,0 3px 10px rgba(0,0,0,.5);opacity:0;transform:scale(.4);animation:nuke-txt 3.3s cubic-bezier(.34,1.56,.64,1) forwards;animation-delay:.15s}
 @keyframes nuke-txt{0%{opacity:0;transform:scale(.4)}12%{opacity:1;transform:scale(1.15)}20%{transform:scale(1)}70%{opacity:1}100%{opacity:0;transform:scale(1.05) translateY(-14px)}}
-.nuke-deb{position:absolute;left:50%;top:55%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:3px;background:linear-gradient(135deg,#ff7a3d,#c4302b);box-shadow:0 0 10px rgba(255,120,50,.7);opacity:0;animation:nuke-deb 2.4s ease-out forwards}
-@keyframes nuke-deb{0%{opacity:0;transform:translate(0,0) scale(1.2) rotate(0)}10%{opacity:1}100%{opacity:0;transform:translate(var(--nx),var(--ny)) scale(.2) rotate(320deg)}}
-@media(prefers-reduced-motion:reduce){.nuke-ov{display:none!important}}
+/* F2: los escombros se posicionan por JS (transform translate en px) con física
+   real; aquí solo su aspecto. left/top:0 → el translate parte del origen absoluto. */
+.nuke-deb{position:absolute;left:0;top:0;width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,#ff8a3d,#c4302b);box-shadow:0 0 12px rgba(255,120,50,.75);will-change:transform,opacity}
+@media(prefers-reduced-motion:reduce){.nuke-ov{display:none!important}.nuke-shake{animation:none!important}}
 /* Shake del modal de PIN cuando el PIN es incorrecto */
 .pin-shake{animation:pin-shake 320ms ease}
 @keyframes pin-shake{20%{transform:translateX(-8px)}45%{transform:translateX(7px)}70%{transform:translateX(-4px)}90%{transform:translateX(2px)}}

@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r18';
+var APP_VER='v0.7.1-r19';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -2537,7 +2537,9 @@ function renderHist(){
         var cloudRecs=gasCapturasToLocalHist(parseGasRows(data.capturas));
         // v0.7.1 F-1: el GET trae fotos:{uuid:fotoUrl} desde el Sheet (v3.6);
         // manda sobre lo que diga propiedad_json (puede venir de antes de subir fotos)
-        if(data.fotos)cloudRecs.forEach(function(r){if(data.fotos[r.id])r.fotoUrl=data.fotos[r.id];});
+        // N (v0.7.1): el mapa fotos es la fuente de verdad; si un uuid ya no está
+        // en él, su foto se borró en Drive → limpiar (antes solo se asignaba si venía).
+        if(data.fotos)cloudRecs.forEach(function(r){r.fotoUrl=data.fotos[r.id]||'';});
         // B4: tombstones — capturas borradas con PIN cuya eliminación del Sheet
         // aún no se confirma NO deben revivir; si la nube ya no las trae, purgar
         var tomb=load('del_pend',[]);
@@ -2571,7 +2573,11 @@ function maybeRefreshFotos(hist){
   gasPost({action:'refreshFotos'}).then(function(r){
     if(!r||!r.ok||!r.fotos)return;
     var h=getHist(),ch=false;
-    h.forEach(function(rec){if(r.fotos[rec.id]&&rec.fotoUrl!==r.fotos[rec.id]){rec.fotoUrl=r.fotos[rec.id];ch=true;}});
+    h.forEach(function(rec){
+      var nueva=r.fotos[rec.id]||'';
+      // N (v0.7.1): con carpeta conocida, la ausencia en el mapa = foto borrada → limpiar
+      if((r.fotos[rec.id]||rec.driveUrl)&&rec.fotoUrl!==nueva){rec.fotoUrl=nueva;ch=true;}
+    });
     if(ch){setHist(h);var vh=$('viewHistory');if(vh&&vh.classList.contains('active'))_renderHistList(h);}
   }).catch(function(){});
 }
@@ -2681,7 +2687,10 @@ function fotosRefreshNow(uuid){
   save('fotos_refresh_ts',Date.now());
   gasPost({action:'refreshFotos'}).then(function(r){
     var h=getHist(),ch=false;
-    if(r&&r.ok&&r.fotos){h.forEach(function(rec){if(r.fotos[rec.id]&&rec.fotoUrl!==r.fotos[rec.id]){rec.fotoUrl=r.fotos[rec.id];ch=true;}});}
+    if(r&&r.ok&&r.fotos){h.forEach(function(rec){
+      var nueva=r.fotos[rec.id]||'';
+      if((r.fotos[rec.id]||rec.driveUrl)&&rec.fotoUrl!==nueva){rec.fotoUrl=nueva;ch=true;}
+    });}
     if(ch)setHist(h);
     var vh=$('viewHistory');if(vh&&vh.classList.contains('active'))_renderHistList(getHist());
     if(histDetailCur)openHistDetail(histDetailCur.id,histDetailCur.isCt);
@@ -2981,7 +2990,6 @@ function confirmPinDelete(){
   // 1c (v0.7.1): explosión del botón antes de cerrar el modal
   pinExplode($('pinOk'));
   setTimeout(function(){$('pinOverlay').classList.remove('show');},420);
-  nukeExplosion(); // F (v0.7.1): animación exagerada de borrado (~3.5 s)
   if(tgt.isCt){
     var ch=load('ct_hist',[]);save('ct_hist',ch.filter(function(r){return r.id!==tgt.id;}));
     updateCtBadge();
@@ -2993,28 +3001,57 @@ function confirmPinDelete(){
   }
   _renderHistList(getHist());
   gasDeleteCapture(tgt.id);
+  // F (v0.7.1): la animación va al FINAL para que un fallo visual nunca bloquee el borrado
+  try{nukeExplosion();}catch(_e){}
 }
-/* F (v0.7.1): animación exagerada tipo "bomba nuclear" al borrar (~3.5 s). Overlay
-   full-screen: destello → ondas de choque → hongo ☢️ que sube → escombros → texto.
-   Ninguna partícula tiene listeners; quitar el overlay del DOM es seguro. */
+/* F/F2 (v0.7.1): animación exagerada tipo "bomba nuclear" al borrar (~3.5 s).
+   Overlay full-screen: doble destello + sacudida de pantalla → ondas de choque →
+   hongo ☢️ que sube con easing dramático → escombros con FÍSICA real (velocidad +
+   gravedad + rotación, animados por rAF, no solo fade) → texto. Nada tiene
+   listeners; quitar el overlay del DOM es seguro. */
 function nukeExplosion(){
   var ov=document.createElement('div');ov.className='nuke-ov';
   ov.innerHTML=
     '<div class="nuke-flash"></div>'+
+    '<div class="nuke-flash2"></div>'+
     '<div class="nuke-ring"></div><div class="nuke-ring nuke-ring2"></div><div class="nuke-ring nuke-ring3"></div>'+
     '<div class="nuke-fire">💥</div>'+
     '<div class="nuke-mush">☢️</div>'+
     '<div class="nuke-txt">¡ELIMINADA!</div>';
   document.body.appendChild(ov);
-  for(var i=0;i<26;i++){
-    var p=document.createElement('span');p.className='nuke-deb';
-    var ang=(Math.PI*2*i)/26+Math.random()*.4;var dist=150+Math.random()*240;
-    p.style.setProperty('--nx',Math.round(Math.cos(ang)*dist)+'px');
-    p.style.setProperty('--ny',Math.round(Math.sin(ang)*dist)+'px');
-    p.style.animationDelay=(Math.random()*.35+.15)+'s';
-    ov.appendChild(p);
+  // sacudida breve de toda la pantalla
+  document.body.classList.add('nuke-shake');
+  setTimeout(function(){document.body.classList.remove('nuke-shake');},640);
+  // escombros con física simple (velocidad inicial radial + gravedad + rotación)
+  var W=window.innerWidth||360,Hh=window.innerHeight||640;
+  var cx=W/2,cy=Hh*0.55;
+  var debris=[];
+  for(var i=0;i<34;i++){
+    var el=document.createElement('span');el.className='nuke-deb';
+    el.style.left='0';el.style.top='0';
+    ov.appendChild(el);
+    var ang=Math.random()*Math.PI*2,spd=6+Math.random()*14;
+    debris.push({el:el,x:cx,y:cy,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd-7,rot:Math.random()*360,vr:(Math.random()-0.5)*44,life:0});
   }
-  if(navigator.vibrate)navigator.vibrate([40,50,30,60,90]);
+  var hasRAF=(typeof requestAnimationFrame==='function');
+  if(hasRAF){
+    var start=null,last=null;
+    var step=function(ts){
+      if(start==null){start=ts;last=ts;}
+      last=ts;var alive=false;
+      for(var j=0;j<debris.length;j++){
+        var d=debris[j];if(d.done)continue;alive=true;
+        d.vy+=0.55;d.vx*=0.99;d.x+=d.vx;d.y+=d.vy;d.rot+=d.vr;d.life++;
+        var op=Math.max(0,1-d.life/72);
+        d.el.style.transform='translate('+d.x.toFixed(1)+'px,'+d.y.toFixed(1)+'px) rotate('+d.rot.toFixed(0)+'deg)';
+        d.el.style.opacity=op;
+        if(op<=0||d.y>Hh+80)d.done=true;
+      }
+      if(alive&&ts-start<3400)requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  if(navigator.vibrate)navigator.vibrate([60,40,30,50,90,40,120]);
   if(typeof sndError==='function')try{sndError();}catch(e){}
   setTimeout(function(){if(ov.parentNode)ov.parentNode.removeChild(ov);},3600);
 }
@@ -3099,6 +3136,8 @@ function openHistDetail(id,isCt){
       dirBlock+
       '<div class="hi-actions" style="margin:10px 0 12px">'+
         '<button type="button" class="btn btn-accent" data-fotoup="'+rec.id+'">📷 Subir fotos</button>'+
+        // N3 (v0.7.1): fuerza refreshFotos sin esperar el throttle (útil al borrar fotos en Drive)
+        (rec.driveUrl?'<button type="button" class="btn" data-reffoto="'+rec.id+'">🔄 Actualizar foto</button>':'')+
         (rec.driveUrl?'<button type="button" class="btn" data-drive="'+rec.id+'">🗂 Abrir Drive</button>':'')+
         '<button type="button" class="btn" data-ficha="'+rec.id+'">🖼 Compartir ficha</button>'+
         '<button type="button" class="btn" data-copymd="'+rec.id+'">Copiar markdown</button>'+
@@ -3114,6 +3153,11 @@ $('histDetailBody').addEventListener('click',function(e){
   if(t.dataset.fotoup){fotoPick(rc(t.dataset.fotoup));}
   if(t.dataset.drive){var rD=rc(t.dataset.drive);if(rD&&rD.driveUrl)window.open(rD.driveUrl,'_blank');}
   if(t.dataset.ficha){shareFicha(rc(t.dataset.ficha),t);}
+  if(t.dataset.reffoto){
+    t.textContent='🔄 Actualizando…';t.disabled=true;
+    fotosRefreshNow(t.dataset.reffoto);
+    setTimeout(function(){t.disabled=false;t.textContent='🔄 Actualizar foto';},1500);
+  }
   if(t.dataset.copymd){var rM=rc(t.dataset.copymd);if(rM){copyText(rM.md||'');t.textContent='Copiado ✓';setTimeout(function(){t.textContent='Copiar markdown';},1600);}}
 });
 function closeHistDetail(){$('histDetailOverlay').classList.remove('show');histDetailCur=null;}
@@ -4123,10 +4167,22 @@ function findCtRec(id){return load('ct_hist',[]).filter(function(r){return r.id=
    si el servidor no manda CORS (Drive no lo hace hoy), onerror → hero con
    gradiente + emoji (el canvas NO queda tainted, así toBlob funciona). */
 function fichaField(rec,k){var fd=rec.formData||{};return fd[k]||'';}
+/* O (v0.7.1): trae la foto de portada como data URL. Primero al GAS (getFoto,
+   base64 → el canvas NO se contamina y toBlob funciona); si no hay endpoint, cae
+   a la URL directa de Drive (puede fallar por CORS, pero es el mejor esfuerzo). */
+function fichaFotoDataUrl(rec,cb){
+  if(!(rec&&(rec.fotoUrl||rec.driveUrl))){cb('');return;}
+  if(!CFG.endpoint){cb(rec.fotoUrl||'');return;}
+  gasPost({action:'getFoto',uuid:rec.id}).then(function(r){
+    cb(r&&r.ok&&r.dataUrl?r.dataUrl:(rec.fotoUrl||''));
+  }).catch(function(){cb(rec.fotoUrl||'');});
+}
 function buildFichaCanvas(rec,cb){
   var W=1080,H=1350;
   var cv=document.createElement('canvas');cv.width=W;cv.height=H;
   var ctx=cv.getContext&&cv.getContext('2d');
+  // O: pedir la foto ANTES del check de canvas (así el flujo es observable/testeable)
+  fichaFotoDataUrl(rec,function(fotoUrl){
   if(!ctx){cb(cv,null);return;} // entorno sin canvas (jsdom): devolver sin pintar
   var fd=rec.formData||{},stx=fd._state||{};
   var accent='#2e9e5b',dark='#1f2937',soft='#6b7280';
@@ -4180,14 +4236,17 @@ function buildFichaCanvas(rec,cb){
     ctx.fillText('Hauser · Inmobitera · Cuernavaca',48,H-44);
     cb(cv,cv);
   }
-  if(rec.fotoUrl){
-    var im=new Image();im.crossOrigin='anonymous';
+  if(fotoUrl){
+    var im=new Image();
+    // los data: URL no requieren CORS ni contaminan el canvas; solo las http (fallback)
+    if(fotoUrl.slice(0,5)!=='data:')im.crossOrigin='anonymous';
     var settled=false;
     im.onload=function(){if(settled)return;settled=true;paint(im);};
     im.onerror=function(){if(settled)return;settled=true;paint(null);};
-    setTimeout(function(){if(settled)return;settled=true;paint(null);},4000);
-    im.src=rec.fotoUrl;
+    setTimeout(function(){if(settled)return;settled=true;paint(null);},5000);
+    im.src=fotoUrl;
   }else paint(null);
+  }); // fin fichaFotoDataUrl
 }
 /* cuántas líneas ocupará el texto (para avanzar la Y) */
 function fichaLines(ctx,text,maxW,font){

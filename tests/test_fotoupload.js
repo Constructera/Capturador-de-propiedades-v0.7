@@ -96,6 +96,18 @@ function $(w, id) { return w.document.getElementById(id); }
   var rec = JSON.parse(w.localStorage.getItem('cap_hist'))[0];
   assert(rec.fotoUrl === 'https://drive.google.com/thumbnail?id=IMGX&sz=w640', 'la miniatura quedó guardada en la propiedad');
 
+  console.log('\n[O] Compartir ficha pide la foto al GAS como base64 (getFoto, evita CORS)');
+  var wf = boot();
+  $(wf, 'navbar').querySelector('button[data-view="viewHistory"]').click();
+  await sleep(30);
+  var fichaBtn = wf.document.querySelector('[data-ficha]');
+  assert(!!fichaBtn, 'la tarjeta tiene botón 🖼 Compartir ficha');
+  fichaBtn.click();
+  await sleep(80);
+  var getFotoPosts = posts.filter(function (p) { return p.action === 'getFoto'; });
+  assert(getFotoPosts.length >= 1, 'al compartir la ficha se pide getFoto al GAS');
+  assert(getFotoPosts[0].uuid === 'CAP-FOTO1', 'getFoto lleva el uuid de la propiedad');
+
   console.log('\n[M4] el input file abre cámara/galería en iOS (accept=image/* + multiple)');
   assert(inp.getAttribute('accept') === 'image/*', 'input accept="image/*" (iOS ofrece cámara y galería)');
   assert(inp.hasAttribute('multiple'), 'input multiple (varias fotos de una vez)');
