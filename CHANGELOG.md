@@ -6,6 +6,36 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 
 ## v0.7.1 (en desarrollo) — correcciones post-testing + coordinación sitio web / bot Notion
 
+### r21 (11-jul-2026) — T1/T2 (navbar en "¿Quién captura?", barra en modo normal) + F4 recalibrada
+Confirmado por el dueño en dispositivo real: P1/P2/Q2/C2/A2 de r20 quedaron bien.
+- **T1 — navbar oculto en "¿Quién captura?" (viewAdvisor):** esta pantalla es paso
+  previo a AMBOS flujos (normal y rápida) y el navbar no debe verse ahí. En E2 (r20)
+  solo se verificó que no hubiera overlap; ahora el dueño pide ocultarlo. Mismo
+  patrón que `body.capture-active`: clase `advisor-active` en showView + CSS
+  `body.advisor-active .navbar{display:none!important}`. La CTA sticky baja al
+  fondo real (`bottom:0` + safe-area) y el body pierde el padding del navbar.
+  Verificado en render real 390px: bodyClass=advisor-active, navbar display:none,
+  CTA bottom=844 (borde de pantalla).
+- **T2 — barra de progreso cortada en modo NORMAL:** mismo patrón que P1/P2 pero en
+  el flujo tradicional: `.timer-widget.running .timer-top` (mascota fija en esquina
+  sup-der, 96px + 1rem, z100) tapaba el extremo derecho de la barra de progreso
+  (sticky z10, ancho completo). Fix quirúrgico sin tocar la mascota de la esquina
+  (ese diseño es correcto en modo normal): `body:not(.quick-mode)
+  .timer-widget.running+.progress-wrap{padding-right:122px}` — la barra termina
+  antes de la columna de la mascota SOLO mientras el timer corre y SOLO fuera del
+  modo rápido. Verificado en render real: barra right=248 vs mascota left=276.
+- **F4 — explosión recalibrada (~3.8 s) según feedback:** (1) FUERA el shake visual
+  sostenido de 3 escalones (se veía mal) → queda UNA sacudida sutil de ±4px/0.45s
+  solo al detonar; (2) vibración FÍSICA del teléfono: tick de 30ms al armar +
+  navigator.vibrate([420,90,180,80,120,70,80]) al detonar (golpe largo + réplicas
+  decrecientes; Android/Chrome — iOS Safari no soporta vibrate); (3) FLASH AMARILLO
+  cegador de pantalla completa (radial #fffde7→#ffee58→#ffc400, 950ms) + resplandor
+  amarillo-naranja que persiste ~3s; (4) "¡ELIMINADA!" más grande (2.7rem, glow
+  ámbar) sostenido de ~0.8s a ~3.4s. Hongo ☢️, 4 ondas, 💥 y escombros con física
+  (2 oleadas) se mantienen; humo más breve. Limpieza total a los 3.8s. Sigue en
+  try/catch.
+- SW `capturador-v0.7.1-r21` · APP_VER `v0.7.1-r21`. Suite completa verde.
+
 ### r20 (10-jul-2026) — P1/P2 causa raíz real (cascada CSS), Q2/C2, A2, F3, U1–U3
 **Contexto:** P1/P2/P3/Q1/C-CRM se habían reportado "resueltos" 2-3 veces y seguían mal
 en el celular. PASO 0 verificado: Pages SÍ servía el build r19 (SW key en producción =

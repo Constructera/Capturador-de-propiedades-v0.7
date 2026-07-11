@@ -265,6 +265,11 @@ body.contact-active .ct-mascot-float{display:flex;}
 .timer-widget.running .mascot{height:50px;width:auto;}
 .timer-widget.running .timer-ring-wrap{width:50px;height:50px;}
 .timer-widget.running .timer-display{font-size:.68rem;font-weight:700;}
+/* T2 (r21): en modo NORMAL con el timer corriendo, la mascota fija de la esquina
+   (96px + 1rem de margen, z100) tapaba el extremo derecho de la barra de progreso
+   (sticky z10, ancho completo). Se reserva ese espacio en la barra SOLO mientras
+   corre y SOLO fuera del modo rápido (en quick la mascota va en flujo, P1/P2). */
+body:not(.quick-mode) .timer-widget.running+.progress-wrap{padding-right:122px}
 
 /* ===================== MASCOTA — ESTADOS ===================== */
 .mascot .brow-angry,.mascot .brow-sad,.mascot .mouth-frown,.mascot .star-deco,.mascot .sweat-drops{display:none;}
@@ -615,46 +620,44 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 @keyframes pin-part{from{transform:translate(-50%,-50%) scale(1);opacity:1}to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.3);opacity:0}}
 @media(prefers-reduced-motion:reduce){.pin-explode,.pin-part{animation:none!important}}
 
-/* F3 (v0.7.1 r20): explosión ampliada a ~5 s con más fases: carga → destello
-   cegador → onda expansiva → hongo grande → lluvia de escombros → humo que se
-   disipa. Sacudida de pantalla intensa y sostenida en 3 escalones (el JS rota
-   las clases .nuke-shake → -mid → -soft). */
+/* F4 (v0.7.1 r21): explosión recalibrada (~3.8 s). Fuera el shake visual sostenido
+   (se veía mal); queda UNA sacudida breve y sutil al detonar. Protagonistas: FLASH
+   AMARILLO nuclear + hongo/ondas + texto "¡ELIMINADA!" bien visible. La vibración
+   física del teléfono la pone el JS (navigator.vibrate). */
 .nuke-ov{position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;display:flex;align-items:center;justify-content:center}
 /* fase 0: carga — anillo de energía que implosiona hacia el centro */
 .nuke-charge{position:absolute;left:50%;top:55%;width:340px;height:340px;margin:-170px 0 0 -170px;border-radius:50%;background:radial-gradient(circle,rgba(255,220,140,0) 55%,rgba(255,160,60,.55) 72%,rgba(255,90,40,0) 80%);opacity:0;animation:nuke-charge .55s ease-in forwards}
 @keyframes nuke-charge{0%{opacity:0;transform:scale(1.4)}60%{opacity:.9;transform:scale(.72)}100%{opacity:0;transform:scale(.32)}}
-.nuke-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,#fff 0%,#ffe9b0 22%,#ff8a3d 42%,rgba(0,0,0,0) 70%);opacity:0;animation:nuke-flash 4.6s ease-out .35s forwards}
-@keyframes nuke-flash{0%{opacity:0;transform:scale(.2)}5%{opacity:1}12%{opacity:.95;transform:scale(1)}40%{opacity:.5}70%{opacity:.25}100%{opacity:0;transform:scale(1.2)}}
-/* fase 1: destello BLANCO cegador tras la carga */
-.nuke-flash2{position:absolute;inset:0;background:#fff;opacity:0;animation:nuke-flash2 900ms ease-out .35s forwards}
-@keyframes nuke-flash2{0%{opacity:0}4%{opacity:1}18%{opacity:.75}100%{opacity:0}}
-/* sacudida SOSTENIDA: infinita mientras la clase esté puesta; el JS la retira */
-.nuke-shake{animation:nuke-shake .34s cubic-bezier(.36,.07,.19,.97) infinite}
-@keyframes nuke-shake{0%{transform:translate(0,0)}15%{transform:translate(-14px,7px) rotate(-.8deg)}30%{transform:translate(13px,-9px) rotate(.8deg)}45%{transform:translate(-15px,5px) rotate(-.7deg)}60%{transform:translate(12px,8px) rotate(.6deg)}75%{transform:translate(-8px,-6px)}90%{transform:translate(7px,4px)}100%{transform:translate(0,0)}}
-.nuke-shake-mid{animation:nuke-shake-mid .4s ease-in-out infinite}
-@keyframes nuke-shake-mid{0%{transform:translate(0,0)}25%{transform:translate(-8px,4px) rotate(-.4deg)}50%{transform:translate(7px,-5px) rotate(.4deg)}75%{transform:translate(-5px,3px)}100%{transform:translate(0,0)}}
-.nuke-shake-soft{animation:nuke-shake-soft .5s ease-in-out infinite}
-@keyframes nuke-shake-soft{0%{transform:translate(0,0)}30%{transform:translate(-4px,2px)}60%{transform:translate(3px,-2px)}100%{transform:translate(0,0)}}
+/* fase 1a: resplandor AMARILLO-naranja que persiste tras el destello */
+.nuke-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,#fff 0%,#ffe733 20%,#ffb300 40%,rgba(0,0,0,0) 70%);opacity:0;animation:nuke-flash 3.2s ease-out .35s forwards}
+@keyframes nuke-flash{0%{opacity:0;transform:scale(.2)}6%{opacity:1}14%{opacity:.95;transform:scale(1)}45%{opacity:.5}100%{opacity:0;transform:scale(1.2)}}
+/* fase 1b: FLASH AMARILLO cegador de pantalla completa (lo que pidió el dueño) */
+.nuke-flash2{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,#fffde7 0%,#ffee58 45%,#ffc400 100%);opacity:0;animation:nuke-flash2 950ms ease-out .35s forwards}
+@keyframes nuke-flash2{0%{opacity:0}5%{opacity:1}22%{opacity:.85}100%{opacity:0}}
+/* sacudida ÚNICA, breve y sutil (±4 px, 0.45 s) — el JS la pone al detonar y la quita */
+.nuke-shake{animation:nuke-shake .45s cubic-bezier(.36,.07,.19,.97)}
+@keyframes nuke-shake{15%{transform:translate(-4px,2px)}30%{transform:translate(4px,-3px)}45%{transform:translate(-3px,2px)}60%{transform:translate(3px,2px)}80%{transform:translate(-2px,-1px)}100%{transform:translate(0,0)}}
 /* fase 2: onda expansiva — 4 anillos escalonados */
-.nuke-ring{position:absolute;left:50%;top:55%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:6px solid rgba(255,170,60,.85);opacity:0;animation:nuke-ring 3.6s cubic-bezier(.15,.7,.3,1) .4s forwards}
-.nuke-ring2{border-color:rgba(255,90,60,.7);animation-delay:.65s}
-.nuke-ring3{border-color:rgba(255,220,120,.6);animation-delay:.95s}
-.nuke-ring4{border-color:rgba(255,140,40,.5);animation-delay:1.35s}
+.nuke-ring{position:absolute;left:50%;top:55%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:6px solid rgba(255,200,60,.85);opacity:0;animation:nuke-ring 3s cubic-bezier(.15,.7,.3,1) .4s forwards}
+.nuke-ring2{border-color:rgba(255,150,40,.7);animation-delay:.6s}
+.nuke-ring3{border-color:rgba(255,230,120,.6);animation-delay:.85s}
+.nuke-ring4{border-color:rgba(255,180,40,.5);animation-delay:1.15s}
 @keyframes nuke-ring{0%{opacity:.9;transform:scale(.1)}70%{opacity:.4}100%{opacity:0;transform:scale(30)}}
-.nuke-fire{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%) scale(.2);font-size:120px;opacity:0;animation:nuke-fire 3.8s ease-out .35s forwards}
-@keyframes nuke-fire{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}9%{opacity:1;transform:translate(-50%,-50%) scale(1.7)}28%{opacity:1;transform:translate(-50%,-52%) scale(2.3)}55%{opacity:.7;transform:translate(-50%,-60%) scale(2.5)}100%{opacity:0;transform:translate(-50%,-74%) scale(2.8)}}
+.nuke-fire{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%) scale(.2);font-size:120px;opacity:0;animation:nuke-fire 3.2s ease-out .35s forwards}
+@keyframes nuke-fire{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}10%{opacity:1;transform:translate(-50%,-50%) scale(1.7)}30%{opacity:1;transform:translate(-50%,-52%) scale(2.3)}55%{opacity:.7;transform:translate(-50%,-60%) scale(2.5)}100%{opacity:0;transform:translate(-50%,-74%) scale(2.8)}}
 /* fase 3: hongo GRANDE que sube */
-.nuke-mush{position:absolute;left:50%;top:60%;transform:translate(-50%,0) scale(.3);font-size:160px;opacity:0;filter:drop-shadow(0 0 26px rgba(255,140,40,.8));animation:nuke-mush 4.4s cubic-bezier(.2,.8,.3,1) .3s forwards}
-@keyframes nuke-mush{0%{opacity:0;transform:translate(-50%,12%) scale(.2)}14%{opacity:1;transform:translate(-50%,0) scale(1)}40%{opacity:1;transform:translate(-50%,-28%) scale(1.55) rotate(-4deg)}68%{opacity:.9;transform:translate(-50%,-66%) scale(1.8) rotate(3deg)}100%{opacity:0;transform:translate(-50%,-118%) scale(2.1)}}
-/* fase 5: humo que se disipa al final */
-.nuke-smoke{position:absolute;left:50%;top:42%;width:280px;height:280px;margin-left:-140px;border-radius:50%;background:radial-gradient(circle,rgba(120,110,105,.55) 0%,rgba(90,85,82,.35) 45%,rgba(60,58,56,0) 72%);opacity:0;animation:nuke-smoke 3.4s ease-out 1.6s forwards}
+.nuke-mush{position:absolute;left:50%;top:60%;transform:translate(-50%,0) scale(.3);font-size:160px;opacity:0;filter:drop-shadow(0 0 26px rgba(255,180,40,.8));animation:nuke-mush 3.4s cubic-bezier(.2,.8,.3,1) .3s forwards}
+@keyframes nuke-mush{0%{opacity:0;transform:translate(-50%,12%) scale(.2)}16%{opacity:1;transform:translate(-50%,0) scale(1)}42%{opacity:1;transform:translate(-50%,-28%) scale(1.55) rotate(-4deg)}70%{opacity:.9;transform:translate(-50%,-66%) scale(1.8) rotate(3deg)}100%{opacity:0;transform:translate(-50%,-118%) scale(2.1)}}
+/* fase 5: humo breve que se disipa al final */
+.nuke-smoke{position:absolute;left:50%;top:42%;width:280px;height:280px;margin-left:-140px;border-radius:50%;background:radial-gradient(circle,rgba(120,110,105,.55) 0%,rgba(90,85,82,.35) 45%,rgba(60,58,56,0) 72%);opacity:0;animation:nuke-smoke 2.3s ease-out 1.3s forwards}
 @keyframes nuke-smoke{0%{opacity:0;transform:translateY(20px) scale(.6)}25%{opacity:.7;transform:translateY(-10px) scale(1.1)}60%{opacity:.45;transform:translateY(-60px) scale(1.6)}100%{opacity:0;transform:translateY(-140px) scale(2.2)}}
-.nuke-txt{position:absolute;left:0;right:0;top:24%;text-align:center;font-family:'Nunito',sans-serif;font-weight:800;font-size:2.4rem;color:#fff;letter-spacing:.06em;text-shadow:0 0 18px #ff6a2b,0 3px 10px rgba(0,0,0,.5);opacity:0;transform:scale(.4);animation:nuke-txt 4.4s cubic-bezier(.34,1.56,.64,1) .5s forwards}
-@keyframes nuke-txt{0%{opacity:0;transform:scale(.4)}10%{opacity:1;transform:scale(1.15)}16%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.05) translateY(-14px)}}
+/* texto "¡ELIMINADA!" — más grande y sostenido casi hasta el final */
+.nuke-txt{position:absolute;left:0;right:0;top:24%;text-align:center;font-family:'Nunito',sans-serif;font-weight:800;font-size:2.7rem;color:#fff;letter-spacing:.06em;text-shadow:0 0 20px #ffb300,0 0 8px #ff6a2b,0 3px 10px rgba(0,0,0,.55);opacity:0;transform:scale(.4);animation:nuke-txt 3s cubic-bezier(.34,1.56,.64,1) .5s forwards}
+@keyframes nuke-txt{0%{opacity:0;transform:scale(.4)}12%{opacity:1;transform:scale(1.15)}20%{transform:scale(1)}85%{opacity:1}100%{opacity:0;transform:scale(1.05) translateY(-14px)}}
 /* fase 4: escombros — posicionados por JS (transform translate en px) con física
    real; aquí solo su aspecto. left/top:0 → el translate parte del origen absoluto. */
-.nuke-deb{position:absolute;left:0;top:0;width:16px;height:16px;border-radius:3px;background:linear-gradient(135deg,#ff8a3d,#c4302b);box-shadow:0 0 12px rgba(255,120,50,.75);will-change:transform,opacity}
-@media(prefers-reduced-motion:reduce){.nuke-ov{display:none!important}.nuke-shake,.nuke-shake-mid,.nuke-shake-soft{animation:none!important}}
+.nuke-deb{position:absolute;left:0;top:0;width:16px;height:16px;border-radius:3px;background:linear-gradient(135deg,#ffb23d,#e05a2b);box-shadow:0 0 12px rgba(255,170,50,.75);will-change:transform,opacity}
+@media(prefers-reduced-motion:reduce){.nuke-ov{display:none!important}.nuke-shake{animation:none!important}}
 /* Shake del modal de PIN cuando el PIN es incorrecto */
 .pin-shake{animation:pin-shake 320ms ease}
 @keyframes pin-shake{20%{transform:translateX(-8px)}45%{transform:translateX(7px)}70%{transform:translateX(-4px)}90%{transform:translateX(2px)}}
@@ -698,6 +701,14 @@ body.quick-mode .qk-nav{position:fixed;left:0;right:0;bottom:0;background:var(--
 /* E (v0.7.1): la barra fija se pega ARRIBA de la navbar (antes bottom:0 la dejaba
    detrás de la navbar fija de 56px y tapaba el botón verde "Empezar captura"). */
 .advisor-cta{position:sticky;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:51;margin:16px -20px 0;padding:12px 20px;background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -3px 12px rgba(0,0,0,.05)}
+/* T1 (r21): en "¿Quién captura?" (paso previo a captura normal Y rápida) el navbar
+   NO se muestra — mismo patrón que body.capture-active. La CTA baja al fondo real
+   (bottom:0 + safe-area) porque ya no hay navbar debajo, y el body pierde el
+   padding reservado para el navbar. !important por paridad con quick-mode ante
+   cualquier regla vieja de mayor especificidad. */
+body.advisor-active .navbar{display:none!important}
+body.advisor-active{padding-bottom:0}
+body.advisor-active .advisor-cta{bottom:0;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
 [data-theme="dark"] .advisor-cta{background:#1e1e1e;box-shadow:none}
 /* 4c (v0.7.1): nota de fallback del Contact Picker (iOS) */
 .pick-note{font-size:.82rem;color:var(--text-soft);background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px;line-height:1.4}

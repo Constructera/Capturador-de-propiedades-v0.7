@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r20';
+var APP_VER='v0.7.1-r21';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -111,6 +111,8 @@ function showView(id){
   document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
   document.querySelectorAll('#navbar button').forEach(function(b){b.classList.toggle('active',b.dataset.view===id);});
   document.body.classList.toggle('capture-active',id==='viewCapture');
+  // T1 (r21): "¿Quién captura?" es paso previo a ambos flujos → sin navbar ahí
+  document.body.classList.toggle('advisor-active',id==='viewAdvisor');
   // v0.7 B6: entrada/salida del modo Captura Rápida
   // 1a (v0.7.1): CUALQUIER navegación que no entre al modo rápido garantiza
   // limpieza total (qkStop es idempotente) — cubre guardar/salir/editar/navegar
@@ -3075,13 +3077,16 @@ function confirmPinDelete(){
   // F (v0.7.1): la animación va al FINAL para que un fallo visual nunca bloquee el borrado
   try{nukeExplosion();}catch(_e){}
 }
-/* F3 (v0.7.1 r20): explosión MÁS dramática (~5 s) al borrar. Overlay full-screen
-   con MÁS fases: carga → destello cegador → onda expansiva (4 anillos) → hongo
-   ☢️ grande → lluvia de escombros con FÍSICA (2 oleadas, rAF) → humo que se
-   disipa. Sacudida de pantalla INTENSA y SOSTENIDA en 3 escalones decrecientes +
-   navigator.vibrate largo. Nada tiene listeners; quitar el overlay es seguro.
-   Se llama dentro de try/catch (confirmPinDelete) → un fallo visual nunca
-   bloquea el borrado. */
+/* F4 (v0.7.1 r21): explosión RECALIBRADA (~3.8 s) al borrar. Feedback del dueño:
+   el shake visual sostenido se veía mal → queda UNA sacudida breve y sutil (0.45 s,
+   ±4 px) solo al detonar. Lo que SÍ pidió: vibración FÍSICA del teléfono
+   (navigator.vibrate, golpe fuerte al detonar + réplicas decrecientes), FLASH
+   AMARILLO intenso tipo nuclear y texto "¡ELIMINADA!" bien visible. Se mantienen
+   hongo, ondas y escombros con física. Fases: carga (0-0.35s) → FLASH AMARILLO
+   cegador + vibración física + sacudida sutil (0.35s) → ondas + 💥 + escombros →
+   hongo ☢️ sube → humo breve; "¡ELIMINADA!" visible de ~0.8s a ~3.4s.
+   Nada tiene listeners; quitar el overlay es seguro. Se llama dentro de try/catch
+   (confirmPinDelete) → un fallo visual nunca bloquea el borrado. */
 function nukeExplosion(){
   var ov=document.createElement('div');ov.className='nuke-ov';
   ov.innerHTML=
@@ -3094,12 +3099,17 @@ function nukeExplosion(){
     '<div class="nuke-smoke"></div>'+
     '<div class="nuke-txt">¡ELIMINADA!</div>';
   document.body.appendChild(ov);
-  // sacudida INTENSA y SOSTENIDA en 3 escalones (antes solo 640 ms). Clases con
-  // animación infinita que se retiran por tiempo → el body nunca queda transformado.
-  document.body.classList.add('nuke-shake');
-  setTimeout(function(){document.body.classList.remove('nuke-shake');document.body.classList.add('nuke-shake-mid');},1500);
-  setTimeout(function(){document.body.classList.remove('nuke-shake-mid');document.body.classList.add('nuke-shake-soft');},2800);
-  setTimeout(function(){document.body.classList.remove('nuke-shake-soft');},3900);
+  // F4: sacudida ÚNICA, breve y sutil, sincronizada con el flash (no sostenida)
+  setTimeout(function(){
+    document.body.classList.add('nuke-shake');
+    setTimeout(function(){document.body.classList.remove('nuke-shake');},500);
+  },350);
+  // F4: vibración FÍSICA del dispositivo — tick al armar, GOLPE largo al detonar
+  // y réplicas decrecientes (Android/Chrome; iOS Safari no soporta vibrate)
+  if(navigator.vibrate){
+    try{navigator.vibrate(30);}catch(e){}
+    setTimeout(function(){try{navigator.vibrate([420,90,180,80,120,70,80]);}catch(e){}},350);
+  }
   // escombros con física (velocidad radial + gravedad + rotación), en DOS oleadas
   var W=window.innerWidth||360,Hh=window.innerHeight||640;
   var cx=W/2,cy=Hh*0.55;
@@ -3124,22 +3134,20 @@ function nukeExplosion(){
       for(var j=0;j<debris.length;j++){
         var d=debris[j];if(d.done)continue;alive=true;
         d.vy+=0.6;d.vx*=0.99;d.x+=d.vx;d.y+=d.vy;d.rot+=d.vr;d.life++;
-        var op=Math.max(0,1-d.life/110);
+        var op=Math.max(0,1-d.life/90);
         d.el.style.transform='translate('+d.x.toFixed(1)+'px,'+d.y.toFixed(1)+'px) rotate('+d.rot.toFixed(0)+'deg)';
         d.el.style.opacity=op;
         if(op<=0||d.y>Hh+80)d.done=true;
       }
-      if((alive||elapsed<600)&&elapsed<4600)requestAnimationFrame(step);
+      if((alive||elapsed<600)&&elapsed<3600)requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
   }
-  // vibración más larga e intensa (si el dispositivo lo soporta)
-  if(navigator.vibrate)try{navigator.vibrate([0,140,50,220,60,160,50,260,70,140,50,200,60,120]);}catch(e){}
   if(typeof sndError==='function')try{sndError();}catch(e){}
   setTimeout(function(){
     if(ov.parentNode)ov.parentNode.removeChild(ov);
-    document.body.classList.remove('nuke-shake','nuke-shake-mid','nuke-shake-soft');
-  },5000);
+    document.body.classList.remove('nuke-shake');
+  },3800);
 }
 /* 1c (v0.7.1): burst de escala + partículas CSS al confirmar el borrado.
    Las partículas no tienen listeners: quitarlas del DOM es seguro. */
