@@ -6,6 +6,63 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 
 ## v0.7.1 (en desarrollo) — correcciones post-testing + coordinación sitio web / bot Notion
 
+### r20 (10-jul-2026) — P1/P2 causa raíz real (cascada CSS), Q2/C2, A2, F3, U1–U3
+**Contexto:** P1/P2/P3/Q1/C-CRM se habían reportado "resueltos" 2-3 veces y seguían mal
+en el celular. PASO 0 verificado: Pages SÍ servía el build r19 (SW key en producción =
+commit) → el problema NO era el deploy, era que los fixes no funcionaban de verdad.
+Esta ronda se verificó con Chrome REAL a 390px (puppeteer-core manejando el Chrome
+instalado), no solo jsdom.
+- **P1/P2 — CAUSA RAÍZ (la regla vieja que nunca se quitó):** `.timer-widget.running
+  .timer-top` (styles.css, bloque RUNNING) pone `position:fixed;top:1rem;right:1rem;
+  width:96px;z-index:100`. En modo rápido el timer SIEMPRE corre → `.running` activo →
+  esa regla (especificidad 0,3,0) le GANABA al fix `body.quick-mode .timer-top` (0,2,1):
+  la mascota de 150px quedaba clavada en la esquina sup. derecha dentro de una caja
+  fija de 96px, saliéndose de la pantalla (right=435 con viewport de 390 — medido en
+  producción r19), y las barras quedaban despegadas arriba. Fix: selector
+  `body.quick-mode .timer-widget.running .timer-top` (0,4,1) que neutraliza position/
+  width/fondo/borde/sombra. Verificado en render real: mascota centrada (x 120–270),
+  en flujo, barras integradas debajo, sin scroll horizontal.
+- **P3 — navbar en modo rápido: NO reproducible en r19.** Verificado en el DOM real de
+  producción: `body.quick-mode` se aplica y `.navbar` queda `display:none`. Si en el
+  celular se sigue viendo, es SW/caché viejo del dispositivo (cerrar todas las pestañas
+  de la app o "Borrar datos del sitio" y recargar).
+- **E2 — navbar en viewAdvisor: NO reproducible en r19.** En render real el navbar está
+  visible (top 788) y la barra `.advisor-cta` (sticky, z51) termina exactamente donde
+  empieza el navbar, sin taparlo ni ocultarlo. No se tocó nada.
+- **Q2+C2 — "Personas involucradas" en UNA slide:** los `<h2>` "¿Quién ofrece la
+  propiedad?" y "Personas involucradas / CRM" eran hijos directos de #viewCapture, y
+  cada hijo directo = slide en qkCollectSlides → seguían siendo 3-5 pasos. Ahora hay UN
+  `<h2>Personas involucradas</h2>` + un `.qk-group` que envuelve ofreceChips + crmChips
+  + btnPickContact + crmCards → una sola slide con los 3 bloques (verificado: 27→23
+  slides; screenshot muestra todo junto). En captura normal se ve igual que antes
+  (el .qk-group no tiene CSS).
+- **A2 — timer ya no se reinicia al completar faltantes:** generate() llamaba
+  `resetTimerToReady()` → el timer quedaba en 10:00 fresco. Nueva `stopTimerFinished()`:
+  detiene conservando el tiempo restante y `_timerAutoPaused=false` evita que
+  timerAutoResume() lo reanude al entrar a "completar faltantes". El reset a fresco
+  queda SOLO al empezar captura nueva (doReset/btnEmpezarCaptura/qkStart).
+  test_timer.js T4 actualizado al comportamiento nuevo (17/17).
+- **F3 — explosión ~5 s con más drama:** fases carga → destello cegador → onda
+  expansiva (4 anillos) → hongo grande → lluvia de escombros en 2 oleadas con física
+  rAF → humo que se disipa. Sacudida de pantalla intensa y SOSTENIDA en 3 escalones
+  decrecientes (~3.9 s total, clases `.nuke-shake`→`-mid`→`-soft` con animación
+  infinita retirada por tiempo) + `navigator.vibrate` largo. Sigue llamada en
+  try/catch y limpieza garantizada a los 5 s.
+- **U1 — dirección: identificación rápida de calles (tipo wiggot):** ahora Photon
+  (komoot, gratis) como buscador primario — autocomplete real de prefijos con sesgo a
+  Cuernavaca — y Nominatim como fallback, ahora con `addressdetails=1` (sin él,
+  `it.address` llegaba vacío y la zona NUNCA se autollenaba desde sugerencias),
+  limit 8 y sin duplicar la ciudad si ya la escribiste. Mínimo 3 letras (antes 5),
+  debounce 250 ms, caché de sesión y guard anti-respuestas fuera de orden.
+- **U2 — características:** fuera "Cocina americana" y "Baño en suite" de la lista
+  rápida de casa (pedido del dueño). Los alias de anuncios siguen normalizando.
+- **U3 — botón Siguiente encima del modal de contacto (escritorio):** `.overlay`
+  tenía z-index 100 y la barra del modo rápido `.qk-nav` 300 → el Siguiente se pintaba
+  ENCIMA del modal de persona. Overlay ahora z-index 340 (verificado en render real:
+  el modal tapa la barra).
+- SW `capturador-v0.7.1-r20` · APP_VER `v0.7.1-r20`. Suite completa verde
+  (75+17+37+40+22+5+131+27 + check_ids).
+
 ### Bloques A–D (07-jul-2026) — push, diagnóstico fotos, tema claro
 - **A — push de v0.7.1:** las 8 fases estaban commiteadas pero SIN pushear (por eso el dueño no las veía en el celular). Pusheadas a `origin/main`. SW final del empuje: `v0.7.1-r9`.
 - **B — fotos de Drive: causa raíz REAL.** GAS v3.6 funciona correctamente (verificado con GET/POST reales): `firstImageUrl_` detecta el JPG de "Burgos amigo de Paco", persiste `fotoUrl` y el GET devuelve `fotos:{uuid:thumbnail}`; la miniatura es pública (curl anónimo → 200 image/jpeg). La foto NO aparecía porque **la app en Pages era la versión vieja (B7): no lee `data.fotos` ni dispara `refreshFotos`**. Además `refreshFotos` nunca había corrido, así que la columna estaba vacía (se pobló al dispararlo). **Fix = desplegar v0.7.1 (Bloque A).** El frontend (Fase -1) ya fusiona `data.fotos` y dispara `refreshFotos` (throttle 5 min) al abrir historial. `gasPost` usa `fetch` POST (el navegador sigue el redirect de Apps Script bien; el problema de "POST pierde el body" era solo de curl con `-L`). Test de regresión: `tests/test_fotos.js` (6 asserts: render de `<img>` desde `data.fotos`, disparo de refreshFotos con carpeta sin foto, throttle). **Drive:** el archivo de Burgos ya es accesible sin login; si una foto NO carga, verificar en Drive que el archivo tenga permiso "Cualquiera con el enlace (Lector)".

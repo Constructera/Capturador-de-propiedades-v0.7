@@ -104,17 +104,25 @@ function entrarQuick(w) { goCard(w, '#homeQuickCard'); $(w, 'btnEmpezarCaptura')
   var alContinuar = tsecs(w2);
   assert(alContinuar <= antesSalir && alContinuar >= antesSalir - 2, 'reanuda desde ~el tiempo guardado (' + alContinuar + 's), NO reinicia a 300');
 
-  console.log('\n[T4] A1: tras generar, el timer queda en ready (no reanuda uno viejo)');
+  console.log('\n[T4] A2: tras generar, el timer queda DETENIDO conservando el tiempo (no reinicia)');
   var w4 = boot();
   goCard(w4, '.home-card.hc-property'); $(w4, 'btnEmpezarCaptura').click(); // captura tradicional
   await sleep(20);
   $(w4, 'btnIniciarCaptura').click(); // arranca el timer manualmente
   await sleep(20);
   assert(tstate(w4) === 'running', 'timer corriendo antes de generar');
+  var antesGen = tsecs(w4);
   clickChip(w4, 'tipoChips', 'Casa');
   $(w4, 'btnGen').click(); // generar (traditional: genera sin importar completitud)
   await sleep(40);
-  assert(tstate(w4) === 'ready', 'timer en ready tras generar la captura');
+  assert(tstate(w4) === 'paused', 'timer DETENIDO (paused) tras generar, no reiniciado a ready');
+  var trasGen = tsecs(w4);
+  assert(trasGen <= antesGen && trasGen >= antesGen - 3, 'conserva el tiempo restante (' + trasGen + 's), NO vuelve al límite completo');
+  // A2: entrar a "completar faltantes" NO lo reanuda ni lo reinicia
+  $(w4, 'resBtnCompletar').click();
+  await sleep(40);
+  assert(tstate(w4) === 'paused', 'sigue detenido al entrar a completar faltantes (no vuelve a correr)');
+  assert(tsecs(w4) === trasGen, 'el tiempo no cambió al entrar a completar faltantes');
 
   console.log('\n[T6] A3: al EDITAR una propiedad el timer NO corre ni da estrella de tiempo');
   var w6 = boot();

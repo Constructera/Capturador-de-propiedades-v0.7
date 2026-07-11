@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r19';
+var APP_VER='v0.7.1-r20';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -535,6 +535,19 @@ function resetTimerToReady(){
   _timerAudioTs='ready';
   setMascotState('idle');
 }
+/* A2 (v0.7.1 r20): al TERMINAR una captura (generar) el timer se DETIENE
+   conservando el tiempo restante — NO se reinicia a lo completo (10:00). Antes
+   generate() llamaba resetTimerToReady() y el timer aparecía "reiniciado"; al
+   entrar a "completar faltantes" seguía viéndose fresco. Ahora queda detenido y
+   se mantiene detenido (no vuelve a correr): _timerAutoPaused=false evita que
+   timerAutoResume() lo reanude. El reinicio a fresco pasa SOLO al empezar una
+   captura nueva (resetTimerToReady en doReset / btnEmpezarCaptura / qkStart). */
+function stopTimerFinished(){
+  clearInterval(timerInterval);timerInterval=null;
+  if(timerState==='running'||timerState==='paused')timerState='paused';
+  _timerAutoPaused=false;
+  updateTimerUI();
+}
 // inicializar display y chip según preferencia guardada
 (function(){
   var d=$('timerDisplay');if(d)d.textContent=timerFmt(timerLimit);
@@ -937,8 +950,8 @@ var CAR_CASA=[
   'Recámara en PB','Cuarto de lavado','Cámaras de seguridad','Bodega','Jacuzzi',
   'Área de BBQ / asador','Iluminación natural','Ventilación natural','Vista panorámica','Juegos infantiles',
   'Salón de eventos','Gimnasio','Pádel','Paneles solares','Cisterna propia','Acabados de lujo',
-  // Siguientes 21 — colapsados bajo "Ver más"
-  'Cocina americana','Isla de cocina','Recámara principal amplia','Baño en suite','Patio privado',
+  // Siguientes — colapsados bajo "Ver más" (U2 r20: fuera "Cocina americana" y "Baño en suite" por pedido del dueño)
+  'Isla de cocina','Recámara principal amplia','Patio privado',
   'Vista al jardín','En condominio','Áreas comunes','Coworking en amenidades','Parque privado / pet park',
   'Videoportero','Portón automático','Domótica','Internet de fibra','Doble altura',
   'Pisos de madera','Vista a la montaña','Sauna / vapor','Amueblada','Nueva','Gas instalado'
@@ -1443,42 +1456,100 @@ $('btnIgualaTodo').addEventListener('click',function(){
     msg.style.display='none';
   });
 });
-/* ===================== DIRECCIÓN: autocompletado ===================== */
-var sugTimer=null;
+/* ===================== DIRECCIÓN: autocompletado =====================
+   U1 (r20): identificación rápida de calles tipo wiggot.
+   - PRIMARIO: Photon (komoot, gratis, sin key) — autocomplete REAL de prefijos:
+     encuentra la calle con pocas letras y tolera texto parcial, que era lo que
+     Nominatim /search no lograba ("algunas calles no logra autorellenar").
+     Sesgo geográfico a Cuernavaca (lat/lon bias).
+   - FALLBACK: Nominatim /search si Photon falla o no da resultados, ahora con
+     addressdetails=1 (sin él it.address llegaba vacío y la zona NUNCA se
+     autollenaba desde una sugerencia) y limit=8.
+   - Menos fricción: mínimo 3 letras (antes 5), debounce 250 ms (antes 300),
+     token anti-respuestas-fuera-de-orden y mini-caché por sesión. */
+var sugTimer=null,_sugSeq=0,_sugCache={};
+var GEO_BIAS={lat:18.9242,lon:-99.2216}; // Cuernavaca centro
 $('f_direccion').addEventListener('input',function(){
   updateProgress();
   var q=$('f_direccion').value.trim();clearTimeout(sugTimer);
-  if(q.length<5){$('dirSuggest').style.display='none';return;}
-  sugTimer=setTimeout(function(){buscarDireccion(q);},300);
+  if(q.length<3){$('dirSuggest').style.display='none';return;}
+  sugTimer=setTimeout(function(){buscarDireccion(q);},250);
 });
+/* normaliza un feature de Photon a {label,lat,lon,zona} */
+function _sugFromPhoton(f){
+  var p=f.properties||{},g=(f.geometry&&f.geometry.coordinates)||null;
+  if(!g)return null;
+  var partes=[];
+  var calle=p.name||p.street||'';
+  if(p.housenumber&&p.street&&p.name!==p.street)calle=p.street+' '+p.housenumber+(p.name?' ('+p.name+')':'');
+  else if(p.housenumber)calle+=' '+p.housenumber;
+  if(calle)partes.push(calle);
+  if(p.district&&p.district!==calle)partes.push(p.district);
+  if(p.city)partes.push(p.city);
+  if(p.state)partes.push(p.state);
+  if(p.postcode)partes.push(p.postcode);
+  if(!partes.length)return null;
+  return {label:partes.join(', '),lat:parseFloat(g[1]),lon:parseFloat(g[0]),zona:p.district||p.locality||p.suburb||''};
+}
+/* normaliza un resultado de Nominatim a {label,lat,lon,zona} */
+function _sugFromNominatim(it){
+  var a=it.address||{};
+  return {label:it.display_name,lat:parseFloat(it.lat),lon:parseFloat(it.lon),
+    zona:a.neighbourhood||a.suburb||a.quarter||a.residential||''};
+}
+function _renderSug(items){
+  var box=$('dirSuggest');box.innerHTML='';
+  if(!items||!items.length){box.style.display='none';return;}
+  items.forEach(function(s){
+    var d=document.createElement('div');d.textContent='📍 '+s.label;
+    d.addEventListener('click',function(){
+      $('f_direccion').value=s.label;
+      setGeo(s.lat,s.lon,'Dirección y coordenadas cargadas. Corrige el número exterior si hace falta.');
+      autoZonaFromSug(s.zona);box.style.display='none';updateProgress();
+    });
+    box.appendChild(d);
+  });
+  box.style.display='block';
+}
 function buscarDireccion(q){
-  fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=mx&accept-language=es&q='+encodeURIComponent(q+' Cuernavaca'))
+  var seq=++_sugSeq;
+  var key=q.toLowerCase();
+  if(_sugCache[key]){_renderSug(_sugCache[key]);return;}
+  var done=function(items){
+    if(seq!==_sugSeq)return; // llegó tarde: ya hay una búsqueda más nueva
+    if(items&&items.length)_sugCache[key]=items;
+    _renderSug(items);
+  };
+  fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&limit=6&lat='+GEO_BIAS.lat+'&lon='+GEO_BIAS.lon+'&location_bias_scale=0.4&zoom=14')
   .then(function(r){return r.json();})
   .then(function(res){
-    var box=$('dirSuggest');box.innerHTML='';
-    if(!res||!res.length){box.style.display='none';return;}
-    res.forEach(function(it){
-      var d=document.createElement('div');d.textContent='📍 '+it.display_name;
-      d.addEventListener('click',function(){
-        $('f_direccion').value=it.display_name;
-        setGeo(parseFloat(it.lat),parseFloat(it.lon),'Dirección y coordenadas cargadas. Corrige el número exterior si hace falta.');
-        autoZonaFromAddr(it);box.style.display='none';updateProgress();
-      });
-      box.appendChild(d);
-    });
-    box.style.display='block';
+    var items=((res&&res.features)||[]).map(_sugFromPhoton).filter(Boolean)
+      // solo México (Photon puede colar resultados lejanos pese al bias)
+      .filter(function(s){return !isNaN(s.lat)&&s.lat>14&&s.lat<33&&s.lon>-120&&s.lon<-86;});
+    if(items.length){done(items);return;}
+    return _buscarNominatim(q,done);
   })
+  .catch(function(){_buscarNominatim(q,done);});
+}
+function _buscarNominatim(q,done){
+  // si el usuario no escribió la ciudad, se ancla a Cuernavaca como antes
+  var qq=/cuernavaca|jiutepec|temixco|zapata|morelos/i.test(q)?q:(q+' Cuernavaca');
+  return fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&countrycodes=mx&accept-language=es&addressdetails=1&q='+encodeURIComponent(qq))
+  .then(function(r){return r.json();})
+  .then(function(res){done((res||[]).map(_sugFromNominatim));})
   .catch(function(){
     $('dirSuggest').style.display='none';
     $('geoStatus').className='status';
     $('geoStatus').textContent='Las sugerencias de mapa no cargaron aquí; al abrir la URL en el navegador del celular sí funcionan.';
   });
 }
-function autoZonaFromAddr(it){
-  if(zonasSel.length)return;
+function autoZonaFromSug(z){
+  if(zonasSel.length||!z)return;
+  pickZona(z,zonasAll().every(function(x){return x.n.toLowerCase()!==z.toLowerCase();}));
+}
+function autoZonaFromAddr(it){ // compat: la usa reverseGeo/btnAnuncio con formato Nominatim
   var a=it.address||{};
-  var z=a.neighbourhood||a.suburb||a.quarter||a.residential;
-  if(z){pickZona(z,zonasAll().every(function(x){return x.n.toLowerCase()!==z.toLowerCase();}));}
+  autoZonaFromSug(a.neighbourhood||a.suburb||a.quarter||a.residential||'');
 }
 
 /* ===================== GEO ===================== */
@@ -2049,7 +2120,7 @@ function generar(){
   // ranking real se deriva de las Capturas en el GAS; localmente no inflamos).
   if(asesorActivo&&!state.editId)updateAsesorStats(asesorActivo.id,estrellas,re);
   clearDraft(); // 2c: captura generada → el borrador ya no aplica
-  resetTimerToReady(); // A1: captura terminada → timer limpio para la próxima (evita reanudar uno viejo)
+  stopTimerFinished(); // A2: captura terminada → timer DETENIDO (conserva tiempo), NO reiniciado. Se reinicia solo al empezar una captura nueva (doReset/btnEmpezarCaptura/qkStart).
   sndSuccess();
   mostrarResultado(estrellas);
   checkLogros();
@@ -3004,56 +3075,71 @@ function confirmPinDelete(){
   // F (v0.7.1): la animación va al FINAL para que un fallo visual nunca bloquee el borrado
   try{nukeExplosion();}catch(_e){}
 }
-/* F/F2 (v0.7.1): animación exagerada tipo "bomba nuclear" al borrar (~3.5 s).
-   Overlay full-screen: doble destello + sacudida de pantalla → ondas de choque →
-   hongo ☢️ que sube con easing dramático → escombros con FÍSICA real (velocidad +
-   gravedad + rotación, animados por rAF, no solo fade) → texto. Nada tiene
-   listeners; quitar el overlay del DOM es seguro. */
+/* F3 (v0.7.1 r20): explosión MÁS dramática (~5 s) al borrar. Overlay full-screen
+   con MÁS fases: carga → destello cegador → onda expansiva (4 anillos) → hongo
+   ☢️ grande → lluvia de escombros con FÍSICA (2 oleadas, rAF) → humo que se
+   disipa. Sacudida de pantalla INTENSA y SOSTENIDA en 3 escalones decrecientes +
+   navigator.vibrate largo. Nada tiene listeners; quitar el overlay es seguro.
+   Se llama dentro de try/catch (confirmPinDelete) → un fallo visual nunca
+   bloquea el borrado. */
 function nukeExplosion(){
   var ov=document.createElement('div');ov.className='nuke-ov';
   ov.innerHTML=
+    '<div class="nuke-charge"></div>'+
     '<div class="nuke-flash"></div>'+
     '<div class="nuke-flash2"></div>'+
-    '<div class="nuke-ring"></div><div class="nuke-ring nuke-ring2"></div><div class="nuke-ring nuke-ring3"></div>'+
+    '<div class="nuke-ring"></div><div class="nuke-ring nuke-ring2"></div><div class="nuke-ring nuke-ring3"></div><div class="nuke-ring nuke-ring4"></div>'+
     '<div class="nuke-fire">💥</div>'+
     '<div class="nuke-mush">☢️</div>'+
+    '<div class="nuke-smoke"></div>'+
     '<div class="nuke-txt">¡ELIMINADA!</div>';
   document.body.appendChild(ov);
-  // sacudida breve de toda la pantalla
+  // sacudida INTENSA y SOSTENIDA en 3 escalones (antes solo 640 ms). Clases con
+  // animación infinita que se retiran por tiempo → el body nunca queda transformado.
   document.body.classList.add('nuke-shake');
-  setTimeout(function(){document.body.classList.remove('nuke-shake');},640);
-  // escombros con física simple (velocidad inicial radial + gravedad + rotación)
+  setTimeout(function(){document.body.classList.remove('nuke-shake');document.body.classList.add('nuke-shake-mid');},1500);
+  setTimeout(function(){document.body.classList.remove('nuke-shake-mid');document.body.classList.add('nuke-shake-soft');},2800);
+  setTimeout(function(){document.body.classList.remove('nuke-shake-soft');},3900);
+  // escombros con física (velocidad radial + gravedad + rotación), en DOS oleadas
   var W=window.innerWidth||360,Hh=window.innerHeight||640;
   var cx=W/2,cy=Hh*0.55;
   var debris=[];
-  for(var i=0;i<34;i++){
-    var el=document.createElement('span');el.className='nuke-deb';
-    el.style.left='0';el.style.top='0';
-    ov.appendChild(el);
-    var ang=Math.random()*Math.PI*2,spd=6+Math.random()*14;
-    debris.push({el:el,x:cx,y:cy,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd-7,rot:Math.random()*360,vr:(Math.random()-0.5)*44,life:0});
+  function spawn(n,spdBase){
+    for(var i=0;i<n;i++){
+      var el=document.createElement('span');el.className='nuke-deb';
+      el.style.left='0';el.style.top='0';ov.appendChild(el);
+      var ang=Math.random()*Math.PI*2,spd=spdBase+Math.random()*16;
+      debris.push({el:el,x:cx,y:cy,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd-9,rot:Math.random()*360,vr:(Math.random()-0.5)*54,life:0});
+    }
   }
+  spawn(40,8);
   var hasRAF=(typeof requestAnimationFrame==='function');
   if(hasRAF){
-    var start=null,last=null;
+    var start=null,secondWave=false;
     var step=function(ts){
-      if(start==null){start=ts;last=ts;}
-      last=ts;var alive=false;
+      if(start==null)start=ts;
+      var elapsed=ts-start;
+      if(!secondWave&&elapsed>300){secondWave=true;spawn(26,12);} // 2ª oleada
+      var alive=false;
       for(var j=0;j<debris.length;j++){
         var d=debris[j];if(d.done)continue;alive=true;
-        d.vy+=0.55;d.vx*=0.99;d.x+=d.vx;d.y+=d.vy;d.rot+=d.vr;d.life++;
-        var op=Math.max(0,1-d.life/72);
+        d.vy+=0.6;d.vx*=0.99;d.x+=d.vx;d.y+=d.vy;d.rot+=d.vr;d.life++;
+        var op=Math.max(0,1-d.life/110);
         d.el.style.transform='translate('+d.x.toFixed(1)+'px,'+d.y.toFixed(1)+'px) rotate('+d.rot.toFixed(0)+'deg)';
         d.el.style.opacity=op;
         if(op<=0||d.y>Hh+80)d.done=true;
       }
-      if(alive&&ts-start<3400)requestAnimationFrame(step);
+      if((alive||elapsed<600)&&elapsed<4600)requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
   }
-  if(navigator.vibrate)navigator.vibrate([60,40,30,50,90,40,120]);
+  // vibración más larga e intensa (si el dispositivo lo soporta)
+  if(navigator.vibrate)try{navigator.vibrate([0,140,50,220,60,160,50,260,70,140,50,200,60,120]);}catch(e){}
   if(typeof sndError==='function')try{sndError();}catch(e){}
-  setTimeout(function(){if(ov.parentNode)ov.parentNode.removeChild(ov);},3600);
+  setTimeout(function(){
+    if(ov.parentNode)ov.parentNode.removeChild(ov);
+    document.body.classList.remove('nuke-shake','nuke-shake-mid','nuke-shake-soft');
+  },5000);
 }
 /* 1c (v0.7.1): burst de escala + partículas CSS al confirmar el borrado.
    Las partículas no tienen listeners: quitarlas del DOM es seguro. */
