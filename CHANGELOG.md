@@ -4,7 +4,46 @@ Historial de versiones y fases de desarrollo del capturador de propiedades Hause
 
 ---
 
-## v0.7.1 (en desarrollo) — correcciones post-testing + coordinación sitio web / bot Notion
+## v1.0 (13-jul-2026) — 🎉 VERSIÓN SELLADA · LÍNEA BASE ESTABLE
+
+Cierre formal de versión. No trae features nuevas: consolida todo el trabajo de
+v0.7 / v0.7.1 (validado en dispositivo real por el dueño: navbar, barra de progreso
+y explosión ya quedaron bien en producción) y retira el andamiaje de QA.
+
+**Lo entregado en la línea v1.0 (resumen):**
+- Captura de propiedades completa (casa/depto/terreno/local/bodega) con esquema
+  canónico de la base Notion 🏠 Propiedades (21+ propiedades mapeadas, lista
+  never-write respetada, códigos PROP-/TERR-, estrellas → estatus).
+- **Captura Rápida** estilo Duolingo (slides, timer como barra de progreso, mascota
+  animada por estado de tiempo).
+- **Integración Drive/GAS v3.7.1:** subir fotos desde la app (iPhone incluido),
+  foto de portada en el catálogo, borrado real con PIN, ranking derivado de Capturas.
+- Ficha técnica compartible (imagen + vCard), historial, detalle tipo ficha,
+  markdown v3.4 coordinado con el sitio web y el bot de Notion.
+
+**Cambios de este cierre:**
+- **DEV_FEEDBACK retirado por completo.** Se borraron el bloque IIFE de `app.js`
+  (herramienta long-press de feedback + flag `DEV_FEEDBACK`/`DEVFB_HOLD_MS`), el
+  bloque `.devfb-` de `styles.css` y el test `tests/test_devfb.js`. Ya cumplió su
+  función de QA fino del dueño. Verificado: sin referencias residuales, suite verde.
+- **Versión visible → `v1.0`** en el header (`.ver-badge`), `<title>`, meta
+  description y `APP_VER`.
+- **SW cache key → `capturador-v1.0`** (bump final).
+- Documento de cierre técnico: `docs/CIERRE_v1.0.md` (estado, arquitectura,
+  acciones GAS, mapa de datos Sheet↔Notion, flujos y backlog v-next).
+- Tag de git `v1.0` como punto de retorno estable (la carpeta y el repo remoto NO
+  se renombran para no romper GitHub Pages).
+
+**Validación:** `node --check app.js` OK · `check_ids` sin huérfanos · suite completa
+(24 tests) verde · screenshot real 390px del home confirmando v1.0 y ausencia del FAB
+de feedback.
+
+**v1.0 es la línea base estable.** El trabajo siguiente se planea en sesiones nuevas
+(ver backlog v-next en `docs/CIERRE_v1.0.md`).
+
+---
+
+## v0.7.1 — correcciones post-testing + coordinación sitio web / bot Notion
 
 ### r21 (11-jul-2026) — T1/T2 (navbar en "¿Quién captura?", barra en modo normal) + F4 recalibrada
 Confirmado por el dueño en dispositivo real: P1/P2/Q2/C2/A2 de r20 quedaron bien.

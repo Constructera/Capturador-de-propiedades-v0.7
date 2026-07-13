@@ -8,7 +8,7 @@ var $=function(id){return document.getElementById(id);};
 
 /* Versión del build — fuente única para todos los .ver-badge del header.
    Debe coincidir con el CACHE de sw.js. Bump en cada push a origin/main. */
-var APP_VER='v0.7.1-r21';
+var APP_VER='v1.0';
 (function(){try{document.querySelectorAll('.ver-badge').forEach(function(b){b.textContent=APP_VER;});}catch(e){}})();
 
 /* ---------- config local ---------- */
@@ -4549,125 +4549,6 @@ function ctDoReset(){
   renderCtZonasOperChips();
   renderCtZonasOperAliadoChips();
   updateCtBadge();renderCtHist();
-})();
-
-/* ===================== DEV FEEDBACK (v0.7.1 Fase 0) =====================
-   Herramienta TEMPORAL de QA del dueño — QUITAR COMPLETA antes del release
-   final: borrar este bloque entero + el bloque .devfb- de styles.css.
-   Long-press de DEVFB_HOLD_MS sobre cualquier elemento → cuadro de comentario
-   con contexto automático (vista, slide del modo rápido, id del elemento).
-   Botón flotante 📋 exporta todo como markdown pensado para Claude Code.
-   No interfiere con taps ni scroll: nunca hace preventDefault; el timer se
-   cancela con soltar, mover >12px o scroll. */
-var DEV_FEEDBACK=true;            // ← apagar aquí (false) o borrar el bloque
-var DEVFB_HOLD_MS=5000;           // duración del long-press, configurable
-if(DEV_FEEDBACK)(function(){
-  var KEY='devfb';
-  function fbAll(){return load(KEY,[]);}
-  function fbStore(list){save(KEY,list);fbBadge();}
-  /* ---- DOM propio (creado aquí: cero rastro en index.html) ---- */
-  var fab=document.createElement('button');
-  fab.type='button';fab.className='devfb-fab';fab.title='Feedback dev — exportar comentarios';
-  fab.innerHTML='📋<span class="devfb-badge"></span>';
-  document.body.appendChild(fab);
-  var badge=fab.querySelector('.devfb-badge');
-  function fbBadge(){var n=fbAll().length;badge.textContent=n||'';badge.style.display=n?'flex':'none';}
-  fbBadge();
-  var ov=document.createElement('div');ov.className='overlay devfb-ov';
-  ov.innerHTML='<div class="modal"><div class="modal-head"><h3>📝 Comentario dev</h3>'+
-    '<button type="button" class="close-x devfb-x">×</button></div>'+
-    '<div class="modal-body"><div class="devfb-ctx"></div>'+
-    '<textarea class="devfb-txt" rows="4" placeholder="¿Qué está mal / qué mejorar aquí?"></textarea></div>'+
-    '<div class="modal-foot"><button type="button" class="btn devfb-cancel">Cancelar</button>'+
-    '<button type="button" class="btn btn-accent devfb-save" style="flex:1">Guardar comentario</button></div></div>';
-  document.body.appendChild(ov);
-  var ex=document.createElement('div');ex.className='overlay devfb-ov';
-  ex.innerHTML='<div class="modal"><div class="modal-head"><h3>📋 Feedback dev</h3>'+
-    '<button type="button" class="close-x devfb-x">×</button></div>'+
-    '<div class="modal-body"><pre class="devfb-pre"></pre></div>'+
-    '<div class="modal-foot"><button type="button" class="btn devfb-wipe">🗑 Borrar todos</button>'+
-    '<button type="button" class="btn btn-accent devfb-copy" style="flex:1">Copiar markdown</button></div></div>';
-  document.body.appendChild(ex);
-  var ctxBox=ov.querySelector('.devfb-ctx'),txt=ov.querySelector('.devfb-txt'),pre=ex.querySelector('.devfb-pre');
-  var pending=null;
-  /* ---- contexto automático ---- */
-  function fbCtx(target){
-    var v=document.querySelector('.view.active');
-    var c={ts:new Date().toISOString(),view:v?v.id:'?',slide:'',el:'',etq:''};
-    if(qkOn&&qkSlides.length)c.slide=(qkIdx+1)+'/'+qkSlides.length+' · '+(($('qkSec')&&$('qkSec').textContent)||'');
-    var withId=target&&target.closest?target.closest('[id]'):null;
-    c.el=withId&&withId.id?'#'+withId.id:(target&&target.tagName?'<'+target.tagName.toLowerCase()+'>':'?');
-    c.etq=String((target&&target.textContent)||'').trim().replace(/\s+/g,' ').slice(0,50);
-    return c;
-  }
-  function fbOpen(target){
-    pending=fbCtx(target);
-    ctxBox.textContent='📍 '+pending.view+(pending.slide?' · slide '+pending.slide:'')+' · '+pending.el+(pending.etq?' («'+pending.etq+'»)':'');
-    txt.value='';
-    ov.classList.add('show');
-    if(navigator.vibrate)navigator.vibrate(40);
-    setTimeout(function(){txt.focus();},80);
-  }
-  /* ---- long-press sin estorbar taps/scroll ---- */
-  var t=null,sx=0,sy=0,tgt=null;
-  function cancel(){if(t){clearTimeout(t);t=null;}}
-  document.addEventListener('pointerdown',function(e){
-    if(ov.classList.contains('show')||ex.classList.contains('show'))return;
-    if(e.target.closest('.devfb-fab'))return;
-    tgt=e.target;sx=e.clientX;sy=e.clientY;
-    cancel();
-    t=setTimeout(function(){t=null;fbOpen(tgt);},DEVFB_HOLD_MS);
-  },true);
-  document.addEventListener('pointermove',function(e){
-    if(!t)return;
-    if(Math.abs(e.clientX-sx)>12||Math.abs(e.clientY-sy)>12)cancel();
-  },true);
-  document.addEventListener('pointerup',cancel,true);
-  document.addEventListener('pointercancel',cancel,true);
-  window.addEventListener('scroll',cancel,true);
-  /* ---- guardar ---- */
-  ov.querySelector('.devfb-save').addEventListener('click',function(){
-    var texto=txt.value.trim();
-    if(!texto){ov.classList.remove('show');return;}
-    var list=fbAll();
-    list.push({ts:pending.ts,view:pending.view,slide:pending.slide,el:pending.el,etq:pending.etq,comentario:texto});
-    fbStore(list);
-    ov.classList.remove('show');
-  });
-  ov.querySelector('.devfb-cancel').addEventListener('click',function(){ov.classList.remove('show');});
-  /* ---- exportar markdown para Claude Code ---- */
-  function fbMd(){
-    var list=fbAll();
-    var md='# 📋 Feedback dev — Capturadora Hauser v0.7.1\n'+
-      'Exportado: '+new Date().toISOString()+' · '+list.length+' comentario(s)\n'+
-      'Formato: un bloque por comentario con contexto automático.\n';
-    list.forEach(function(c,i){
-      md+='\n## '+(i+1)+' — '+c.view+' · '+c.el+'\n'+
-        '- **Vista:** '+c.view+'\n'+
-        (c.slide?'- **Slide (modo rápido):** '+c.slide+'\n':'')+
-        '- **Elemento:** '+c.el+(c.etq?' («'+c.etq+'»)':'')+'\n'+
-        '- **Timestamp:** '+c.ts+'\n'+
-        '**Comentario:**\n'+c.comentario.split('\n').map(function(l){return '> '+l;}).join('\n')+'\n';
-    });
-    return md;
-  }
-  fab.addEventListener('click',function(){
-    pre.textContent=fbAll().length?fbMd():'(sin comentarios todavía — mantén presionado 5 s cualquier elemento para comentar)';
-    ex.classList.add('show');
-  });
-  ex.querySelector('.devfb-copy').addEventListener('click',function(){
-    var md=fbMd();var self=this;
-    function ok(){self.textContent='✓ Copiado';setTimeout(function(){self.textContent='Copiar markdown';},1500);}
-    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(md).then(ok).catch(function(){fallback();});
-    else fallback();
-    function fallback(){var ta=document.createElement('textarea');ta.value=md;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok();}catch(e){}document.body.removeChild(ta);}
-  });
-  ex.querySelector('.devfb-wipe').addEventListener('click',function(){
-    if(!confirm('¿Borrar TODOS los comentarios de feedback?'))return;
-    fbStore([]);pre.textContent='(sin comentarios)';
-  });
-  ov.querySelector('.devfb-x').addEventListener('click',function(){ov.classList.remove('show');});
-  ex.querySelector('.devfb-x').addEventListener('click',function(){ex.classList.remove('show');});
 })();
 
 /* ===================== SERVICE WORKER ===================== */

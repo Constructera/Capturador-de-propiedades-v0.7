@@ -1,7 +1,15 @@
-﻿# Proyecto: Capturadora Hauser v0.7
+﻿# Proyecto: Capturadora Hauser v1.0
 
-## ⚠️ TODO ANTES DEL RELEASE FINAL v0.7.1
-- **QUITAR la herramienta DEV_FEEDBACK por completo.** Está detrás del flag `DEV_FEEDBACK=true` (app.js, bloque delimitado "DEV FEEDBACK") + bloque CSS `.devfb-` en styles.css. Es TEMPORAL, solo para que el dueño dé feedback fino de las tarjetas por long-press. Borrar ambos bloques (app.js + styles.css) antes de publicar la versión final. (Sigue ACTIVO por pedido del dueño hasta que termine de dar feedback.)
+## ✅ v1.0 SELLADA (13-jul-2026) — LÍNEA BASE ESTABLE
+- **Versión cerrada.** Tag de git `v1.0` = punto de retorno estable. La carpeta y
+  el repo remoto NO se renombran (rompería GitHub Pages).
+- **DEV_FEEDBACK retirado por completo** en el cierre (ya cumplió su función). No
+  quedan bloques `DEV_FEEDBACK`/`.devfb-` ni `tests/test_devfb.js`.
+- **Documento de cierre técnico:** `docs/CIERRE_v1.0.md` — arquitectura, acciones
+  GAS v3.7.1, mapa de datos Sheet↔Notion, flujos y backlog v-next. Léelo primero
+  en cualquier sesión nueva.
+- El trabajo siguiente (deuda v1.0.x y roadmap v1.1/v1.2/v2) se planea en sesiones
+  nuevas. Esta versión es la base sobre la que se construye.
 
 ## Qué es esto
 Continuación de la app capturadora de propiedades Hauser/Inmobitera, versión v0.7.
@@ -89,9 +97,13 @@ referencial y evitar campos huérfanos:
   "Markdowns_backup_*" son respaldos de migración (no parsear, borrables por
   el dueño cuando quiera).
 
-## Estado v0.7
-- **Bloque 1 (02-jul-2026): COMPLETO, pendiente de aprobación del dueño.** Baños completos/medios, cuota de mantenimiento, indivisos, regla Departamento, comisión "Otra", características nuevas (+persistentes), historial solo lectura, bloque META de trazabilidad, campos Notion nuevos en el markdown. Ver CHANGELOG.md.
-- **Bloque 2 (siguiente): integración Drive/GAS.** El campo "Carpeta Drive" ya sale en el markdown como pendiente.
+## Estado v1.0 (SELLADA 13-jul-2026)
+- **Todo lo de v0.7 / v0.7.1 quedó COMPLETO y validado en dispositivo real.**
+  Bloque 1 (baños completos/medios, cuota, indivisos, regla Departamento, comisión
+  "Otra", características persistentes, historial, META, campos Notion nuevos) +
+  Bloque 2 (integración Drive/GAS v3.7.1: subir fotos, foto de portada, borrado con
+  PIN) + coordinación sitio web / bot Notion. Ver `docs/CIERRE_v1.0.md` y CHANGELOG.md.
+- **v1.0 es la línea base estable.** Backlog v-next documentado en `docs/CIERRE_v1.0.md`.
 
 ## Campos NUEVOS en Notion 🏠 Propiedades (creados 01-jul-2026, NO modificar la base)
 Base ID: be60a02b-18ff-838b-97ea-813e803d1c45. El markdown ya los mapea con estos nombres EXACTOS:
