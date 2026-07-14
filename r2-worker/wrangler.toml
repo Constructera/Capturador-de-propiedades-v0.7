@@ -1,0 +1,16 @@
+# Wrangler config del Worker "hauser-fotos" (puente R2).
+# Solo se usa si Daniel decide desplegar por CLI (ver README.md → alternativa).
+# La ruta recomendada es el Dashboard de Cloudflare, que NO necesita este archivo.
+
+name = "hauser-fotos"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+# Binding R2: dentro del Worker el bucket se ve como env.BUCKET.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "hauser-fotos"
+
+# El Secret HAUSER_TOKEN NO se pone aquí (es secreto). Se define con:
+#   wrangler secret put HAUSER_TOKEN
+# o desde el Dashboard → Settings → Variables and Secrets.
