@@ -550,7 +550,7 @@ function normHdr_(h) {
 
 function handleMigrateMarkdowns_(p) {
   if (String(p.pin || '') !== DELETE_PIN) return jsonOut({ok:false, error:'PIN incorrecto'});
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSS_();
   var res = {ok:true, acciones:[], conflictosAsesor:[]};
   var sh = ss.getSheetByName(MD_SHEET);
 
@@ -658,7 +658,7 @@ function handleMigrateMarkdowns_(p) {
 /* ===================== diagnóstico solo lectura (v3.3) ===================== */
 
 function diag_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSS_();
   var out = {ok:true, sheets:[]};
   ss.getSheets().forEach(function (s) {
     var hdr = headers_(s);
@@ -981,6 +981,17 @@ function buildAsesores_(hdr, rows) {
 
 /* ===================== helpers de hoja ===================== */
 
+/* Spreadsheet activo, compatible con AMBOS contextos sin bifurcar el archivo:
+ * - STAGING (proyecto standalone en script.google.com): getActiveSpreadsheet()
+ *   devuelve null. Se define la Script Property SHEET_ID y se abre por id.
+ * - PRODUCCIÓN (script embebido en el Sheet): NO se define SHEET_ID y cae a
+ *   getActiveSpreadsheet(), que ahí sí funciona.
+ * No se hardcodea ningún id: el id vive solo en la Script Property de staging. */
+function getSS_() {
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+}
+
 /* Columnas clave que identifican a una hoja legada como "la de verdad" cuando
    el histórico quedó en una pestaña con otro nombre (p. ej. "Hoja 1"). */
 var KEY_COLS = {};
@@ -998,7 +1009,7 @@ KEY_COLS[MD_SHEET] = ['uuid', 'markdown_md'];
    Nunca se elimina una hoja que tenga datos. Idempotente: tras la primera
    llamada, todo cae en el caso 1. */
 function getSheet_(name, canonical) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSS_();
 
   // 3. limpiar pestañas _conflict vacías (las genera Sheets en conflictos de edición)
   ss.getSheets().forEach(function (s) {
